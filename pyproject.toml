@@ -8,6 +8,9 @@ authors = [
 dependencies = [
     "garth>=0.5.17,<0.6.0",
     "psycopg2-binary>=2.9.11",
+    "flask>=3.0.0",
+    "python-dotenv>=1.0.0",
+    "gunicorn>=23.0.0",
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -173,6 +176,7 @@ unfixable = []  # Allow all fixes, including unsafe ones
 "garminconnect/workout.py" = ["D401"]  # Pydantic models - docstring mood is fine
 "demo.py" = ["T20", "S101", "ERA", "RUF001", "PTH", "PERF401", "PERF203", "PLR0911", "D103"]  # Demo script - various user-facing patterns
 "example.py" = ["S110", "PLR0911", "T20"]  # Example script - simple error handling is intentional
+"api_server.py" = ["T20", "S104", "S105", "ERA", "D103"]  # API server - print/bind patterns are intentional
 
 [tool.coverage.run]
 source = ["garminconnect"]

@@ -1,0 +1,13 @@
+services:
+  garmin-api:
+    build: .
+    container_name: garmin-api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - GARMINTOKENS=/tokens
+    volumes:
+      - ~/.garminconnect:/tokens:ro
+    restart: unless-stopped

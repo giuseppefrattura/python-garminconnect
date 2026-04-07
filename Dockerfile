@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Runtime dependency for psycopg2
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libpq5 && \
+    apt-get install -y --no-install-recommends libpq5 curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder

@@ -18,10 +18,13 @@ import os
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
+import time
+
 import psycopg2
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from garminconnect import (
     Garmin,
@@ -64,6 +67,17 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app)
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    log.info("%s %s - %s - %.4fs", request.method, request.url.path, response.status_code, process_time)
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +186,19 @@ MUSCLE_GROUP_MAP = {
 async def root():
     """Redirect to the Swagger UI documentation."""
     return RedirectResponse(url="/docs")
+
+
+# ---------------------------------------------------------------------------
+# Endpoint: /health
+# ---------------------------------------------------------------------------
+@app.get(
+    "/health",
+    summary="Health check",
+    tags=["System"],
+)
+async def health_check():
+    """Return health status of the API."""
+    return {"status": "ok", "garmin_api_initialized": _garmin_api is not None}
 
 
 # ---------------------------------------------------------------------------

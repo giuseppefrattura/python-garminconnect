@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garmin Connect Fitness Dashboard</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <!-- Modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 28, 45, 0.4);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-color: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #6366f1; /* Indigo */
+            --primary-glow: rgba(99, 102, 241, 0.35);
+            --success: #10b981; /* Emerald */
+            
+            /* HR Zones colors matching typical intensity scales */
+            --zone-1: #3b82f6; /* Blue - Recovery */
+            --zone-2: #10b981; /* Green - Aerobic Base */
+            --zone-3: #eab308; /* Yellow - Tempo */
+            --zone-4: #f97316; /* Orange - Threshold */
+            --zone-5: #ef4444; /* Red - Anaerobic */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.07) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        /* Container Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Header Area */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 40%, var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        /* Config Controls */
+        .config-panel {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.25rem 0.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            padding: 0 0.5rem;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            font-family: inherit;
+            font-weight: 600;
+            width: 70px;
+            outline: none;
+            font-size: 0.95rem;
+        }
+
+        /* Buttons & Forms */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 0.75rem 1.25rem;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            background: #4f46e5;
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            box-shadow: none;
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+
+        /* API Key Widget */
+        .api-key-widget {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .api-key-widget input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: inherit;
+            outline: none;
+            font-size: 0.85rem;
+            width: 140px;
+        }
+
+        /* Metric Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(16px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            opacity: 0.7;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.25);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+        }
+
+        .metric-unit {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .metric-footer {
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Visual Charts Area */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.75rem;
+            backdrop-filter: blur(16px);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            flex-grow: 1;
+            width: 100%;
+            height: 320px;
+        }
+
+        /* HR Zones Legend Grid */
+        .zones-legend-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .zone-legend-item {
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+        }
+
+        .zone-legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-bottom: 0.25rem;
+        }
+
+        .zone-legend-name {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        /* Database Table Card */
+        .table-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.75rem;
+            backdrop-filter: blur(16px);
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.03);
+            font-weight: 600;
+            color: var(--text-color);
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+            color: white;
+        }
+
+        /* Zone Badges */
+        .zone-badge-container {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .zone-mini-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            color: #fff;
+        }
+
+        /* Loading Overlay Spinner */
+        .loader-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            box-shadow: 0 0 15px var(--primary-glow);
+            margin-bottom: 1.5rem;
+        }
+
+        .loader-overlay p {
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* Alert Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(22, 28, 45, 0.9);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: translateY(150%);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 999;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+
+        .toast-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.75rem;
+            color: white;
+            background: var(--primary);
+        }
+
+        .toast-icon.success {
+            background: var(--success);
+        }
+
+        .toast-icon.error {
+            background: var(--zone-5);
+        }
+
+        /* Animations */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Utility classes */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- Header -->
+        <header>
+            <div class="header-title">
+                <h1>Garmin Connect Training Dashboard</h1>
+                <p>Advanced metrics & Heart-Rate zone analysis directly from your PostgreSQL Database</p>
+            </div>
+            
+            <div class="config-panel">
+                <div class="api-key-widget">
+                    <label for="apiKeyInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; cursor: pointer;">API Key:</label>
+                    <input type="password" id="apiKeyInput" placeholder="Enter X-API-Key..." onchange="saveApiKey(this.value)">
+                </div>
+
+                <div class="input-group">
+                    <label for="syncDaysInput">Sync window:</label>
+                    <input type="number" id="syncDaysInput" value="10" min="1" max="90">
+                    <span style="color: var(--text-muted); font-size: 0.8rem; padding-right: 0.5rem;">days</span>
+                </div>
+                
+                <button class="btn" onclick="syncGarminData()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M9 11l3-3 3 3m-3-3v12" /></svg>
+                    Sync Garmin
+                </button>
+                
+                <button class="btn btn-secondary" onclick="fetchDatabaseData()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                    Refresh
+                </button>
+
+                <button class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);" onclick="clearCache()">
+                    Clear Cache
+                </button>
+            </div>
+        </header>
+
+        <!-- Metric Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Runs in Database</div>
+                <div class="metric-value" id="cardTotalRuns">0<span class="metric-unit">activities</span></div>
+                <div class="metric-footer" id="cardTotalRunsFooter">No runs loaded</div>
+            </div>
+            
+            <div class="metric-card" style="border-color: rgba(16, 185, 129, 0.15);">
+                <div class="metric-label">Total Zone 2 (Aerobic Base)</div>
+                <div class="metric-value" id="cardZone2Mins" style="color: var(--success);">0<span class="metric-unit" style="color: var(--success);">mins</span></div>
+                <div class="metric-footer">Zone 2 is vital for building cardiorespiratory endurance</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Total Intensity Volume</div>
+                <div class="metric-value" id="cardTotalVolume">0<span class="metric-unit">mins</span></div>
+                <div class="metric-footer" id="cardTotalVolumeFooter">Across all zones (Z1 - Z5)</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-label">Latest Activity Date</div>
+                <div class="metric-value" id="cardLatestDate" style="font-size: 1.8rem; min-height: 48px; display: flex; align-items: center;">—</div>
+                <div class="metric-footer" id="cardLatestName">No synchronized activity</div>
+            </div>
+        </div>
+
+        <!-- Charts Area -->
+        <div class="charts-row">
+            <!-- Historical Runs Bar Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span style="color: var(--primary);">●</span> Heart-Rate Zones Stacked Breakdown (Historical Sessions)
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="historicalRunsChart"></canvas>
+                </div>
+                <div class="zones-legend-grid">
+                    <div class="zone-legend-item">
+                        <span class="zone-legend-color" style="background: var(--zone-1);"></span>
+                        <span class="zone-legend-name">Z1: Recovery</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <span class="zone-legend-color" style="background: var(--zone-2);"></span>
+                        <span class="zone-legend-name">Z2: Aerobic</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <span class="zone-legend-color" style="background: var(--zone-3);"></span>
+                        <span class="zone-legend-name">Z3: Tempo</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <span class="zone-legend-color" style="background: var(--zone-4);"></span>
+                        <span class="zone-legend-name">Z4: Threshold</span>
+                    </div>
+                    <div class="zone-legend-item">
+                        <span class="zone-legend-color" style="background: var(--zone-5);"></span>
+                        <span class="zone-legend-name">Z5: Anaerobic</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cumulative Pie Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <span style="color: var(--success);">●</span> Cumulative Zone Intensity Allocation
+                    </div>
+                </div>
+                <div class="chart-container" style="max-height: 320px; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="cumulativeZonesChart" style="max-width: 280px; max-height: 280px;"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Table Card -->
+        <div class="table-card">
+            <div class="chart-header" style="margin-bottom: 0;">
+                <div class="chart-title">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                    Persisted Running Activities (PostgreSQL Database)
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table id="dbRecordsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Garmin ID</th>
+                            <th>Activity Name</th>
+                            <th>Zone Distribution (Minutes)</th>
+                            <th>Total Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <h3>Loading Database Records...</h3>
+                                <p>Ensure docker microservices are healthy and running.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Spinner Loading Overlay -->
+    <div class="loader-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p id="loadingMessage">Contacting Garmin Proxy, please wait...</p>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-icon" id="toastIcon">i</div>
+        <div id="toastMessage" style="font-size: 0.9rem; font-weight: 500;">Initializing dashboard</div>
+    </div>
+
+    <script>
+        // Global Chart instances
+        let historicalChart = null;
+        let cumulativeChart = null;
+
+        // Initialize Settings
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedKey = localStorage.getItem("X-API-Key");
+            if (savedKey) {
+                document.getElementById("apiKeyInput").value = savedKey;
+            }
+            fetchDatabaseData();
+        });
+
+        function saveApiKey(val) {
+            localStorage.setItem("X-API-Key", val.trim());
+            showToast("API Key saved in browser local storage.", "success");
+            fetchDatabaseData();
+        }
+
+        function getAuthHeaders() {
+            const key = localStorage.getItem("X-API-Key");
+            return key ? { "X-API-Key": key } : {};
+        }
+
+        // Show toast alert
+        function showToast(message, type = "info") {
+            const toast = document.getElementById("toast");
+            const toastMsg = document.getElementById("toastMessage");
+            const toastIcon = document.getElementById("toastIcon");
+            
+            toastMsg.innerText = message;
+            
+            toastIcon.className = "toast-icon";
+            if (type === "success") {
+                toastIcon.classList.add("success");
+                toastIcon.innerText = "✓";
+            } else if (type === "error") {
+                toastIcon.classList.add("error");
+                toastIcon.innerText = "✗";
+            } else {
+                toastIcon.innerText = "i";
+            }
+            
+            toast.classList.add("show");
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 4000);
+        }
+
+        // Show/hide spinner loader
+        function toggleLoader(show, message = "Loading...") {
+            const overlay = document.getElementById("loadingOverlay");
+            const msgEl = document.getElementById("loadingMessage");
+            
+            if (show) {
+                msgEl.innerText = message;
+                overlay.style.display = "flex";
+            } else {
+                overlay.style.display = "none";
+            }
+        }
+
+        // Fetch persisted data from Postgres
+        async function fetchDatabaseData() {
+            try {
+                const response = await fetch("/api/run-hr-zones/db", {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    showToast("Unauthorized: Invalid or missing X-API-Key.", "error");
+                    renderEmptyTable("Invalid or missing X-API-Key. Enter it at the top right.");
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                processData(data);
+            } catch (err) {
+                console.error("Fetch DB error:", err);
+                showToast("Failed to connect to database API.", "error");
+                renderEmptyTable("Failed to fetch database records. Verify service connection.");
+            }
+        }
+
+        // Sync fresh data from Garmin
+        async function syncGarminData() {
+            const days = document.getElementById("syncDaysInput").value || 10;
+            toggleLoader(true, `Connecting to Garmin Connect and synchronizing last ${days} days...`);
+            
+            try {
+                const response = await fetch(`/api/run-hr-zones/persist?days=${days}`, {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    toggleLoader(false);
+                    showToast("Unauthorized: Invalid or missing X-API-Key.", "error");
+                    return;
+                }
+                
+                const result = await response.json();
+                toggleLoader(false);
+
+                if (result.status === "success" && result.data) {
+                    const saved = result.data.savedCount || 0;
+                    showToast(`Synchronization completed! Synced ${saved} running activities.`, "success");
+                    fetchDatabaseData(); // refresh database lists and graphs
+                } else {
+                    showToast(`Sync failed: ${result.detail || "Unknown error"}`, "error");
+                }
+            } catch (err) {
+                console.error("Garmin sync error:", err);
+                toggleLoader(false);
+                showToast("Network error or timeout during Garmin synchronization.", "error");
+            }
+        }
+
+        // Clear Garmin Proxy Cache
+        async function clearCache() {
+            toggleLoader(true, "Clearing Garmin Proxy cache...");
+            try {
+                const response = await fetch("http://localhost:8080/api/cache/clear", {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+                
+                toggleLoader(false);
+                if (response.ok) {
+                    showToast("Garmin Proxy Cache cleared successfully.", "success");
+                } else {
+                    showToast(`Cache clear failed (status ${response.status}).`, "error");
+                }
+            } catch (err) {
+                console.error("Cache clear error:", err);
+                toggleLoader(false);
+                showToast("Failed to connect to Garmin Proxy to clear cache.", "error");
+            }
+        }
+
+        // Process records and render cards/charts/table
+        function processData(records) {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+
+            if (!records || records.length === 0) {
+                renderEmptyTable("No running activities persisted in the PostgreSQL database. Click 'Sync Garmin' to pull training history.");
+                updateMetrics(0, 0, 0, null);
+                destroyCharts();
+                return;
+            }
+
+            // Calculations for metric cards
+            let totalRuns = records.length;
+            let totalZone2 = 0;
+            let totalVolume = 0;
+            
+            // Collect datasets for time-series stacked charts
+            const dates = [];
+            const names = [];
+            const z1Values = [];
+            const z2Values = [];
+            const z3Values = [];
+            const z4Values = [];
+            const z5Values = [];
+            
+            // Cumulative totals
+            let cumZ1 = 0, cumZ2 = 0, cumZ3 = 0, cumZ4 = 0, cumZ5 = 0;
+
+            // Render table rows
+            records.forEach(r => {
+                const z1 = Number(r.zone1Mins || 0);
+                const z2 = Number(r.zone2Mins || 0);
+                const z3 = Number(r.zone3Mins || 0);
+                const z4 = Number(r.zone4Mins || 0);
+                const z5 = Number(r.zone5Mins || 0);
+                
+                const activitySum = z1 + z2 + z3 + z4 + z5;
+                totalVolume += activitySum;
+                totalZone2 += z2;
+
+                // Cumulative additions
+                cumZ1 += z1;
+                cumZ2 += z2;
+                cumZ3 += z3;
+                cumZ4 += z4;
+                cumZ5 += z5;
+
+                // Stacked chart structures (we want chronological order left-to-right, so prepend)
+                dates.unshift(r.runDate);
+                names.unshift(r.activityName || "Running");
+                z1Values.unshift(z1);
+                z2Values.unshift(z2);
+                z3Values.unshift(z3);
+                z4Values.unshift(z4);
+                z5Values.unshift(z5);
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td style="font-weight: 500; color: white;">${r.runDate}</td>
+                    <td>${r.runTime || "—"}</td>
+                    <td style="font-family: monospace; font-size: 0.8rem;">${r.activityId}</td>
+                    <td style="font-weight: 500; color: var(--primary);">${escapeHtml(r.activityName || 'Running')}</td>
+                    <td>
+                        <div class="zone-badge-container">
+                            <span class="zone-mini-badge" style="background: var(--zone-1); opacity: ${z1 > 0 ? 1 : 0.25}">${z1.toFixed(1)}m</span>
+                            <span class="zone-mini-badge" style="background: var(--zone-2); opacity: ${z2 > 0 ? 1 : 0.25}">${z2.toFixed(1)}m</span>
+                            <span class="zone-mini-badge" style="background: var(--zone-3); opacity: ${z3 > 0 ? 1 : 0.25}">${z3.toFixed(1)}m</span>
+                            <span class="zone-mini-badge" style="background: var(--zone-4); opacity: ${z4 > 0 ? 1 : 0.25}">${z4.toFixed(1)}m</span>
+                            <span class="zone-mini-badge" style="background: var(--zone-5); opacity: ${z5 > 0 ? 1 : 0.25}">${z5.toFixed(1)}m</span>
+                        </div>
+                    </td>
+                    <td style="font-weight: 600; color: white;">${activitySum.toFixed(1)} mins</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update Metric Cards
+            const latest = records[0]; // records is sorted DESC, so first element is newest
+            updateMetrics(totalRuns, totalZone2, totalVolume, latest);
+
+            // Draw stacked historical chart
+            renderHistoricalChart(dates, names, z1Values, z2Values, z3Values, z4Values, z5Values);
+            
+            // Draw cumulative allocation chart
+            renderCumulativeChart(cumZ1, cumZ2, cumZ3, cumZ4, cumZ5);
+        }
+
+        function updateMetrics(totalRuns, totalZone2, totalVolume, latestRecord) {
+            document.getElementById("cardTotalRuns").innerHTML = `${totalRuns} <span class="metric-unit">runs</span>`;
+            document.getElementById("cardZone2Mins").innerHTML = `${totalZone2.toFixed(0)} <span class="metric-unit" style="color: var(--success);">mins</span>`;
+            document.getElementById("cardTotalVolume").innerHTML = `${totalVolume.toFixed(0)} <span class="metric-unit">mins</span>`;
+
+            if (totalRuns > 0) {
+                document.getElementById("cardTotalRunsFooter").innerText = `Synchronized Garmin database history`;
+                document.getElementById("cardTotalVolumeFooter").innerText = `Average run duration: ${(totalVolume / totalRuns).toFixed(0)} mins`;
+            } else {
+                document.getElementById("cardTotalRunsFooter").innerText = `No runs loaded`;
+                document.getElementById("cardTotalVolumeFooter").innerText = `Across all zones (Z1 - Z5)`;
+            }
+
+            const dateCard = document.getElementById("cardLatestDate");
+            const nameCard = document.getElementById("cardLatestName");
+
+            if (latestRecord) {
+                dateCard.innerText = latestRecord.runDate;
+                nameCard.innerText = escapeHtml(latestRecord.activityName || "Running");
+                nameCard.style.color = "var(--primary)";
+            } else {
+                dateCard.innerText = "—";
+                nameCard.innerText = "No synchronized activity";
+                nameCard.style.color = "var(--text-muted)";
+            }
+        }
+
+        // Render Stacked Column/Bar Chart
+        function renderHistoricalChart(dates, names, z1, z2, z3, z4, z5) {
+            const ctx = document.getElementById("historicalRunsChart").getContext("2d");
+            
+            if (historicalChart) {
+                historicalChart.destroy();
+            }
+
+            historicalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        { label: 'Zone 1', data: z1, backgroundColor: '#3b82f6', stack: 'Stack 0' },
+                        { label: 'Zone 2', data: z2, backgroundColor: '#10b981', stack: 'Stack 0' },
+                        { label: 'Zone 3', data: z3, backgroundColor: '#eab308', stack: 'Stack 0' },
+                        { label: 'Zone 4', data: z4, backgroundColor: '#f97316', stack: 'Stack 0' },
+                        { label: 'Zone 5', data: z5, backgroundColor: '#ef4444', stack: 'Stack 0' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    return `${dates[idx]} — ${names[idx]}`;
+                                },
+                                label: (item) => {
+                                    return ` ${item.dataset.label}: ${item.raw.toFixed(1)} mins`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } },
+                            title: { display: true, text: 'Minutes in Intensity Zones', color: '#9ca3af', font: { family: 'Outfit', weight: 500 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Pie/Doughnut cumulative intensity allocation
+        function renderCumulativeChart(z1, z2, z3, z4, z5) {
+            const ctx = document.getElementById("cumulativeZonesChart").getContext("2d");
+            const total = z1 + z2 + z3 + z4 + z5;
+
+            if (cumulativeChart) {
+                cumulativeChart.destroy();
+            }
+
+            if (total === 0) {
+                return;
+            }
+
+            cumulativeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Zone 1 (Recovery)', 'Zone 2 (Aerobic)', 'Zone 3 (Tempo)', 'Zone 4 (Threshold)', 'Zone 5 (Anaerobic)'],
+                    datasets: [{
+                        data: [z1, z2, z3, z4, z5],
+                        backgroundColor: ['#3b82f6', '#10b981', '#eab308', '#f97316', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#0b0f19'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const val = item.raw;
+                                    const pct = ((val / total) * 100).toFixed(1);
+                                    return ` ${item.label}: ${val.toFixed(0)}m (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function destroyCharts() {
+            if (historicalChart) historicalChart.destroy();
+            if (cumulativeChart) cumulativeChart.destroy();
+            historicalChart = null;
+            cumulativeChart = null;
+        }
+
+        function renderEmptyTable(message) {
+            document.getElementById("tableBody").innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <h3>No Training Data Displayed</h3>
+                        <p>${message}</p>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

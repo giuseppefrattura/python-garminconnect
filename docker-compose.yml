@@ -1,18 +1,12 @@
 services:
-  garmin-api:
-    build: .
-    container_name: garmin-api
+  garmin-proxy:
+    build: ./garmin-proxy
+    container_name: garmin-proxy
     ports:
       - "8080:8080"
-    env_file:
-      - .env
     environment:
       - GARMINTOKENS=/tokens
-      - DB_HOST=${DB_HOST:-}
-      - DB_PORT=${DB_PORT:-}
-      - DB_NAME=${DB_NAME:-}
-      - DB_USER=${DB_USER:-}
-      - DB_PASSWORD=${DB_PASSWORD:-}
+      - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s
@@ -21,4 +15,28 @@ services:
       start_period: 10s
     volumes:
       - ~/.garminconnect:/tokens:ro
+    restart: unless-stopped
+
+  garmin-service:
+    build: ./garmin-service
+    container_name: garmin-service
+    ports:
+      - "8081:8081"
+    environment:
+      - GARMIN_PROXY_URL=http://garmin-proxy:8080
+      - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-garmin}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+    depends_on:
+      garmin-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped

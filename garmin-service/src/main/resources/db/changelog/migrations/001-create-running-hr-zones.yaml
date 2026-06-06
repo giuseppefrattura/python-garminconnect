@@ -1,0 +1,64 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-running-hr-zones
+      author: giuseppefrattura
+      comment: "Initial schema: running_hr_zones table for persisting HR zone data"
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: running_hr_zones
+      changes:
+        - createTable:
+            tableName: running_hr_zones
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: activity_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: activity_name
+                  type: varchar(255)
+              - column:
+                  name: run_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: run_time
+                  type: time
+                  constraints:
+                    nullable: false
+              - column:
+                  name: zone_1_mins
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: zone_2_mins
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: zone_3_mins
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: zone_4_mins
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: zone_5_mins
+                  type: numeric(5,2)
+                  defaultValueNumeric: 0
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP

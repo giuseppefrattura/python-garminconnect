@@ -480,9 +480,63 @@
             color: var(--text-muted);
         }
 
-        .empty-state h3 {
+         .empty-state h3 {
             margin-bottom: 0.5rem;
             color: white;
+        }
+
+        /* Tabs Navigation styling */
+        .tabs-navigation {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2.2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0.5rem 1.2rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -0.8rem;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 3px 3px 0 0;
+            box-shadow: 0 -2px 10px var(--primary-glow);
+        }
+
+        /* Sync buttons panel adjustments */
+        .renpho-sync-panel {
+            display: flex;
+            gap: 0.75rem;
         }
     </style>
 </head>
@@ -525,8 +579,21 @@
             </div>
         </header>
 
-        <!-- Metric Cards -->
-        <div class="metrics-grid">
+        <!-- Tabs Navigation -->
+        <div class="tabs-navigation">
+            <button class="tab-btn active" id="tabBtnGarmin" onclick="switchTab('garmin')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                🏃 Garmin Analytics
+            </button>
+            <button class="tab-btn" id="tabBtnRenpho" onclick="switchTab('renpho')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                ⚖️ Renpho Scale
+            </button>
+        </div>
+
+        <div id="garminTabContent">
+            <!-- Metric Cards -->
+            <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Total Runs in Database</div>
                 <div class="metric-value" id="cardTotalRuns">0<span class="metric-unit">activities</span></div>
@@ -631,6 +698,112 @@
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+        </div> <!-- End of garminTabContent -->
+
+        <!-- Renpho Tab Content -->
+        <div id="renphoTabContent" style="display: none;">
+            <!-- Renpho Config & Actions Panel -->
+            <div class="config-panel" style="margin-bottom: 2rem; justify-content: flex-end;">
+                <button class="btn" onclick="syncRenphoData()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M9 11l3-3 3 3m-3-3v12" /></svg>
+                    Sync Renpho
+                </button>
+                <button class="btn btn-secondary" onclick="fetchRenphoData()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                    Refresh Renpho
+                </button>
+            </div>
+
+            <!-- Renpho Metric Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Latest Weight</div>
+                    <div class="metric-value" id="cardRenphoWeight">0<span class="metric-unit">kg</span></div>
+                    <div class="metric-footer" id="cardRenphoWeightFooter">No weight logs recorded</div>
+                </div>
+                
+                <div class="metric-card" style="border-color: rgba(16, 185, 129, 0.15);">
+                    <div class="metric-label">Body Fat %</div>
+                    <div class="metric-value" id="cardRenphoFat" style="color: var(--success);">0<span class="metric-unit" style="color: var(--success);">%</span></div>
+                    <div class="metric-footer" id="cardRenphoFatFooter">Body fat ratio to total mass</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Muscle Mass</div>
+                    <div class="metric-value" id="cardRenphoMuscle">0<span class="metric-unit">%</span></div>
+                    <div class="metric-footer" id="cardRenphoMuscleFooter">Active skeletal muscle percentage</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">BMI (Body Mass Index)</div>
+                    <div class="metric-value" id="cardRenphoBmi">0<span class="metric-unit">index</span></div>
+                    <div class="metric-footer" id="cardRenphoBmiFooter">Healthy range: 18.5 - 24.9</div>
+                </div>
+            </div>
+
+            <!-- Renpho Charts Area -->
+            <div class="charts-row">
+                <!-- Weight Trend Line Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span style="color: var(--primary);">●</span> Weight & Body Fat Trend (Chronological Logs)
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="renphoWeightChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Latest Body Composition Doughnut Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span style="color: var(--success);">●</span> Latest Body Composition Allocation
+                        </div>
+                    </div>
+                    <div class="chart-container" style="max-height: 320px; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="renphoBodyCompChart" style="max-width: 280px; max-height: 280px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Renpho Database Table Card -->
+            <div class="table-card">
+                <div class="chart-header" style="margin-bottom: 0;">
+                    <div class="chart-title">
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                        Persisted Scale Measurements (PostgreSQL Database)
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="renphoRecordsTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Weight (kg)</th>
+                                <th>Body Fat (%)</th>
+                                <th>Muscle (%)</th>
+                                <th>Bone (%)</th>
+                                <th>Water (%)</th>
+                                <th>BMI</th>
+                                <th>Resistance (Ω)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="renphoTableBody">
+                            <tr>
+                                <td colspan="9" class="empty-state">
+                                    <h3>Loading Renpho Database Records...</h3>
+                                    <p>Ensure the renpho-service container is running on port 8082.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -1032,6 +1205,303 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+
+        // ---------------------------------------------------------------------------
+        // Renpho Sincronizzazione & Rendering Frontend
+        // ---------------------------------------------------------------------------
+        let renphoWeightChartInstance = null;
+        let renphoBodyCompChartInstance = null;
+
+        function switchTab(tab) {
+            const garminBtn = document.getElementById("tabBtnGarmin");
+            const renphoBtn = document.getElementById("tabBtnRenpho");
+            const garminContent = document.getElementById("garminTabContent");
+            const renphoContent = document.getElementById("renphoTabContent");
+            
+            if (tab === "garmin") {
+                garminBtn.classList.add("active");
+                renphoBtn.classList.remove("active");
+                garminContent.style.display = "block";
+                renphoContent.style.display = "none";
+                fetchDatabaseData();
+            } else {
+                renphoBtn.classList.add("active");
+                garminBtn.classList.remove("active");
+                renphoContent.style.display = "block";
+                garminContent.style.display = "none";
+                fetchRenphoData();
+            }
+        }
+
+        async function fetchRenphoData() {
+            try {
+                const response = await fetch("http://localhost:8082/api/renpho/measurements");
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                processRenphoData(data);
+            } catch (err) {
+                console.error("Fetch Renpho DB error:", err);
+                showToast("Failed to connect to Renpho API on port 8082.", "error");
+                renderEmptyRenphoTable("Failed to fetch scale records. Ensure the renpho-service container is running.");
+            }
+        }
+
+        async function syncRenphoData() {
+            toggleLoader(true, "Connecting to Renpho Health Cloud and synchronizing weight logs...");
+            try {
+                const response = await fetch("http://localhost:8082/api/renpho/sync", {
+                    method: "POST"
+                });
+                const result = await response.json();
+                toggleLoader(false);
+                if (response.ok && result.status === "success") {
+                    const count = result.syncedCount || 0;
+                    showToast(`Renpho sync complete! Added ${count} new weight logs.`, "success");
+                    fetchRenphoData();
+                } else {
+                    showToast(`Renpho sync failed: ${result.detail || "Unknown error"}`, "error");
+                }
+            } catch (err) {
+                console.error("Renpho sync error:", err);
+                toggleLoader(false);
+                showToast("Network error or timeout during Renpho synchronization.", "error");
+            }
+        }
+
+        function processRenphoData(records) {
+            const tbody = document.getElementById("renphoTableBody");
+            tbody.innerHTML = "";
+            
+            if (!records || records.length === 0) {
+                renderEmptyRenphoTable("No weight logs found in PostgreSQL. Click 'Sync Renpho' to fetch history.");
+                updateRenphoMetrics(null);
+                destroyRenphoCharts();
+                return;
+            }
+            
+            // Update metrics with latest record (index 0)
+            const latest = records[0];
+            updateRenphoMetrics(latest);
+            
+            // Chronological lists for line chart (left to right)
+            const dates = [];
+            const weights = [];
+            const fatPercents = [];
+            
+            records.forEach(r => {
+                const rawDate = r.created_at ? r.created_at.substring(0, 10) : "—";
+                const rawTime = r.created_at ? r.created_at.substring(11, 16) : "—";
+                const w = Number(r.weight);
+                const fat = r.bodyfat ? Number(r.bodyfat) : null;
+                const mus = r.muscle ? Number(r.muscle) : null;
+                const bon = r.bone ? Number(r.bone) : null;
+                const wat = r.water ? Number(r.water) : null;
+                const bmi = r.bmi ? Number(r.bmi) : null;
+                const res = r.resistance ? Number(r.resistance) : null;
+                
+                dates.unshift(rawDate);
+                weights.unshift(w);
+                if (fat !== null) fatPercents.unshift(fat);
+                
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td style="font-weight: 500; color: white;">${rawDate}</td>
+                    <td>${rawTime}</td>
+                    <td style="font-weight: 600; color: var(--primary);">${w.toFixed(2)}</td>
+                    <td>${fat !== null ? fat.toFixed(1) + '%' : '—'}</td>
+                    <td>${mus !== null ? mus.toFixed(1) + '%' : '—'}</td>
+                    <td>${bon !== null ? bon.toFixed(1) + '%' : '—'}</td>
+                    <td>${wat !== null ? wat.toFixed(1) + '%' : '—'}</td>
+                    <td style="font-weight: 500; color: white;">${bmi !== null ? bmi.toFixed(1) : '—'}</td>
+                    <td>${res !== null ? res.toFixed(0) : '—'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            renderRenphoWeightChart(dates, weights, fatPercents);
+            renderRenphoBodyCompChart(latest);
+        }
+
+        function updateRenphoMetrics(latest) {
+            const weightCard = document.getElementById("cardRenphoWeight");
+            const weightFooter = document.getElementById("cardRenphoWeightFooter");
+            const fatCard = document.getElementById("cardRenphoFat");
+            const muscleCard = document.getElementById("cardRenphoMuscle");
+            const bmiCard = document.getElementById("cardRenphoBmi");
+            
+            if (!latest) {
+                weightCard.innerHTML = `0 <span class="metric-unit">kg</span>`;
+                weightFooter.innerText = "No weight logs recorded";
+                fatCard.innerHTML = `0 <span class="metric-unit">%</span>`;
+                muscleCard.innerHTML = `0 <span class="metric-unit">%</span>`;
+                bmiCard.innerHTML = `0 <span class="metric-unit">index</span>`;
+                return;
+            }
+            
+            const w = Number(latest.weight);
+            weightCard.innerHTML = `${w.toFixed(2)} <span class="metric-unit">kg</span>`;
+            
+            const dateStr = latest.created_at ? latest.created_at.substring(0, 10) : "—";
+            weightFooter.innerText = `Latest weigh-in recorded on ${dateStr}`;
+            
+            if (latest.bodyfat) {
+                fatCard.innerHTML = `${Number(latest.bodyfat).toFixed(1)} <span class="metric-unit">%</span>`;
+            } else {
+                fatCard.innerHTML = `—`;
+            }
+            
+            if (latest.muscle) {
+                muscleCard.innerHTML = `${Number(latest.muscle).toFixed(1)} <span class="metric-unit">%</span>`;
+            } else {
+                muscleCard.innerHTML = `—`;
+            }
+            
+            if (latest.bmi) {
+                bmiCard.innerHTML = `${Number(latest.bmi).toFixed(1)} <span class="metric-unit">index</span>`;
+            } else {
+                bmiCard.innerHTML = `—`;
+            }
+        }
+
+        function renderRenphoWeightChart(dates, weights, fatPercents) {
+            const ctx = document.getElementById("renphoWeightChart").getContext("2d");
+            
+            if (renphoWeightChartInstance) {
+                renphoWeightChartInstance.destroy();
+            }
+            
+            const datasets = [
+                {
+                    label: 'Weight (kg)',
+                    data: weights,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    yAxisID: 'y',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: true
+                }
+            ];
+            
+            if (fatPercents.length === weights.length) {
+                datasets.push({
+                    label: 'Body Fat (%)',
+                    data: fatPercents,
+                    borderColor: '#10b981',
+                    backgroundColor: 'transparent',
+                    yAxisID: 'y1',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0.3
+                });
+            }
+            
+            renphoWeightChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: { color: '#9ca3af', font: { family: 'Outfit' } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } },
+                            title: { display: true, text: 'Weight (kg)', color: '#9ca3af', font: { family: 'Outfit' } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: fatPercents.length > 0,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit' } },
+                            title: { display: true, text: 'Body Fat (%)', color: '#9ca3af', font: { family: 'Outfit' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRenphoBodyCompChart(latest) {
+            const ctx = document.getElementById("renphoBodyCompChart").getContext("2d");
+            
+            if (renphoBodyCompChartInstance) {
+                renphoBodyCompChartInstance.destroy();
+            }
+            
+            if (!latest || !latest.bodyfat || !latest.muscle || !latest.water || !latest.bone) {
+                return;
+            }
+            
+            const fat = Number(latest.bodyfat);
+            const muscle = Number(latest.muscle);
+            const water = Number(latest.water);
+            const bone = Number(latest.bone);
+            const other = Math.max(0, 100 - (fat + muscle + water + bone));
+            
+            renphoBodyCompChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Muscle Mass (%)', 'Body Fat (%)', 'Body Water (%)', 'Bone Mass (%)', 'Other (%)'],
+                    datasets: [{
+                        data: [muscle, fat, water, bone, other],
+                        backgroundColor: ['#6366f1', '#ef4444', '#3b82f6', '#eab308', '#6b7280'],
+                        borderWidth: 2,
+                        borderColor: '#0b0f19'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    return ` ${item.label}: ${item.raw.toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function renderEmptyRenphoTable(message) {
+            document.getElementById("renphoTableBody").innerHTML = `
+                <tr>
+                    <td colspan="9" class="empty-state">
+                        <h3>No Scale Data Displayed</h3>
+                        <p>${message}</p>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function destroyRenphoCharts() {
+            if (renphoWeightChartInstance) renphoWeightChartInstance.destroy();
+            if (renphoBodyCompChartInstance) renphoBodyCompChartInstance.destroy();
+            renphoWeightChartInstance = null;
+            renphoBodyCompChartInstance = null;
         }
     </script>
 </body>

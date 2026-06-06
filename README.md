@@ -81,6 +81,33 @@ This library enables developers to programmatically access Garmin Connect data i
 
 Compatible with all Garmin Connect accounts. See <https://connect.garmin.com/>
 
+## 🌐 Web Application & Dashboard Stack (Docker)
+
+In addition to the core library and command-line examples, this repository includes a multi-service containerized web application stack managed via Docker Compose.
+
+The stack comprises the following services:
+
+### 1. Garmin Proxy Service (`garmin-proxy` @ port `8080`)
+* Handles authentication and acts as a caching proxy for the Garmin Connect API.
+* Keeps OAuth tokens active and prevents rate limits.
+
+### 2. Garmin Fitness Analytics Dashboard (`garmin-service` @ port `8081`)
+* A Spring Boot web application serving a gorgeous, interactive glassmorphic dashboard (`http://localhost:8081`).
+* Visualizes your training logs, running metrics, activity trends, and custom Heart Rate Zone distributions.
+* Includes a built-in integration to switch tabs and view scale weight metrics pulled directly from the Renpho service database.
+
+![Garmin Connect Fitness Dashboard](/Users/giuseppefrattura/.gemini/antigravity-ide/brain/cdbf7798-709d-4382-a51d-9801c7883c2a/garmin_dashboard_1780741867826.png)
+
+### 3. Renpho Scale Sync Service & Standalone Dashboard (`renpho-service` @ port `8082`)
+* A FastAPI Python microservice that syncs weight and body composition data (body fat, muscle mass, BMI, bone, water, and impedance resistance) from the Renpho Health API to a local PostgreSQL instance.
+* Runs a background scheduler to automatically fetch new data daily.
+* Serves a standalone, fully-featured weight analytics dashboard (`http://localhost:8082`) with:
+  * **Auto-Sync on Load**: Automatically checks credentials status, connects to the Renpho cloud on page load to pull the latest scale records, and populates the database and graphs.
+  * **Analytics Charts**: Features interactive Chart.js visualizations including a Weight & Body Fat trend line graph and a detailed body mass composition doughnut chart.
+  * **Records History**: Displays all weigh-in logs in a responsive data table with a live search box to filter results by date.
+
+![Renpho Scale Standalone Dashboard](/Users/giuseppefrattura/.gemini/antigravity-ide/brain/cdbf7798-709d-4382-a51d-9801c7883c2a/dashboard_loaded_1780741367927.png)
+
 ## 📦 Installation
 
 Install from PyPI:

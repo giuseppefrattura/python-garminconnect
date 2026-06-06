@@ -30,6 +30,13 @@ services:
       - DB_NAME=${DB_NAME:-garmin}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-google-placeholder-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-google-placeholder-client-secret}
+      - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-apple-placeholder-client-id}
+      - APPLE_CLIENT_SECRET=${APPLE_CLIENT_SECRET:-apple-placeholder-client-secret}
+      - RENPHO_SERVICE_URL=http://renpho-service:8082
     depends_on:
       garmin-proxy:
         condition: service_healthy
@@ -51,7 +58,5 @@ services:
       - DB_NAME=${DB_NAME:-garmin}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-    ports:
-      - "8082:8082"
     restart: unless-stopped
 

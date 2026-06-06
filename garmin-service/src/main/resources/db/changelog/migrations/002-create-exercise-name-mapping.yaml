@@ -1,0 +1,25 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-exercise-name-mapping
+      author: giuseppefrattura
+      comment: "Create exercise_name_mapping table to support custom exercise names"
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: exercise_name_mapping
+      changes:
+        - createTable:
+            tableName: exercise_name_mapping
+            columns:
+              - column:
+                  name: original_name
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: custom_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false

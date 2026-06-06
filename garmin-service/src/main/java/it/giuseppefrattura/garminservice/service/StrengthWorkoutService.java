@@ -5,6 +5,8 @@ import it.giuseppefrattura.garminservice.dto.ActivityDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
+import it.giuseppefrattura.garminservice.model.ExerciseNameMapping;
+import it.giuseppefrattura.garminservice.repository.ExerciseNameMappingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ public class StrengthWorkoutService {
     private static final Logger log = LoggerFactory.getLogger(StrengthWorkoutService.class);
 
     private final GarminProxyClient proxy;
+    private final ExerciseNameMappingRepository mappingRepository;
 
     /**
      * Mapping from Garmin exercise categories to human-readable muscle groups.
@@ -55,8 +58,9 @@ public class StrengthWorkoutService {
             Map.entry("FARMERS_WALK", "Full Body/Core")
     );
 
-    public StrengthWorkoutService(GarminProxyClient proxy) {
+    public StrengthWorkoutService(GarminProxyClient proxy, ExerciseNameMappingRepository mappingRepository) {
         this.proxy = proxy;
+        this.mappingRepository = mappingRepository;
     }
 
     /**
@@ -104,6 +108,17 @@ public class StrengthWorkoutService {
         List<Map<String, Object>> sets = new ArrayList<>();
         Map<String, Double> volumeByGroup = new LinkedHashMap<>();
 
+        // Fetch custom mappings
+        Map<String, String> customNamesMap = new HashMap<>();
+        try {
+            List<ExerciseNameMapping> mappings = mappingRepository.findAll();
+            for (ExerciseNameMapping m : mappings) {
+                customNamesMap.put(m.getOriginalName(), m.getCustomName());
+            }
+        } catch (Exception ex) {
+            log.error("Could not load exercise name mappings from database", ex);
+        }
+
         try {
             ExerciseSetsResponse setsResponse = proxy.getExerciseSets(activityId);
             if (setsResponse != null && setsResponse.exerciseSets() != null) {
@@ -124,6 +139,12 @@ public class StrengthWorkoutService {
                         }
                     }
 
+                    String originalName = exName;
+                    String customName = customNamesMap.get(originalName);
+                    if (customName != null && !customName.isBlank()) {
+                        exName = customName;
+                    }
+
                     int reps = exSet.repetitionCount() != null ? exSet.repetitionCount() : 0;
                     double rawWeight = exSet.weight() != null ? exSet.weight() : 0.0;
                     double weightKg = rawWeight > 0 ? rawWeight / 1000.0 : 0.0;
@@ -132,6 +153,7 @@ public class StrengthWorkoutService {
                         Map<String, Object> setEntry = new LinkedHashMap<>();
                         setEntry.put("setNumber", setNum++);
                         setEntry.put("exercise", exName);
+                        setEntry.put("originalExercise", originalName);
                         setEntry.put("reps", reps);
                         setEntry.put("weightKg", Math.round(weightKg * 10.0) / 10.0);
                         sets.add(setEntry);
@@ -141,7 +163,7 @@ public class StrengthWorkoutService {
                             String muscleGroup = category != null
                                     ? MUSCLE_GROUP_MAP.getOrDefault(category,
                                     toTitleCase(category.replace("_", " ")))
-                                    : exName;
+                                    : originalName;
                             volumeByGroup.merge(muscleGroup, reps * weightKg, Double::sum);
                         }
                     }
@@ -181,5 +203,21 @@ public class StrengthWorkoutService {
             sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
         }
         return sb.toString();
+    }
+
+    /**
+     * Persist or remove a custom exercise name mapping.
+     */
+    public void saveExerciseNameMapping(String originalName, String customName) {
+        if (originalName == null || originalName.isBlank()) {
+            throw new IllegalArgumentException("Original exercise name cannot be empty");
+        }
+        if (customName == null || customName.isBlank()) {
+            if (mappingRepository.existsById(originalName)) {
+                mappingRepository.deleteById(originalName);
+            }
+        } else {
+            mappingRepository.save(new ExerciseNameMapping(originalName, customName));
+        }
     }
 }

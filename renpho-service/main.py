@@ -7,7 +7,6 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, BackgroundTasks, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
@@ -87,6 +86,15 @@ def init_db(conn):
     try:
         with conn.cursor() as cur:
             cur.execute(query)
+            # Check if bmr column exists, if not add it
+            cur.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='renpho_measurements' AND column_name='bmr';
+            """)
+            if not cur.fetchone():
+                logger.info("Adding 'bmr' column to 'renpho_measurements' table...")
+                cur.execute("ALTER TABLE renpho_measurements ADD COLUMN bmr INTEGER;")
             conn.commit()
         logger.info("Database schema validated/created successfully.")
     except Exception as e:
@@ -131,9 +139,9 @@ def sync_renpho() -> dict:
                 
                 query = """
                 INSERT INTO renpho_measurements (
-                    time_stamp, created_at, weight, bodyfat, muscle, bone, water, bmi, resistance, created_stamp
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (time_stamp) DO NOTHING;
+                    time_stamp, created_at, weight, bodyfat, muscle, bone, water, bmi, resistance, created_stamp, bmr
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (time_stamp) DO UPDATE SET bmr = EXCLUDED.bmr;
                 """
                 
                 cur.execute(query, (
@@ -146,7 +154,8 @@ def sync_renpho() -> dict:
                     m.get("water"),
                     m.get("bmi"),
                     m.get("resistance"),
-                    time_stamp
+                    time_stamp,
+                    m.get("bmr")
                 ))
                 
                 if cur.rowcount > 0:
@@ -259,11 +268,4 @@ async def trigger_sync():
             )
         
         return result
-
-# Mount static files to serve the front-end dashboard
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
-else:
-    logger.warning(f"Static directory not found at: {static_dir}")
 

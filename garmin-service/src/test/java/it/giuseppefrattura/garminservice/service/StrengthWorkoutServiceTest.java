@@ -6,6 +6,8 @@ import it.giuseppefrattura.garminservice.dto.ActivityDto.ActivityTypeDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
+import it.giuseppefrattura.garminservice.model.ExerciseNameMapping;
+import it.giuseppefrattura.garminservice.repository.ExerciseNameMappingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,8 +29,16 @@ class StrengthWorkoutServiceTest {
     @Mock
     private GarminProxyClient proxy;
 
+    @Mock
+    private ExerciseNameMappingRepository mappingRepository;
+
     @InjectMocks
     private StrengthWorkoutService service;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(mappingRepository.findAll()).thenReturn(List.of());
+    }
 
     private ActivityDto strengthActivity(long id, String name) {
         return new ActivityDto(id, name,
@@ -93,6 +103,36 @@ class StrengthWorkoutServiceTest {
             Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
             // 10*80 + 8*80 = 1440 kg total volume
             assertEquals(1440.0, volume.get("Chest"));
+        }
+
+        @Test
+        @DisplayName("Returns strength workout with custom exercise names applied")
+        void returnsStrengthWorkoutWithCustomExerciseNames() {
+            when(proxy.getActivities(0, 30)).thenReturn(List.of(
+                    strengthActivity(2, "Chest Day")
+            ));
+            when(proxy.getExerciseSets(2)).thenReturn(new ExerciseSetsResponse(List.of(
+                    activeSet("BENCH_PRESS", "bench_press", 10, 80000.0)  // 80 kg
+            )));
+            when(mappingRepository.findAll()).thenReturn(List.of(
+                    new ExerciseNameMapping("Bench Press", "Panca Piana")
+            ));
+
+            Map<String, Object> result = service.getLastStrengthWorkout(30);
+
+            assertEquals("success", result.get("status"));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> data = (Map<String, Object>) result.get("data");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
+            assertEquals(1, sets.size());
+            assertEquals("Panca Piana", sets.get(0).get("exercise"));
+            assertEquals("Bench Press", sets.get(0).get("originalExercise"));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
+            assertEquals(800.0, volume.get("Chest"));
         }
 
         @Test

@@ -5,6 +5,35 @@ spring:
   application:
     name: garmin-service
 
+  security:
+    user:
+      name: ${DASHBOARD_USER:admin}
+      password: ${DASHBOARD_PASSWORD:admin}
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google-placeholder-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google-placeholder-client-secret}
+            scope:
+              - email
+              - profile
+          apple:
+            client-id: ${APPLE_CLIENT_ID:apple-placeholder-client-id}
+            client-secret: ${APPLE_CLIENT_SECRET:apple-placeholder-client-secret}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/apple"
+            scope:
+              - name
+              - email
+            client-name: Apple
+        provider:
+          apple:
+            authorization-uri: https://appleid.apple.com/auth/authorize
+            token-uri: https://appleid.apple.com/auth/token
+            jwk-set-uri: https://appleid.apple.com/auth/keys
+            user-name-attribute: sub
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:garmin}
     username: ${DB_USER:postgres}
@@ -46,6 +75,8 @@ garmin:
     default-days: ${HR_ZONES_DEFAULT_DAYS:10}
   workouts:
     search-limit: ${WORKOUTS_SEARCH_LIMIT:30}
+  renpho:
+    url: ${RENPHO_SERVICE_URL:http://renpho-service:8082}
 
 # Logging
 logging:

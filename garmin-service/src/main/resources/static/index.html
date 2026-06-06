@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garmin Connect Fitness Dashboard</title>
+    <title>My Dashboard</title>
     <link rel="icon" type="image/png" href="/favicon.png">
     <!-- Modern typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,6 +88,19 @@
             align-items: center;
             gap: 1rem;
             flex-wrap: wrap;
+        }
+
+        .tab-control-panel {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            background: rgba(22, 28, 45, 0.2);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
         }
 
         .input-group {
@@ -538,6 +551,320 @@
             display: flex;
             gap: 0.75rem;
         }
+
+        .meal-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        /* Shopping List Styling */
+        .shopping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .shopping-category {
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .shopping-category:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .shopping-category h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .shopping-list-items {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .shop-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            cursor: pointer;
+            color: var(--text-color);
+            user-select: none;
+        }
+
+        .shop-item input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .shop-item input[type="checkbox"]:checked {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .shop-item input[type="checkbox"]:checked::after {
+            content: '✓';
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .shop-item input[type="checkbox"]:checked + span {
+            text-decoration: line-through;
+            color: var(--text-muted);
+            opacity: 0.7;
+        }
+
+        .day-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background: rgba(22, 28, 45, 0.25);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .day-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            padding: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .day-btn:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: white;
+        }
+
+        .day-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .day-content-card {
+            background: rgba(22, 28, 45, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .day-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .day-title-wrapper h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .day-title-wrapper p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.25rem;
+        }
+
+        .daily-total-summary {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .macro-badge-total {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 0.75rem 1.25rem;
+            text-align: center;
+            min-width: 90px;
+        }
+
+        .macro-badge-total .val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .macro-badge-total .lbl {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .meals-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .meal-card {
+            background: rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .meal-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .meal-icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: var(--primary);
+        }
+
+        .meal-card.pranzo .meal-icon-box {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: var(--success);
+        }
+
+        .meal-card.cena .meal-icon-box {
+            background: rgba(249, 115, 22, 0.15);
+            border: 1px solid rgba(249, 115, 22, 0.25);
+            color: #f97316;
+        }
+
+        .meal-details h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .meal-details ul {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .meal-details li {
+            font-size: 0.95rem;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .meal-details li::before {
+            content: '•';
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .meal-card.pranzo .meal-details li::before {
+            color: var(--success);
+        }
+
+        .meal-card.cena .meal-details li::before {
+            color: #f97316;
+        }
+
+        .meal-macros {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .macro-badge-mini {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 0.35rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .macro-badge-mini.kcal {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+        }
+
+        @media (max-width: 768px) {
+            .meal-layout {
+                grid-template-columns: 1fr;
+            }
+            .day-sidebar {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+            .meal-card {
+                grid-template-columns: 1fr;
+                text-align: center;
+                justify-items: center;
+            }
+            .meal-macros {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -547,11 +874,41 @@
         <!-- Header -->
         <header>
             <div class="header-title">
-                <h1>Garmin Connect Training Dashboard</h1>
+                <h1>My Dashboard</h1>
                 <p>Advanced metrics & Heart-Rate zone analysis directly from your PostgreSQL Database</p>
             </div>
             
-            <div class="config-panel">
+            <div>
+                <button class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444;" onclick="logout()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-navigation">
+            <button class="tab-btn active" id="tabBtnGarmin" onclick="switchTab('garmin')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                🏃 Garmin Analytics
+            </button>
+            <button class="tab-btn" id="tabBtnRenpho" onclick="switchTab('renpho')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                ⚖️ Renpho Scale
+            </button>
+            <button class="tab-btn" id="tabBtnMeal" onclick="switchTab('meal')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                🍽️ Piano Alimentare
+            </button>
+            <button class="tab-btn" id="tabBtnWorkout" onclick="switchTab('workout')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                🏋️ Allenamento
+            </button>
+        </div>
+
+        <div id="garminTabContent">
+            <!-- Garmin Control Panel -->
+            <div class="tab-control-panel">
                 <div class="api-key-widget">
                     <label for="apiKeyInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500; cursor: pointer;">API Key:</label>
                     <input type="password" id="apiKeyInput" placeholder="Enter X-API-Key..." onchange="saveApiKey(this.value)">
@@ -577,21 +934,7 @@
                     Clear Cache
                 </button>
             </div>
-        </header>
 
-        <!-- Tabs Navigation -->
-        <div class="tabs-navigation">
-            <button class="tab-btn active" id="tabBtnGarmin" onclick="switchTab('garmin')">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                🏃 Garmin Analytics
-            </button>
-            <button class="tab-btn" id="tabBtnRenpho" onclick="switchTab('renpho')">
-                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                ⚖️ Renpho Scale
-            </button>
-        </div>
-
-        <div id="garminTabContent">
             <!-- Metric Cards -->
             <div class="metrics-grid">
             <div class="metric-card">
@@ -741,6 +1084,12 @@
                     <div class="metric-value" id="cardRenphoBmi">0<span class="metric-unit">index</span></div>
                     <div class="metric-footer" id="cardRenphoBmiFooter">Healthy range: 18.5 - 24.9</div>
                 </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">BMR</div>
+                    <div class="metric-value" id="cardRenphoBmr">0<span class="metric-unit">kcal</span></div>
+                    <div class="metric-footer" id="cardRenphoBmrFooter">Daily calorie budget at rest</div>
+                </div>
             </div>
 
             <!-- Renpho Charts Area -->
@@ -772,11 +1121,12 @@
 
             <!-- Renpho Database Table Card -->
             <div class="table-card">
-                <div class="chart-header" style="margin-bottom: 0;">
-                    <div class="chart-title">
+                <div class="chart-header" style="margin-bottom: 1.25rem;">
+                    <div class="chart-title" style="display: flex; align-items: center; gap: 0.5rem;">
                         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
                         Persisted Scale Measurements (PostgreSQL Database)
                     </div>
+                    <input type="text" id="renphoTableSearch" placeholder="Filter by date (YYYY-MM-DD)..." oninput="filterRenphoTable()" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.75rem; color: white; font-family: inherit; outline: none; font-size: 0.85rem; min-width: 220px; transition: border-color 0.3s;">
                 </div>
                 
                 <div class="table-container">
@@ -791,14 +1141,15 @@
                                 <th>Bone (%)</th>
                                 <th>Water (%)</th>
                                 <th>BMI</th>
+                                <th>BMR (kcal)</th>
                                 <th>Resistance (Ω)</th>
                             </tr>
                         </thead>
                         <tbody id="renphoTableBody">
                             <tr>
-                                <td colspan="9" class="empty-state">
+                                <td colspan="10" class="empty-state">
                                     <h3>Loading Renpho Database Records...</h3>
-                                    <p>Ensure the renpho-service container is running on port 8082.</p>
+                                    <p>Ensure the renpho-service container is running.</p>
                                 </td>
                             </tr>
                         </tbody>
@@ -807,6 +1158,680 @@
             </div>
         </div>
 
+        <!-- Meal Plan Tab Content -->
+        <div id="mealTabContent" style="display: none;">
+            <div class="meal-layout">
+                <!-- Sidebar Selector -->
+                <div class="day-sidebar">
+                    <button class="day-btn active" onclick="selectMealDay('lun', this)">
+                        <span>Lunedì</span>
+                        <span>📅</span>
+                    </button>
+                    <button class="day-btn" onclick="selectMealDay('mar', this)">
+                        <span>Martedì</span>
+                        <span>📅</span>
+                    </button>
+                    <button class="day-btn" onclick="selectMealDay('mer', this)">
+                        <span>Mercoledì</span>
+                        <span>📅</span>
+                    </button>
+                    <button class="day-btn" onclick="selectMealDay('gio', this)">
+                        <span>Giovedì</span>
+                        <span>📅</span>
+                    </button>
+                    <button class="day-btn" onclick="selectMealDay('ven', this)">
+                        <span>Venerdì</span>
+                        <span>📅</span>
+                    </button>
+                    <button class="day-btn" onclick="selectMealDay('spesa', this)" style="border-top: 1px solid var(--border-color); border-radius: 0 0 12px 12px; margin-top: 0.5rem; padding-top: 1.25rem;">
+                        <span>🛒 Lista Spesa</span>
+                        <span>🛒</span>
+                    </button>
+                </div>
+
+                <!-- Content Area -->
+                <div class="day-content-wrapper">
+                    
+                    <!-- LUNEDÌ -->
+                    <div id="meal_lun" class="day-content-card">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Lunedì</h2>
+                                <p>Diet Plan - 1500 kcal Intake</p>
+                            </div>
+                            <div class="daily-total-summary">
+                                <div class="macro-badge-total">
+                                    <div class="val">1500</div>
+                                    <div class="lbl">kcal</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(99, 102, 241, 0.35);">
+                                    <div class="val">135g</div>
+                                    <div class="lbl" style="color: var(--primary);">p</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(16, 185, 129, 0.35);">
+                                    <div class="val">148g</div>
+                                    <div class="lbl" style="color: var(--success);">c</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(249, 115, 22, 0.35);">
+                                    <div class="val">38g</div>
+                                    <div class="lbl" style="color: #f97316;">g</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meals-list">
+                            <!-- Colazione -->
+                            <div class="meal-card colazione">
+                                <div class="meal-icon-box">☀</div>
+                                <div class="meal-details">
+                                    <h3>Colazione</h3>
+                                    <ul>
+                                        <li>Yogurt greco 0% (200 g)</li>
+                                        <li>Fiocchi d'avena (40 g)</li>
+                                        <li>Banana (1 media - 100 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~345 kcal</span>
+                                    <span class="macro-badge-mini">P: 26g</span>
+                                    <span class="macro-badge-mini">C: 40g</span>
+                                    <span class="macro-badge-mini">G: 8g</span>
+                                </div>
+                            </div>
+
+                            <!-- Pranzo -->
+                            <div class="meal-card pranzo">
+                                <div class="meal-icon-box">🍽</div>
+                                <div class="meal-details">
+                                    <h3>Pranzo</h3>
+                                    <ul>
+                                        <li>Petto di pollo grigliato (180 g)</li>
+                                        <li>Riso integrale cotto (150 g)</li>
+                                        <li>Zucchine al vapore (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~555 kcal</span>
+                                    <span class="macro-badge-mini">P: 55g</span>
+                                    <span class="macro-badge-mini">C: 55g</span>
+                                    <span class="macro-badge-mini">G: 12g</span>
+                                </div>
+                            </div>
+
+                            <!-- Cena -->
+                            <div class="meal-card cena">
+                                <div class="meal-icon-box">🌙</div>
+                                <div class="meal-details">
+                                    <h3>Cena</h3>
+                                    <ul>
+                                        <li>Lenticchie rosse cotte (250 g)</li>
+                                        <li>Pane integrale (60 g)</li>
+                                        <li>Insalata mista & pomodori (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~600 kcal</span>
+                                    <span class="macro-badge-mini">P: 54g</span>
+                                    <span class="macro-badge-mini">C: 53g</span>
+                                    <span class="macro-badge-mini">G: 18g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MARTEDÌ -->
+                    <div id="meal_mar" class="day-content-card" style="display: none;">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Martedì</h2>
+                                <p>Diet Plan - 1500 kcal Intake</p>
+                            </div>
+                            <div class="daily-total-summary">
+                                <div class="macro-badge-total">
+                                    <div class="val">1500</div>
+                                    <div class="lbl">kcal</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(99, 102, 241, 0.35);">
+                                    <div class="val">139g</div>
+                                    <div class="lbl" style="color: var(--primary);">p</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(16, 185, 129, 0.35);">
+                                    <div class="val">145g</div>
+                                    <div class="lbl" style="color: var(--success);">c</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(249, 115, 22, 0.35);">
+                                    <div class="val">39g</div>
+                                    <div class="lbl" style="color: #f97316;">g</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meals-list">
+                            <!-- Colazione -->
+                            <div class="meal-card colazione">
+                                <div class="meal-icon-box">☀</div>
+                                <div class="meal-details">
+                                    <h3>Colazione</h3>
+                                    <ul>
+                                        <li>Yogurt greco 0% (200 g)</li>
+                                        <li>Fiocchi d'avena (40 g)</li>
+                                        <li>Banana (1 media - 100 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~345 kcal</span>
+                                    <span class="macro-badge-mini">P: 26g</span>
+                                    <span class="macro-badge-mini">C: 40g</span>
+                                    <span class="macro-badge-mini">G: 8g</span>
+                                </div>
+                            </div>
+
+                            <!-- Pranzo -->
+                            <div class="meal-card pranzo">
+                                <div class="meal-icon-box">🍽</div>
+                                <div class="meal-details">
+                                    <h3>Pranzo</h3>
+                                    <ul>
+                                        <li>Petto di pollo grigliato (180 g)</li>
+                                        <li>Riso integrale cotto (150 g)</li>
+                                        <li>Zucchine al vapore (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~555 kcal</span>
+                                    <span class="macro-badge-mini">P: 55g</span>
+                                    <span class="macro-badge-mini">C: 55g</span>
+                                    <span class="macro-badge-mini">G: 12g</span>
+                                </div>
+                            </div>
+
+                            <!-- Cena -->
+                            <div class="meal-card cena">
+                                <div class="meal-icon-box">🌙</div>
+                                <div class="meal-details">
+                                    <h3>Cena</h3>
+                                    <ul>
+                                        <li>Uova intere (3)</li>
+                                        <li>Fagioli cannellini lessati (150 g)</li>
+                                        <li>Pomodori a dadini (150 g)</li>
+                                        <li>Pane integrale (50 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~600 kcal</span>
+                                    <span class="macro-badge-mini">P: 58g</span>
+                                    <span class="macro-badge-mini">C: 50g</span>
+                                    <span class="macro-badge-mini">G: 19g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MERCOLEDÌ -->
+                    <div id="meal_mer" class="day-content-card" style="display: none;">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Mercoledì</h2>
+                                <p>Diet Plan - 1500 kcal Intake</p>
+                            </div>
+                            <div class="daily-total-summary">
+                                <div class="macro-badge-total">
+                                    <div class="val">1500</div>
+                                    <div class="lbl">kcal</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(99, 102, 241, 0.35);">
+                                    <div class="val">135g</div>
+                                    <div class="lbl" style="color: var(--primary);">p</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(16, 185, 129, 0.35);">
+                                    <div class="val">148g</div>
+                                    <div class="lbl" style="color: var(--success);">c</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(249, 115, 22, 0.35);">
+                                    <div class="val">38g</div>
+                                    <div class="lbl" style="color: #f97316;">g</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meals-list">
+                            <!-- Colazione -->
+                            <div class="meal-card colazione">
+                                <div class="meal-icon-box">☀</div>
+                                <div class="meal-details">
+                                    <h3>Colazione</h3>
+                                    <ul>
+                                        <li>Yogurt greco 0% (200 g)</li>
+                                        <li>Fiocchi d'avena (40 g)</li>
+                                        <li>Banana (1 media - 100 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~345 kcal</span>
+                                    <span class="macro-badge-mini">P: 26g</span>
+                                    <span class="macro-badge-mini">C: 40g</span>
+                                    <span class="macro-badge-mini">G: 8g</span>
+                                </div>
+                            </div>
+
+                            <!-- Pranzo -->
+                            <div class="meal-card pranzo">
+                                <div class="meal-icon-box">🍽</div>
+                                <div class="meal-details">
+                                    <h3>Pranzo</h3>
+                                    <ul>
+                                        <li>Petto di pollo grigliato (180 g)</li>
+                                        <li>Riso integrale cotto (150 g)</li>
+                                        <li>Broccoli al vapore (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~555 kcal</span>
+                                    <span class="macro-badge-mini">P: 55g</span>
+                                    <span class="macro-badge-mini">C: 55g</span>
+                                    <span class="macro-badge-mini">G: 12g</span>
+                                </div>
+                            </div>
+
+                            <!-- Cena -->
+                            <div class="meal-card cena">
+                                <div class="meal-icon-box">🌙</div>
+                                <div class="meal-details">
+                                    <h3>Cena</h3>
+                                    <ul>
+                                        <li>Lenticchie rosse cotte (250 g)</li>
+                                        <li>Pane integrale (60 g)</li>
+                                        <li>Insalata mista & pomodori (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~600 kcal</span>
+                                    <span class="macro-badge-mini">P: 54g</span>
+                                    <span class="macro-badge-mini">C: 53g</span>
+                                    <span class="macro-badge-mini">G: 18g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GIOVEDÌ -->
+                    <div id="meal_gio" class="day-content-card" style="display: none;">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Giovedì</h2>
+                                <p>Diet Plan - 1500 kcal Intake</p>
+                            </div>
+                            <div class="daily-total-summary">
+                                <div class="macro-badge-total">
+                                    <div class="val">1500</div>
+                                    <div class="lbl">kcal</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(99, 102, 241, 0.35);">
+                                    <div class="val">139g</div>
+                                    <div class="lbl" style="color: var(--primary);">p</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(16, 185, 129, 0.35);">
+                                    <div class="val">145g</div>
+                                    <div class="lbl" style="color: var(--success);">c</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(249, 115, 22, 0.35);">
+                                    <div class="val">39g</div>
+                                    <div class="lbl" style="color: #f97316;">g</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meals-list">
+                            <!-- Colazione -->
+                            <div class="meal-card colazione">
+                                <div class="meal-icon-box">☀</div>
+                                <div class="meal-details">
+                                    <h3>Colazione</h3>
+                                    <ul>
+                                        <li>Yogurt greco 0% (200 g)</li>
+                                        <li>Fiocchi d'avena (40 g)</li>
+                                        <li>Banana (1 media - 100 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~345 kcal</span>
+                                    <span class="macro-badge-mini">P: 26g</span>
+                                    <span class="macro-badge-mini">C: 40g</span>
+                                    <span class="macro-badge-mini">G: 8g</span>
+                                </div>
+                            </div>
+
+                            <!-- Pranzo -->
+                            <div class="meal-card pranzo">
+                                <div class="meal-icon-box">🍽</div>
+                                <div class="meal-details">
+                                    <h3>Pranzo</h3>
+                                    <ul>
+                                        <li>Petto di pollo grigliato (180 g)</li>
+                                        <li>Riso integrale cotto (150 g)</li>
+                                        <li>Zucchine al vapore (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~555 kcal</span>
+                                    <span class="macro-badge-mini">P: 55g</span>
+                                    <span class="macro-badge-mini">C: 55g</span>
+                                    <span class="macro-badge-mini">G: 12g</span>
+                                </div>
+                            </div>
+
+                            <!-- Cena -->
+                            <div class="meal-card cena">
+                                <div class="meal-icon-box">🌙</div>
+                                <div class="meal-details">
+                                    <h3>Cena</h3>
+                                    <ul>
+                                        <li>Uova intere (3)</li>
+                                        <li>Fagioli cannellini lessati (150 g)</li>
+                                        <li>Pomodori a dadini (150 g)</li>
+                                        <li>Pane integrale (50 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~600 kcal</span>
+                                    <span class="macro-badge-mini">P: 58g</span>
+                                    <span class="macro-badge-mini">C: 50g</span>
+                                    <span class="macro-badge-mini">G: 19g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VENERDÌ -->
+                    <div id="meal_ven" class="day-content-card" style="display: none;">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Venerdì</h2>
+                                <p>Diet Plan - 1500 kcal Intake</p>
+                            </div>
+                            <div class="daily-total-summary">
+                                <div class="macro-badge-total">
+                                    <div class="val">1500</div>
+                                    <div class="lbl">kcal</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(99, 102, 241, 0.35);">
+                                    <div class="val">135g</div>
+                                    <div class="lbl" style="color: var(--primary);">p</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(16, 185, 129, 0.35);">
+                                    <div class="val">148g</div>
+                                    <div class="lbl" style="color: var(--success);">c</div>
+                                </div>
+                                <div class="macro-badge-total" style="border-color: rgba(249, 115, 22, 0.35);">
+                                    <div class="val">38g</div>
+                                    <div class="lbl" style="color: #f97316;">g</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="meals-list">
+                            <!-- Colazione -->
+                            <div class="meal-card colazione">
+                                <div class="meal-icon-box">☀</div>
+                                <div class="meal-details">
+                                    <h3>Colazione</h3>
+                                    <ul>
+                                        <li>Yogurt greco 0% (200 g)</li>
+                                        <li>Fiocchi d'avena (40 g)</li>
+                                        <li>Banana (1 media - 100 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~345 kcal</span>
+                                    <span class="macro-badge-mini">P: 26g</span>
+                                    <span class="macro-badge-mini">C: 40g</span>
+                                    <span class="macro-badge-mini">G: 8g</span>
+                                </div>
+                            </div>
+
+                            <!-- Pranzo -->
+                            <div class="meal-card pranzo">
+                                <div class="meal-icon-box">🍽</div>
+                                <div class="meal-details">
+                                    <h3>Pranzo</h3>
+                                    <ul>
+                                        <li>Petto di pollo grigliato (180 g)</li>
+                                        <li>Riso integrale cotto (150 g)</li>
+                                        <li>Broccoli al vapore (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~555 kcal</span>
+                                    <span class="macro-badge-mini">P: 55g</span>
+                                    <span class="macro-badge-mini">C: 55g</span>
+                                    <span class="macro-badge-mini">G: 12g</span>
+                                </div>
+                            </div>
+
+                            <!-- Cena -->
+                            <div class="meal-card cena">
+                                <div class="meal-icon-box">🌙</div>
+                                <div class="meal-details">
+                                    <h3>Cena</h3>
+                                    <ul>
+                                        <li>Lenticchie rosse cotte (250 g)</li>
+                                        <li>Pane integrale (60 g)</li>
+                                        <li>Insalata mista & pomodori (200 g)</li>
+                                        <li>Olio EVO (1 cucchiaio - 10 g)</li>
+                                    </ul>
+                                </div>
+                                <div class="meal-macros">
+                                    <span class="macro-badge-mini kcal">~600 kcal</span>
+                                    <span class="macro-badge-mini">P: 54g</span>
+                                    <span class="macro-badge-mini">C: 53g</span>
+                                    <span class="macro-badge-mini">G: 18g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LISTA SPESA -->
+                    <div id="meal_spesa" class="day-content-card" style="display: none;">
+                        <div class="day-header">
+                            <div class="day-title-wrapper">
+                                <h2>Lista della Spesa</h2>
+                                <p>Weekly Shopping List - Monday to Friday Ingredients</p>
+                            </div>
+                        </div>
+
+                        <div class="shopping-grid">
+                            <!-- Proteine Animali -->
+                            <div class="shopping-category">
+                                <h3>🥩 Proteine Animali</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Petto di pollo (900 g)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Uova intere (6)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Legumi -->
+                            <div class="shopping-category">
+                                <h3>🌱 Legumi</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Lenticchie rosse secche (~360 g secche o 3 barattoli cotte)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Fagioli cannellini (2 barattoli - 400 g sgocciolati cad.)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Latticini -->
+                            <div class="shopping-category">
+                                <h3>🥛 Latticini</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Yogurt greco 0% (1 kg / 5 vasetti da 200 g)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Cereali e Derivati -->
+                            <div class="shopping-category">
+                                <h3>🌾 Cereali e Derivati</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Fiocchi d'avena (200 g)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Riso integrale (375 g secco o 5 buste da 150 g pronte)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Pane integrale (300 g)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Verdure -->
+                            <div class="shopping-category">
+                                <h3>🥦 Verdure</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Zucchine (600 g)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Broccoli (400 g)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Pomodori (500 g)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Insalata mista in busta (600 g)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Frutta -->
+                            <div class="shopping-category">
+                                <h3>🍌 Frutta</h3>
+                                <ul class="shopping-list-items">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Banane (5)</span></label></li>
+                                </ul>
+                            </div>
+
+                            <!-- Condimenti -->
+                            <div class="shopping-category" style="grid-column: 1 / -1;">
+                                <h3>🧂 Condimenti & Altro</h3>
+                                <ul class="shopping-list-items" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                    <li><label class="shop-item"><input type="checkbox"><span>Olio extravergine d'oliva (~100 ml)</span></label></li>
+                                    <li><label class="shop-item"><input type="checkbox"><span>Sale, pepe, erbe aromatiche q.b.</span></label></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Workout Tab Content -->
+        <div id="workoutTabContent" style="display: none;">
+            <!-- Workout Actions Panel -->
+            <div class="config-panel" style="margin-bottom: 2rem; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="fetchWorkoutData()">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                    Aggiorna Allenamento
+                </button>
+            </div>
+
+            <!-- Workout Metric Cards -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Tipo Allenamento</div>
+                    <div class="metric-value" id="cardWorkoutName" style="font-size: 1.8rem; min-height: 48px; display: flex; align-items: center;">—</div>
+                    <div class="metric-footer" id="cardWorkoutDate">Nessun allenamento caricato</div>
+                </div>
+                
+                <div class="metric-card" style="border-color: rgba(16, 185, 129, 0.15);">
+                    <div class="metric-label">Durata Allenamento</div>
+                    <div class="metric-value" id="cardWorkoutDuration" style="color: var(--success);">00:00:00</div>
+                    <div class="metric-footer">Tempo totale trascorso in palestra</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Calorie Bruciate</div>
+                    <div class="metric-value" id="cardWorkoutCalories">0<span class="metric-unit">kcal</span></div>
+                    <div class="metric-footer" id="cardWorkoutHR">Frequenza cardiaca media: —</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Training Effect</div>
+                    <div class="metric-value" id="cardWorkoutTE" style="font-size: 1.6rem; min-height: 48px; display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="cardWorkoutAerobic" class="macro-badge-mini" style="font-size: 0.9rem; background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.25); color: #a5b4fc;">Aerobico: —</span>
+                        <span id="cardWorkoutAnaerobic" class="macro-badge-mini" style="font-size: 0.9rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5;">Anaerobico: —</span>
+                    </div>
+                    <div class="metric-footer">Intensità stimata dell'allenamento</div>
+                </div>
+            </div>
+
+            <!-- Workout Detail Panels -->
+            <div class="charts-row">
+                <!-- Sets Table Card -->
+                <div class="table-card" style="min-height: 400px; display: flex; flex-direction: column;">
+                    <div class="chart-header" style="margin-bottom: 1rem;">
+                        <div class="chart-title">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="color: var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                            Serie e Ripetizioni Eseguite
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="flex-grow: 1;">
+                        <table id="workoutSetsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px;">Serie</th>
+                                    <th>Esercizio</th>
+                                    <th style="width: 120px;">Ripetizioni</th>
+                                    <th style="width: 120px;">Peso (kg)</th>
+                                    <th style="width: 120px; text-align: center;">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workoutSetsTableBody">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <h3>Nessun dato di allenamento</h3>
+                                        <p>Carica l'ultimo allenamento eseguito.</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Muscle Volume & Breakdown -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span style="color: var(--success);">●</span> Volume Totale per Gruppo Muscolare (kg)
+                        </div>
+                    </div>
+                    
+                    <div id="workoutMuscleVolumeList" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem; flex-grow: 1; overflow-y: auto;">
+                        <div class="empty-state" style="padding: 1.5rem 0;">
+                            <p>Caricamento volume muscoli...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Exercise Name Modal -->
+    <div class="loader-overlay" id="editExerciseModal" style="display: none; justify-content: center; align-items: center; z-index: 1001;">
+        <div style="background: rgba(22, 28, 45, 0.95); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 450px; max-width: 90%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease;">
+            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Modifica Nome Esercizio</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Modifica il nome visualizzato per questo esercizio. Lascia vuoto per ripristinare il nome predefinito.</p>
+            
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Originale Garmin:</label>
+                <div id="modalOriginalName" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; font-family: monospace; font-size: 0.9rem; color: white;">—</div>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <label for="modalCustomNameInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Personalizzato:</label>
+                <input type="text" id="modalCustomNameInput" placeholder="Es. Panca Piana, Lat Machine..." style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="closeEditExerciseModal()">Annulla</button>
+                <button class="btn" onclick="saveCustomExerciseName()">Salva</button>
+            </div>
+        </div>
     </div>
 
     <!-- Spinner Loading Overlay -->
@@ -1212,39 +2237,79 @@
         // ---------------------------------------------------------------------------
         let renphoWeightChartInstance = null;
         let renphoBodyCompChartInstance = null;
+        let allRenphoRecords = [];
 
         function switchTab(tab) {
             const garminBtn = document.getElementById("tabBtnGarmin");
             const renphoBtn = document.getElementById("tabBtnRenpho");
+            const mealBtn = document.getElementById("tabBtnMeal");
+            const workoutBtn = document.getElementById("tabBtnWorkout");
             const garminContent = document.getElementById("garminTabContent");
             const renphoContent = document.getElementById("renphoTabContent");
+            const mealContent = document.getElementById("mealTabContent");
+            const workoutContent = document.getElementById("workoutTabContent");
+            
+            // Remove active classes
+            garminBtn.classList.remove("active");
+            renphoBtn.classList.remove("active");
+            mealBtn.classList.remove("active");
+            if (workoutBtn) workoutBtn.classList.remove("active");
+            
+            // Hide all tab contents
+            garminContent.style.display = "none";
+            renphoContent.style.display = "none";
+            mealContent.style.display = "none";
+            if (workoutContent) workoutContent.style.display = "none";
             
             if (tab === "garmin") {
                 garminBtn.classList.add("active");
-                renphoBtn.classList.remove("active");
                 garminContent.style.display = "block";
-                renphoContent.style.display = "none";
                 fetchDatabaseData();
-            } else {
+            } else if (tab === "renpho") {
                 renphoBtn.classList.add("active");
-                garminBtn.classList.remove("active");
                 renphoContent.style.display = "block";
-                garminContent.style.display = "none";
                 fetchRenphoData();
+            } else if (tab === "meal") {
+                mealBtn.classList.add("active");
+                mealContent.style.display = "block";
+            } else if (tab === "workout") {
+                if (workoutBtn) workoutBtn.classList.add("active");
+                if (workoutContent) workoutContent.style.display = "block";
+                fetchWorkoutData();
+            }
+        }
+
+        function selectMealDay(day, btnElement) {
+            const btns = document.querySelectorAll(".day-sidebar .day-btn");
+            btns.forEach(btn => btn.classList.remove("active"));
+            
+            const cards = document.querySelectorAll(".day-content-wrapper .day-content-card");
+            cards.forEach(card => card.style.display = "none");
+            
+            if (btnElement) {
+                btnElement.classList.add("active");
+            }
+            
+            const targetCard = document.getElementById("meal_" + day);
+            if (targetCard) {
+                targetCard.style.display = "block";
             }
         }
 
         async function fetchRenphoData() {
             try {
-                const response = await fetch("http://localhost:8082/api/renpho/measurements");
+                const response = await fetch("/api/renpho/measurements", {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
+                allRenphoRecords = data;
                 processRenphoData(data);
             } catch (err) {
                 console.error("Fetch Renpho DB error:", err);
-                showToast("Failed to connect to Renpho API on port 8082.", "error");
+                showToast("Failed to connect to Renpho API.", "error");
                 renderEmptyRenphoTable("Failed to fetch scale records. Ensure the renpho-service container is running.");
             }
         }
@@ -1252,8 +2317,9 @@
         async function syncRenphoData() {
             toggleLoader(true, "Connecting to Renpho Health Cloud and synchronizing weight logs...");
             try {
-                const response = await fetch("http://localhost:8082/api/renpho/sync", {
-                    method: "POST"
+                const response = await fetch("/api/renpho/sync", {
+                    method: "POST",
+                    headers: getAuthHeaders()
                 });
                 const result = await response.json();
                 toggleLoader(false);
@@ -1271,25 +2337,38 @@
             }
         }
 
-        function processRenphoData(records) {
+        function filterRenphoTable() {
+            const query = document.getElementById("renphoTableSearch").value.toLowerCase().trim();
+            const tbody = document.getElementById("renphoTableBody");
+            tbody.innerHTML = "";
+            
+            if (!allRenphoRecords || allRenphoRecords.length === 0) {
+                renderEmptyRenphoTable("No scale records to filter.");
+                return;
+            }
+            
+            const filtered = query 
+                ? allRenphoRecords.filter(r => (r.created_at ? r.created_at.substring(0,10) : "").includes(query))
+                : allRenphoRecords;
+                
+            renderRenphoTableBodyRows(filtered);
+        }
+
+        function renderRenphoTableBodyRows(records) {
             const tbody = document.getElementById("renphoTableBody");
             tbody.innerHTML = "";
             
             if (!records || records.length === 0) {
-                renderEmptyRenphoTable("No weight logs found in PostgreSQL. Click 'Sync Renpho' to fetch history.");
-                updateRenphoMetrics(null);
-                destroyRenphoCharts();
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="empty-state">
+                            <h3>No matches found</h3>
+                            <p>Try searching for a different date format (YYYY-MM-DD).</p>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
-            
-            // Update metrics with latest record (index 0)
-            const latest = records[0];
-            updateRenphoMetrics(latest);
-            
-            // Chronological lists for line chart (left to right)
-            const dates = [];
-            const weights = [];
-            const fatPercents = [];
             
             records.forEach(r => {
                 const rawDate = r.created_at ? r.created_at.substring(0, 10) : "—";
@@ -1300,11 +2379,8 @@
                 const bon = r.bone ? Number(r.bone) : null;
                 const wat = r.water ? Number(r.water) : null;
                 const bmi = r.bmi ? Number(r.bmi) : null;
+                const bmr = r.bmr ? Number(r.bmr) : null;
                 const res = r.resistance ? Number(r.resistance) : null;
-                
-                dates.unshift(rawDate);
-                weights.unshift(w);
-                if (fat !== null) fatPercents.unshift(fat);
                 
                 const row = document.createElement("tr");
                 row.innerHTML = `
@@ -1316,9 +2392,42 @@
                     <td>${bon !== null ? bon.toFixed(1) + '%' : '—'}</td>
                     <td>${wat !== null ? wat.toFixed(1) + '%' : '—'}</td>
                     <td style="font-weight: 500; color: white;">${bmi !== null ? bmi.toFixed(1) : '—'}</td>
+                    <td>${bmr !== null ? bmr.toFixed(0) + ' kcal' : '—'}</td>
                     <td>${res !== null ? res.toFixed(0) : '—'}</td>
                 `;
                 tbody.appendChild(row);
+            });
+        }
+
+        function processRenphoData(records) {
+            if (!records || records.length === 0) {
+                renderEmptyRenphoTable("No weight logs found in PostgreSQL. Click 'Sync Renpho' to fetch history.");
+                updateRenphoMetrics(null);
+                destroyRenphoCharts();
+                return;
+            }
+            
+            // Update metrics with latest record (index 0)
+            const latest = records[0];
+            updateRenphoMetrics(latest);
+            
+            // Render the table rows
+            renderRenphoTableBodyRows(records);
+            
+            // Chronological lists for line chart (left to right)
+            const dates = [];
+            const weights = [];
+            const fatPercents = [];
+            
+            // Limit trend charts to last 30 readings
+            const sliceCount = Math.min(records.length, 30);
+            const trendData = records.slice(0, sliceCount).reverse();
+            
+            trendData.forEach(r => {
+                const rawDate = r.created_at ? r.created_at.substring(5, 10) : "—";
+                dates.push(rawDate);
+                weights.push(Number(r.weight));
+                if (r.bodyfat !== null) fatPercents.push(Number(r.bodyfat));
             });
             
             renderRenphoWeightChart(dates, weights, fatPercents);
@@ -1331,6 +2440,8 @@
             const fatCard = document.getElementById("cardRenphoFat");
             const muscleCard = document.getElementById("cardRenphoMuscle");
             const bmiCard = document.getElementById("cardRenphoBmi");
+            const bmrCard = document.getElementById("cardRenphoBmr");
+            const bmrFooter = document.getElementById("cardRenphoBmrFooter");
             
             if (!latest) {
                 weightCard.innerHTML = `0 <span class="metric-unit">kg</span>`;
@@ -1338,6 +2449,8 @@
                 fatCard.innerHTML = `0 <span class="metric-unit">%</span>`;
                 muscleCard.innerHTML = `0 <span class="metric-unit">%</span>`;
                 bmiCard.innerHTML = `0 <span class="metric-unit">index</span>`;
+                bmrCard.innerHTML = `0 <span class="metric-unit">kcal</span>`;
+                bmrFooter.innerText = "BMR unknown";
                 return;
             }
             
@@ -1363,6 +2476,14 @@
                 bmiCard.innerHTML = `${Number(latest.bmi).toFixed(1)} <span class="metric-unit">index</span>`;
             } else {
                 bmiCard.innerHTML = `—`;
+            }
+
+            if (latest.bmr) {
+                bmrCard.innerHTML = `${Number(latest.bmr).toFixed(0)} <span class="metric-unit">kcal</span>`;
+                bmrFooter.innerText = "Daily calorie budget at rest";
+            } else {
+                bmrCard.innerHTML = `—`;
+                bmrFooter.innerText = "BMR unknown";
             }
         }
 
@@ -1489,7 +2610,7 @@
         function renderEmptyRenphoTable(message) {
             document.getElementById("renphoTableBody").innerHTML = `
                 <tr>
-                    <td colspan="9" class="empty-state">
+                    <td colspan="10" class="empty-state">
                         <h3>No Scale Data Displayed</h3>
                         <p>${message}</p>
                     </td>
@@ -1502,6 +2623,198 @@
             if (renphoBodyCompChartInstance) renphoBodyCompChartInstance.destroy();
             renphoWeightChartInstance = null;
             renphoBodyCompChartInstance = null;
+        }
+
+        // ---------------------------------------------------------------------------
+        // Workout & Weight Training Analysis Frontend
+        // ---------------------------------------------------------------------------
+        async function fetchWorkoutData() {
+            toggleLoader(true, "Caricamento dell'ultimo allenamento con i pesi...");
+            try {
+                const response = await fetch("/api/last-strength-workout", {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) {
+                    toggleLoader(false);
+                    showToast("Non autorizzato: X-API-Key non valida o mancante.", "error");
+                    return;
+                }
+                
+                const result = await response.json();
+                toggleLoader(false);
+                
+                if (result.status === "success" && result.data) {
+                    renderWorkoutData(result.data);
+                } else {
+                    showToast(`Errore: ${result.detail || "Impossibile caricare l'allenamento"}`, "error");
+                    renderEmptyWorkoutTable(result.detail || "Nessun allenamento trovato.");
+                }
+            } catch (err) {
+                console.error("Fetch workout error:", err);
+                toggleLoader(false);
+                showToast("Errore di rete o server non raggiungibile.", "error");
+                renderEmptyWorkoutTable("Errore durante la connessione alle API di allenamento.");
+            }
+        }
+
+        function renderWorkoutData(data) {
+            document.getElementById("cardWorkoutName").innerText = data.activityName || "Unknown Activity";
+            document.getElementById("cardWorkoutDate").innerText = data.startTimeLocal || "Unknown Start Time";
+            document.getElementById("cardWorkoutDuration").innerText = data.duration || "00:00:00";
+            document.getElementById("cardWorkoutCalories").innerHTML = `${data.calories || 0} <span class="metric-unit">kcal</span>`;
+            
+            const hrCard = document.getElementById("cardWorkoutHR");
+            if (data.averageHR) {
+                hrCard.innerText = `Frequenza cardiaca: media ${data.averageHR} bpm | max ${data.maxHR || '—'} bpm`;
+            } else {
+                hrCard.innerText = `Frequenza cardiaca non registrata`;
+            }
+            
+            document.getElementById("cardWorkoutAerobic").innerText = `Aerobico: ${data.aerobicTrainingEffect !== null && data.aerobicTrainingEffect !== undefined ? data.aerobicTrainingEffect.toFixed(1) : '—'}`;
+            document.getElementById("cardWorkoutAnaerobic").innerText = `Anaerobico: ${data.anaerobicTrainingEffect !== null && data.anaerobicTrainingEffect !== undefined ? data.anaerobicTrainingEffect.toFixed(1) : '—'}`;
+
+            const tbody = document.getElementById("workoutSetsTableBody");
+            tbody.innerHTML = "";
+            
+            if (!data.sets || data.sets.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="empty-state">
+                            <h3>Nessuna serie trovata</h3>
+                            <p>Questo allenamento non contiene dettagli sulle serie.</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                data.sets.forEach(s => {
+                    const row = document.createElement("tr");
+                    const escOriginal = escapeHtml(s.originalExercise || s.exercise);
+                    const escCurrent = escapeHtml(s.exercise);
+                    const quoteOriginal = escOriginal.replace(/'/g, "\\'");
+                    const quoteCurrent = escCurrent === escOriginal ? "" : escCurrent.replace(/'/g, "\\'");
+                    
+                    row.innerHTML = `
+                        <td style="font-weight: 600; color: white;">${s.setNumber}</td>
+                        <td style="font-weight: 500; color: var(--primary);">
+                            ${escapeHtml(s.exercise)}
+                            ${s.originalExercise && s.originalExercise !== s.exercise ? `<span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 2px;">Garmin: ${escapeHtml(s.originalExercise)}</span>` : ''}
+                        </td>
+                        <td style="font-weight: 600; color: white;">${s.reps}</td>
+                        <td style="font-weight: 600; color: white;">${s.weightKg.toFixed(1)}</td>
+                        <td style="text-align: center;">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal('${quoteOriginal}', '${quoteCurrent}')">
+                                ✏️ Modifica
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+
+            const volumeContainer = document.getElementById("workoutMuscleVolumeList");
+            volumeContainer.innerHTML = "";
+            
+            const volumeData = data.volumeByMuscleGroup || {};
+            const volumeKeys = Object.keys(volumeData);
+            
+            if (volumeKeys.length === 0) {
+                volumeContainer.innerHTML = `
+                    <div class="empty-state" style="padding: 1.5rem 0;">
+                        <p>Nessun calcolo di volume disponibile.</p>
+                    </div>
+                `;
+            } else {
+                const maxVol = Math.max(...Object.values(volumeData), 1);
+                
+                volumeKeys.forEach(k => {
+                    const volVal = volumeData[k];
+                    const percentage = Math.min(100, (volVal / maxVol) * 100);
+                    
+                    const item = document.createElement("div");
+                    item.style.display = "flex";
+                    item.style.flexDirection = "column";
+                    item.style.gap = "0.35rem";
+                    
+                    item.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 500;">
+                            <span style="color: white;">${escapeHtml(k)}</span>
+                            <span style="color: var(--primary); font-weight: 600;">${volVal.toFixed(1)} kg</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
+                            <div style="background: linear-gradient(90deg, var(--primary), var(--success)); width: ${percentage}%; height: 100%; border-radius: 4px; transition: width 0.8s ease-out;"></div>
+                        </div>
+                    `;
+                    volumeContainer.appendChild(item);
+                });
+            }
+        }
+
+        function renderEmptyWorkoutTable(message) {
+            document.getElementById("workoutSetsTableBody").innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <h3>Nessun dato caricato</h3>
+                        <p>${message}</p>
+                    </td>
+                </tr>
+            `;
+            document.getElementById("workoutMuscleVolumeList").innerHTML = `
+                <div class="empty-state" style="padding: 1.5rem 0;">
+                    <p>Nessun volume muscolare disponibile.</p>
+                </div>
+            `;
+        }
+
+        let selectedOriginalExerciseName = "";
+
+        function openEditExerciseModal(originalName, currentCustomName) {
+            selectedOriginalExerciseName = originalName;
+            document.getElementById("modalOriginalName").innerText = originalName;
+            document.getElementById("modalCustomNameInput").value = currentCustomName;
+            
+            const modal = document.getElementById("editExerciseModal");
+            modal.style.display = "flex";
+        }
+
+        function closeEditExerciseModal() {
+            document.getElementById("editExerciseModal").style.display = "none";
+        }
+
+        async function saveCustomExerciseName() {
+            const customName = document.getElementById("modalCustomNameInput").value.trim();
+            closeEditExerciseModal();
+            
+            toggleLoader(true, "Salvataggio della modifica in corso...");
+            
+            try {
+                const response = await fetch(`/api/exercise-name?originalName=${encodeURIComponent(selectedOriginalExerciseName)}&customName=${encodeURIComponent(customName)}`, {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+                
+                toggleLoader(false);
+                
+                if (response.ok) {
+                    showToast("Nome dell'esercizio aggiornato con successo!", "success");
+                    fetchWorkoutData();
+                } else {
+                    const result = await response.json();
+                    showToast(`Errore durante il salvataggio: ${result.detail || "Risposta non valida"}`, "error");
+                }
+            } catch (err) {
+                console.error("Save custom name error:", err);
+                toggleLoader(false);
+                showToast("Errore di rete o server non raggiungibile.", "error");
+            }
+        }
+
+        function logout() {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/logout';
+            document.body.appendChild(form);
+            form.submit();
         }
     </script>
 </body>

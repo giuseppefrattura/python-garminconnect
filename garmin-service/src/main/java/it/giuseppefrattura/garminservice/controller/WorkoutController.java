@@ -4,6 +4,7 @@ import it.giuseppefrattura.garminservice.service.StrengthWorkoutService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,5 +41,22 @@ public class WorkoutController {
             return ResponseEntity.status(404).body(result);
         }
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Persist or remove a custom exercise name mapping.
+     */
+    @PostMapping("/exercise-name")
+    public ResponseEntity<Map<String, Object>> saveExerciseName(
+            @RequestParam("originalName") String originalName,
+            @RequestParam(value = "customName", required = false) String customName) {
+        try {
+            service.saveExerciseNameMapping(originalName, customName);
+            return ResponseEntity.ok(Map.of("status", "success", "detail", "Exercise name mapped successfully"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(400).body(Map.of("status", "error", "detail", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("status", "error", "detail", "Failed to map exercise name: " + e.getMessage()));
+        }
     }
 }

@@ -5,10 +5,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 /**
  * Filter that validates the X-API-Key header for incoming requests to /api/**.
@@ -34,6 +38,15 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             return;
         }
 
+        // If the request is already authenticated (e.g. via session cookie or OAuth2 login), bypass API key check
+        org.springframework.security.core.Authentication existingAuth = 
+                SecurityContextHolder.getContext().getAuthentication();
+        if (existingAuth != null && existingAuth.isAuthenticated() && 
+                !(existingAuth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // If no API key is configured (empty or blank), bypass security checks.
         if (apiKey == null || apiKey.trim().isEmpty()) {
             filterChain.doFilter(request, response);
@@ -47,6 +60,11 @@ public class ApiKeyFilter extends OncePerRequestFilter {
             response.getWriter().write("{\"status\":\"error\",\"detail\":\"Invalid or missing API Key\"}");
             return;
         }
+
+        // Set authentication in SecurityContextHolder so Spring Security allows the request
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                "api-user", null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_API")));
+        SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
     }

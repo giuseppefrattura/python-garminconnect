@@ -17,7 +17,6 @@ RUN apt-get update && \
 
 COPY --from=builder /install /usr/local
 COPY main.py .
-COPY static static
 
 RUN useradd --create-home appuser
 USER appuser

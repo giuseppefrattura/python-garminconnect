@@ -6,7 +6,7 @@ authors = [
     {name = "Ron Klinkien", email = "ron@cyberjunky.nl"},
 ]
 dependencies = [
-    "garth>=0.5.17,<0.6.0",
+    "garth>=0.5.17,<0.9.0",
     "psycopg2-binary>=2.9.11",
     "flask>=3.0.0",
     "python-dotenv>=1.0.0",
@@ -78,7 +78,7 @@ testing = [
     "vcrpy>=7.0.0",
 ]
 example = [
-    "garth>=0.5.17,<0.6.0",
+    "garth>=0.5.17,<0.9.0",
     "requests",
     "readchar",
 ]

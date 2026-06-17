@@ -5,19 +5,24 @@ import it.giuseppefrattura.garminservice.dto.ActivityDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
-import it.giuseppefrattura.garminservice.model.ExerciseNameMapping;
-import it.giuseppefrattura.garminservice.repository.ExerciseNameMappingRepository;
+import it.giuseppefrattura.garminservice.model.StrengthWorkout;
+import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
+import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
+import it.giuseppefrattura.garminservice.repository.StrengthWorkoutSetRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 
 /**
  * Business logic for strength/weight training analysis.
  * <p>
- * Fetches recent activities from the garmin-proxy, identifies the latest
- * strength workout, and computes per-set details and volume by muscle group.
+ * Synchronizes workout history from Garmin, persists sessions and individual sets in PostgreSQL,
+ * and compiles historical training volume and exercise progression analytics.
  */
 @Service
 public class StrengthWorkoutService {
@@ -25,7 +30,8 @@ public class StrengthWorkoutService {
     private static final Logger log = LoggerFactory.getLogger(StrengthWorkoutService.class);
 
     private final GarminProxyClient proxy;
-    private final ExerciseNameMappingRepository mappingRepository;
+    private final StrengthWorkoutRepository workoutRepository;
+    private final StrengthWorkoutSetRepository setRepository;
 
     /**
      * Mapping from Garmin exercise categories to human-readable muscle groups.
@@ -58,124 +64,173 @@ public class StrengthWorkoutService {
             Map.entry("FARMERS_WALK", "Full Body/Core")
     );
 
-    public StrengthWorkoutService(GarminProxyClient proxy, ExerciseNameMappingRepository mappingRepository) {
+    public StrengthWorkoutService(
+            GarminProxyClient proxy,
+            StrengthWorkoutRepository workoutRepository,
+            StrengthWorkoutSetRepository setRepository) {
         this.proxy = proxy;
-        this.mappingRepository = mappingRepository;
+        this.workoutRepository = workoutRepository;
+        this.setRepository = setRepository;
     }
 
     /**
-     * Find the most recent strength training activity and return a full
-     * breakdown including sets, reps, weights, and volume by muscle group.
+     * Synchronize strength workouts from the Garmin proxy into the PostgreSQL database.
+     * Checks if a session has already been saved; if not, fetches the set breakdown.
      *
-     * @param limit maximum number of recent activities to search through
-     * @return result map ready to be serialised as JSON
+     * @param limit maximum number of recent activities to scan
+     * @return count of newly synchronized workouts
      */
-    public Map<String, Object> getLastStrengthWorkout(int limit) {
+    public int syncStrengthWorkouts(int limit) {
+        log.info("Starting strength workouts synchronization (limit={})", limit);
         List<ActivityDto> activities = proxy.getActivities(0, limit);
+        int savedCount = 0;
 
-        // Find the first strength/training activity
-        ActivityDto strength = activities.stream()
+        List<ActivityDto> strengthActivities = activities.stream()
                 .filter(a -> {
                     String typeKey = a.activityType() != null ? a.activityType().typeKey() : "";
                     return typeKey != null
                             && (typeKey.toLowerCase().contains("strength")
                             || typeKey.toLowerCase().contains("training"));
                 })
-                .findFirst()
-                .orElse(null);
+                .toList();
 
-        if (strength == null) {
-            return Map.of("status", "error",
-                    "detail", "No strength training activity found in the last " + limit + " activities.");
-        }
+        for (ActivityDto act : strengthActivities) {
+            long activityId = act.activityId();
 
-        long activityId = strength.activityId();
-
-        // General stats
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("activityId", activityId);
-        result.put("activityName", strength.activityName() != null ? strength.activityName() : "Unknown");
-        result.put("startTimeLocal", strength.startTimeLocal() != null ? strength.startTimeLocal() : "Unknown");
-        result.put("duration", formatDuration(strength.duration()));
-        result.put("durationSeconds", strength.duration() != null ? strength.duration() : 0);
-        result.put("calories", strength.calories() != null ? strength.calories() : 0);
-        result.put("averageHR", strength.averageHR());
-        result.put("maxHR", strength.maxHR());
-        result.put("aerobicTrainingEffect", strength.aerobicTrainingEffect());
-        result.put("anaerobicTrainingEffect", strength.anaerobicTrainingEffect());
-
-        // Exercise sets
-        List<Map<String, Object>> sets = new ArrayList<>();
-        Map<String, Double> volumeByGroup = new LinkedHashMap<>();
-
-        // Fetch custom mappings
-        Map<String, String> customNamesMap = new HashMap<>();
-        try {
-            List<ExerciseNameMapping> mappings = mappingRepository.findAll();
-            for (ExerciseNameMapping m : mappings) {
-                customNamesMap.put(m.getOriginalName(), m.getCustomName());
+            if (workoutRepository.existsByActivityId(activityId)) {
+                log.debug("Strength workout {} already exists in database, skipping", activityId);
+                continue;
             }
-        } catch (Exception ex) {
-            log.error("Could not load exercise name mappings from database", ex);
-        }
 
-        try {
-            ExerciseSetsResponse setsResponse = proxy.getExerciseSets(activityId);
-            if (setsResponse != null && setsResponse.exerciseSets() != null) {
-                int setNum = 1;
-                for (ExerciseSetDto exSet : setsResponse.exerciseSets()) {
-                    if ("REST".equals(exSet.setType())) continue;
+            log.info("Syncing new strength workout: {} (ID: {})", act.activityName(), activityId);
 
-                    String exName = "Unknown Exercise";
-                    String category = null;
+            StrengthWorkout workout = new StrengthWorkout();
+            workout.setActivityId(activityId);
+            workout.setActivityName(act.activityName() != null ? act.activityName() : "Unknown");
+            
+            if (act.startTimeLocal() != null && act.startTimeLocal().length() >= 19) {
+                try {
+                    String startStr = act.startTimeLocal();
+                    LocalDate date = LocalDate.parse(startStr.substring(0, 10));
+                    LocalTime time = LocalTime.parse(startStr.substring(11, 19));
+                    workout.setWorkoutDate(date);
+                    workout.setWorkoutTime(time);
+                } catch (Exception e) {
+                    log.warn("Could not parse start time '{}': {}", act.startTimeLocal(), e.getMessage());
+                    workout.setWorkoutDate(LocalDate.now());
+                    workout.setWorkoutTime(LocalTime.MIDNIGHT);
+                }
+            } else {
+                workout.setWorkoutDate(LocalDate.now());
+                workout.setWorkoutTime(LocalTime.MIDNIGHT);
+            }
 
-                    if (exSet.exercises() != null && !exSet.exercises().isEmpty()) {
-                        ExerciseDto first = exSet.exercises().get(0);
-                        category = first.category();
-                        if (first.name() != null && !first.name().isBlank()) {
-                            exName = toTitleCase(first.name().replace("_", " "));
-                        } else if (category != null && !category.isBlank()) {
-                            exName = toTitleCase(category.replace("_", " "));
+            workout.setDurationSeconds(act.duration() != null ? act.duration().intValue() : 0);
+            workout.setCalories(act.calories() != null ? act.calories() : 0);
+            workout.setAverageHr(act.averageHR());
+            workout.setMaxHr(act.maxHR());
+            workout.setAerobicTe(act.aerobicTrainingEffect() != null ? BigDecimal.valueOf(act.aerobicTrainingEffect()) : null);
+            workout.setAnaerobicTe(act.anaerobicTrainingEffect() != null ? BigDecimal.valueOf(act.anaerobicTrainingEffect()) : null);
+
+            try {
+                ExerciseSetsResponse setsResponse = proxy.getExerciseSets(activityId);
+                if (setsResponse != null && setsResponse.exerciseSets() != null) {
+                    int setNum = 1;
+                    for (ExerciseSetDto exSet : setsResponse.exerciseSets()) {
+                        if ("REST".equals(exSet.setType())) continue;
+
+                        String exName = "Unknown Exercise";
+                        String category = null;
+
+                        if (exSet.exercises() != null && !exSet.exercises().isEmpty()) {
+                            ExerciseDto first = exSet.exercises().get(0);
+                            category = first.category();
+                            if (first.name() != null && !first.name().isBlank()) {
+                                exName = toTitleCase(first.name().replace("_", " "));
+                            } else if (category != null && !category.isBlank()) {
+                                exName = toTitleCase(category.replace("_", " "));
+                            }
                         }
-                    }
 
-                    String originalName = exName;
-                    String customName = customNamesMap.get(originalName);
-                    if (customName != null && !customName.isBlank()) {
-                        exName = customName;
-                    }
+                        int reps = exSet.repetitionCount() != null ? exSet.repetitionCount() : 0;
+                        double rawWeight = exSet.weight() != null ? exSet.weight() : 0.0;
+                        double weightKg = rawWeight > 0 ? rawWeight / 1000.0 : 0.0;
 
-                    int reps = exSet.repetitionCount() != null ? exSet.repetitionCount() : 0;
-                    double rawWeight = exSet.weight() != null ? exSet.weight() : 0.0;
-                    double weightKg = rawWeight > 0 ? rawWeight / 1000.0 : 0.0;
-
-                    if (reps > 0 || weightKg > 0 || !"Unknown Exercise".equals(exName)) {
-                        Map<String, Object> setEntry = new LinkedHashMap<>();
-                        setEntry.put("setNumber", setNum++);
-                        setEntry.put("exercise", exName);
-                        setEntry.put("originalExercise", originalName);
-                        setEntry.put("reps", reps);
-                        setEntry.put("weightKg", Math.round(weightKg * 10.0) / 10.0);
-                        sets.add(setEntry);
-
-                        // Volume calculation
-                        if (weightKg > 0 && reps > 0) {
-                            String muscleGroup = category != null
-                                    ? MUSCLE_GROUP_MAP.getOrDefault(category,
-                                    toTitleCase(category.replace("_", " ")))
-                                    : originalName;
-                            volumeByGroup.merge(muscleGroup, reps * weightKg, Double::sum);
+                        if (reps > 0 || weightKg > 0 || !"Unknown Exercise".equals(exName)) {
+                            StrengthWorkoutSet setEntry = new StrengthWorkoutSet();
+                            setEntry.setSetNumber(setNum++);
+                            setEntry.setOriginalExerciseName(exName);
+                            setEntry.setExerciseName(exName);
+                            setEntry.setReps(reps);
+                            setEntry.setWeightKg(BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0));
+                            workout.addSet(setEntry);
                         }
                     }
                 }
+            } catch (Exception ex) {
+                log.warn("Could not fetch exercise sets for activity during sync {}: {}", activityId, ex.getMessage());
             }
-        } catch (Exception ex) {
-            log.warn("Could not fetch exercise sets for activity {}: {}", activityId, ex.getMessage());
+
+            workoutRepository.save(workout);
+            savedCount++;
         }
 
-        result.put("sets", sets);
+        log.info("Finished strength workouts synchronization. Saved {} new workouts.", savedCount);
+        return savedCount;
+    }
 
-        // Sort volume descending
+    /**
+     * Get the details of the most recent strength workout from the database.
+     *
+     * @param limit ignored (loads the single latest session from DB)
+     * @return result map ready to be serialized as JSON
+     */
+    public Map<String, Object> getLastStrengthWorkout(int limit) {
+        Optional<StrengthWorkout> latestOpt = workoutRepository.findFirstByOrderByWorkoutDateDescWorkoutTimeDesc();
+        if (latestOpt.isEmpty()) {
+            return Map.of("status", "error",
+                    "detail", "No strength training activity found in the database. Sync Garmin first.");
+        }
+
+        StrengthWorkout workout = latestOpt.get();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("activityId", workout.getActivityId());
+        result.put("activityName", workout.getActivityName());
+        
+        String startStr = workout.getWorkoutDate().toString() + " " + workout.getWorkoutTime().toString();
+        result.put("startTimeLocal", startStr);
+        result.put("duration", formatDuration(workout.getDurationSeconds() != null ? workout.getDurationSeconds().doubleValue() : 0.0));
+        result.put("durationSeconds", workout.getDurationSeconds());
+        result.put("calories", workout.getCalories());
+        result.put("averageHR", workout.getAverageHr());
+        result.put("maxHR", workout.getMaxHr());
+        result.put("aerobicTrainingEffect", workout.getAerobicTe());
+        result.put("anaerobicTrainingEffect", workout.getAnaerobicTe());
+
+        List<Map<String, Object>> setsList = new ArrayList<>();
+        Map<String, Double> volumeByGroup = new LinkedHashMap<>();
+
+        for (StrengthWorkoutSet set : workout.getSets()) {
+            Map<String, Object> setEntry = new LinkedHashMap<>();
+            setEntry.put("setId", set.getId());
+            setEntry.put("setNumber", set.getSetNumber());
+            setEntry.put("exercise", set.getExerciseName());
+            setEntry.put("originalExercise", set.getOriginalExerciseName());
+            setEntry.put("reps", set.getReps());
+            double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
+            setEntry.put("weightKg", weight);
+            setsList.add(setEntry);
+
+            if (weight > 0 && set.getReps() != null && set.getReps() > 0) {
+                String category = set.getOriginalExerciseName().toUpperCase().replace(" ", "_");
+                String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category,
+                        toTitleCase(set.getOriginalExerciseName()));
+                volumeByGroup.merge(muscleGroup, set.getReps() * weight, Double::sum);
+            }
+        }
+
+        result.put("sets", setsList);
+
         Map<String, Double> sortedVolume = new LinkedHashMap<>();
         volumeByGroup.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
@@ -183,6 +238,124 @@ public class StrengthWorkoutService {
         result.put("volumeByMuscleGroup", sortedVolume);
 
         return Map.of("status", "success", "data", result);
+    }
+
+    /**
+     * Update the exercise name of a specific set by ID.
+     *
+     * @param setId database primary key of the set
+     * @param customName custom name to assign (null/empty to revert to original)
+     */
+    public void updateSetExerciseName(Long setId, String customName) {
+        StrengthWorkoutSet set = setRepository.findById(setId)
+                .orElseThrow(() -> new IllegalArgumentException("Set not found with ID: " + setId));
+        
+        if (customName == null || customName.isBlank()) {
+            set.setExerciseName(set.getOriginalExerciseName());
+        } else {
+            set.setExerciseName(customName.trim());
+        }
+        setRepository.save(set);
+    }
+
+    /**
+     * Retrieve weekly training volume aggregated by muscle group.
+     */
+    public Map<String, Object> getWorkoutHistory() {
+        List<StrengthWorkout> workouts = workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc();
+        Map<String, Map<String, Double>> weeklyData = new TreeMap<>();
+
+        for (StrengthWorkout workout : workouts) {
+            LocalDate monday = workout.getWorkoutDate().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+            String weekKey = monday.toString();
+
+            weeklyData.putIfAbsent(weekKey, new HashMap<>());
+            Map<String, Double> weekMap = weeklyData.get(weekKey);
+
+            for (StrengthWorkoutSet set : workout.getSets()) {
+                double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
+                int reps = set.getReps() != null ? set.getReps() : 0;
+                
+                if (weight > 0 && reps > 0) {
+                    String category = set.getOriginalExerciseName().toUpperCase().replace(" ", "_");
+                    String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category,
+                            toTitleCase(set.getOriginalExerciseName()));
+                    weekMap.merge(muscleGroup, reps * weight, Double::sum);
+                }
+            }
+        }
+
+        Map<String, Map<String, Double>> roundedWeeklyData = new LinkedHashMap<>();
+        for (Map.Entry<String, Map<String, Double>> entry : weeklyData.entrySet()) {
+            Map<String, Double> groupMap = new LinkedHashMap<>();
+            for (Map.Entry<String, Double> inner : entry.getValue().entrySet()) {
+                groupMap.put(inner.getKey(), Math.round(inner.getValue() * 10.0) / 10.0);
+            }
+            roundedWeeklyData.put(entry.getKey(), groupMap);
+        }
+
+        return Map.of("status", "success", "data", roundedWeeklyData);
+    }
+
+    /**
+     * Retrieve historical performance progression for a given exercise.
+     */
+    public Map<String, Object> getExerciseProgression(String exerciseName) {
+        if (exerciseName == null || exerciseName.isBlank()) {
+            return Map.of("status", "error", "detail", "Exercise name parameter is required");
+        }
+
+        List<StrengthWorkout> workouts = workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc();
+        List<Map<String, Object>> progression = new ArrayList<>();
+
+        List<StrengthWorkout> chronologicalWorkouts = new ArrayList<>(workouts);
+        Collections.reverse(chronologicalWorkouts);
+
+        for (StrengthWorkout workout : chronologicalWorkouts) {
+            double maxWeight = 0.0;
+            double max1RM = 0.0;
+            boolean performed = false;
+
+            for (StrengthWorkoutSet set : workout.getSets()) {
+                if (exerciseName.equalsIgnoreCase(set.getExerciseName())) {
+                    performed = true;
+                    double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
+                    int reps = set.getReps() != null ? set.getReps() : 0;
+                    
+                    if (weight > maxWeight) {
+                        maxWeight = weight;
+                    }
+                    
+                    double est1RM = calculate1RM(weight, reps);
+                    if (est1RM > max1RM) {
+                        max1RM = est1RM;
+                    }
+                }
+            }
+
+            if (performed) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("date", workout.getWorkoutDate().toString());
+                entry.put("maxWeightKg", Math.round(maxWeight * 10.0) / 10.0);
+                entry.put("estimated1RM", Math.round(max1RM * 10.0) / 10.0);
+                progression.add(entry);
+            }
+        }
+
+        return Map.of("status", "success", "data", progression);
+    }
+
+    /**
+     * Retrieve list of unique exercise names in the database.
+     */
+    public List<String> getUniqueExercises() {
+        return setRepository.findDistinctExerciseNames();
+    }
+
+    private double calculate1RM(double weight, int reps) {
+        if (reps <= 0) return 0.0;
+        if (reps == 1) return weight;
+        return weight * (1.0 + (double) reps / 30.0);
     }
 
     private static String formatDuration(Double seconds) {
@@ -203,21 +376,5 @@ public class StrengthWorkoutService {
             sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
         }
         return sb.toString();
-    }
-
-    /**
-     * Persist or remove a custom exercise name mapping.
-     */
-    public void saveExerciseNameMapping(String originalName, String customName) {
-        if (originalName == null || originalName.isBlank()) {
-            throw new IllegalArgumentException("Original exercise name cannot be empty");
-        }
-        if (customName == null || customName.isBlank()) {
-            if (mappingRepository.existsById(originalName)) {
-                mappingRepository.deleteById(originalName);
-            }
-        } else {
-            mappingRepository.save(new ExerciseNameMapping(originalName, customName));
-        }
     }
 }

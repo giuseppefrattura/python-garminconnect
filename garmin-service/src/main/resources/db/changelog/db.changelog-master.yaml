@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/migrations/001-create-running-hr-zones.yaml
   - include:
       file: db/changelog/migrations/002-create-exercise-name-mapping.yaml
+  - include:
+      file: db/changelog/migrations/003-create-strength-workouts.yaml

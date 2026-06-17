@@ -6,19 +6,24 @@ import it.giuseppefrattura.garminservice.dto.ActivityDto.ActivityTypeDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
-import it.giuseppefrattura.garminservice.model.ExerciseNameMapping;
-import it.giuseppefrattura.garminservice.repository.ExerciseNameMappingRepository;
+import it.giuseppefrattura.garminservice.model.StrengthWorkout;
+import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
+import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
+import it.giuseppefrattura.garminservice.repository.StrengthWorkoutSetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -30,26 +35,18 @@ class StrengthWorkoutServiceTest {
     private GarminProxyClient proxy;
 
     @Mock
-    private ExerciseNameMappingRepository mappingRepository;
+    private StrengthWorkoutRepository workoutRepository;
+
+    @Mock
+    private StrengthWorkoutSetRepository setRepository;
 
     @InjectMocks
     private StrengthWorkoutService service;
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(mappingRepository.findAll()).thenReturn(List.of());
-    }
-
     private ActivityDto strengthActivity(long id, String name) {
         return new ActivityDto(id, name,
                 new ActivityTypeDto("strength_training"),
-                "2024-01-15 09:00:00", 1800.0, 250, 120, 155, 2.1, 3.5);
-    }
-
-    private ActivityDto runningActivity(long id, String name) {
-        return new ActivityDto(id, name,
-                new ActivityTypeDto("running"),
-                "2024-01-15 08:00:00", 3600.0, 500, 145, 175, 3.0, 1.0);
+                "2026-05-27 10:26:04", 1800.0, 250, 94, 135, 0.6, 0.3);
     }
 
     private ExerciseSetDto activeSet(String category, String name, int reps, double weightGrams) {
@@ -61,317 +58,136 @@ class StrengthWorkoutServiceTest {
         return new ExerciseSetDto("REST", null, null, null);
     }
 
-    @Nested
-    @DisplayName("Happy path")
-    class HappyPath {
+    @Test
+    @DisplayName("syncStrengthWorkouts incrementally saves unsaved workouts")
+    void syncStrengthWorkoutsIncrementallySaves() {
+        when(proxy.getActivities(0, 10)).thenReturn(List.of(
+                strengthActivity(1L, "Session 1"),
+                strengthActivity(2L, "Session 2")
+        ));
+        // Workout 1 already exists, workout 2 is new
+        when(workoutRepository.existsByActivityId(1L)).thenReturn(true);
+        when(workoutRepository.existsByActivityId(2L)).thenReturn(false);
 
-        @Test
-        @DisplayName("Returns latest strength workout with sets and volume")
-        void returnsStrengthWorkoutWithSetsAndVolume() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(
-                    runningActivity(1, "Morning Run"),
-                    strengthActivity(2, "Chest Day")
-            ));
-            when(proxy.getExerciseSets(2)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("BENCH_PRESS", "bench_press", 10, 80000.0),  // 80 kg
-                    restSet(),
-                    activeSet("BENCH_PRESS", "bench_press", 8, 80000.0)   // 80 kg
-            )));
+        when(proxy.getExerciseSets(2L)).thenReturn(new ExerciseSetsResponse(List.of(
+                activeSet("BENCH_PRESS", "bench_press", 10, 80000.0) // 80 kg
+        )));
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
+        int synced = service.syncStrengthWorkouts(10);
 
-            assertEquals("success", result.get("status"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            assertEquals(2L, data.get("activityId"));
-            assertEquals("Chest Day", data.get("activityName"));
-            assertEquals("00:30:00", data.get("duration"));
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-            assertEquals(2, sets.size(), "REST sets should be filtered out");
-
-            // Set numbering should be sequential (no gaps from REST filtering)
-            assertEquals(1, sets.get(0).get("setNumber"));
-            assertEquals(2, sets.get(1).get("setNumber"));
-
-            // Weight conversion: 80000 grams / 1000 = 80.0 kg
-            assertEquals(80.0, sets.get(0).get("weightKg"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-            // 10*80 + 8*80 = 1440 kg total volume
-            assertEquals(1440.0, volume.get("Chest"));
-        }
-
-        @Test
-        @DisplayName("Returns strength workout with custom exercise names applied")
-        void returnsStrengthWorkoutWithCustomExerciseNames() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(
-                    strengthActivity(2, "Chest Day")
-            ));
-            when(proxy.getExerciseSets(2)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("BENCH_PRESS", "bench_press", 10, 80000.0)  // 80 kg
-            )));
-            when(mappingRepository.findAll()).thenReturn(List.of(
-                    new ExerciseNameMapping("Bench Press", "Panca Piana")
-            ));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            assertEquals("success", result.get("status"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-            assertEquals(1, sets.size());
-            assertEquals("Panca Piana", sets.get(0).get("exercise"));
-            assertEquals("Bench Press", sets.get(0).get("originalExercise"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-            assertEquals(800.0, volume.get("Chest"));
-        }
-
-        @Test
-        @DisplayName("Finds strength activity even when typeKey contains 'training'")
-        void findsActivityByTrainingKeyword() {
-            ActivityDto trainingActivity = new ActivityDto(5L, "Gym Session",
-                    new ActivityTypeDto("other_training"),
-                    "2024-01-15 09:00:00", 1800.0, 200, 110, 140, 1.5, 2.0);
-
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(trainingActivity));
-            when(proxy.getExerciseSets(5)).thenReturn(new ExerciseSetsResponse(List.of()));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-            assertEquals("success", result.get("status"));
-        }
+        assertEquals(1, synced);
+        verify(workoutRepository, times(1)).save(any(StrengthWorkout.class));
     }
 
-    @Nested
-    @DisplayName("No strength activity found")
-    class NoStrengthActivity {
+    @Test
+    @DisplayName("getLastStrengthWorkout reads latest from DB and calculates volume")
+    void getLastStrengthWorkoutReadsFromDb() {
+        StrengthWorkout workout = new StrengthWorkout();
+        workout.setActivityId(123L);
+        workout.setActivityName("Workout Test");
+        workout.setWorkoutDate(LocalDate.of(2026, 5, 27));
+        workout.setWorkoutTime(LocalTime.of(10, 26, 4));
+        workout.setDurationSeconds(1800);
+        workout.setCalories(250);
 
-        @Test
-        @DisplayName("Returns error when no strength activity in last 30")
-        void returnsErrorWhenNoStrength() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(
-                    runningActivity(1, "Run 1"),
-                    runningActivity(2, "Run 2")
-            ));
+        StrengthWorkoutSet set = new StrengthWorkoutSet(workout, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
+        set.setId(10L);
+        workout.addSet(set);
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
+        when(workoutRepository.findFirstByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(Optional.of(workout));
 
-            assertEquals("error", result.get("status"));
-            assertTrue(result.get("detail").toString().contains("No strength training"));
-        }
+        Map<String, Object> result = service.getLastStrengthWorkout(30);
 
-        @Test
-        @DisplayName("Returns error when activity list is empty")
-        void returnsErrorWhenEmpty() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of());
+        assertEquals("success", result.get("status"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) result.get("data");
+        assertEquals("Workout Test", data.get("activityName"));
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-            assertEquals("error", result.get("status"));
-        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
+        assertEquals(1, sets.size());
+        assertEquals(10L, sets.get(0).get("setId"));
+        assertEquals("Bench Press", sets.get(0).get("exercise"));
+        assertEquals(10, sets.get(0).get("reps"));
+        assertEquals(80.0, sets.get(0).get("weightKg"));
+
+        @SuppressWarnings("unchecked")
+        Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
+        assertEquals(800.0, volume.get("Chest"));
     }
 
-    @Nested
-    @DisplayName("Weight conversion")
-    class WeightConversion {
+    @Test
+    @DisplayName("updateSetExerciseName saves customized or default name")
+    void updateSetExerciseNameModifiesRecord() {
+        StrengthWorkoutSet set = new StrengthWorkoutSet(null, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
+        set.setId(10L);
 
-        @Test
-        @DisplayName("Converts weight from milligrams to kilograms")
-        void convertsMilligramsToKg() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("SQUAT", "squat", 5, 120000.0)  // 120 kg
-            )));
+        when(setRepository.findById(10L)).thenReturn(Optional.of(set));
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
+        // Update to custom name
+        service.updateSetExerciseName(10L, "Panca Piana");
+        assertEquals("Panca Piana", set.getExerciseName());
+        verify(setRepository, times(1)).save(set);
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-
-            assertEquals(120.0, sets.get(0).get("weightKg"));
-        }
-
-        @Test
-        @DisplayName("Handles zero weight gracefully")
-        void handlesZeroWeight() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("PLANK", "plank", 1, 0.0)
-            )));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-
-            assertEquals(0.0, sets.get(0).get("weightKg"));
-
-            // Zero weight → no volume contribution
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-            assertFalse(volume.containsKey("Core"), "Zero-weight exercise should not contribute volume");
-        }
+        // Reset to original
+        service.updateSetExerciseName(10L, "");
+        assertEquals("Bench Press", set.getExerciseName());
     }
 
-    @Nested
-    @DisplayName("Muscle group mapping")
-    class MuscleGroupMapping {
+    @Test
+    @DisplayName("getWorkoutHistory aggregates weekly volume by muscle group")
+    void getWorkoutHistoryGroupsByWeek() {
+        StrengthWorkout workout = new StrengthWorkout();
+        workout.setWorkoutDate(LocalDate.of(2026, 6, 1)); // Monday
+        workout.setWorkoutTime(LocalTime.of(10, 0));
+        
+        StrengthWorkoutSet set = new StrengthWorkoutSet(workout, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
+        workout.addSet(set);
 
-        @Test
-        @DisplayName("Maps known Garmin categories to human-readable groups")
-        void mapsKnownCategories() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Full Body")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("BENCH_PRESS", "bench_press", 10, 50000.0),
-                    activeSet("SQUAT", "squat", 10, 100000.0),
-                    activeSet("BICEP_CURL", "bicep_curl", 12, 15000.0),
-                    activeSet("DEADLIFT", "deadlift", 5, 140000.0)
-            )));
+        when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(workout));
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
+        Map<String, Object> result = service.getWorkoutHistory();
+        assertEquals("success", result.get("status"));
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-
-            assertTrue(volume.containsKey("Chest"));
-            assertTrue(volume.containsKey("Legs"));
-            assertTrue(volume.containsKey("Biceps"));
-            assertTrue(volume.containsKey("Back/Legs (Posterior Chain)"));
-        }
-
-        @Test
-        @DisplayName("Falls back to title-cased category for unknown categories")
-        void fallsBackForUnknownCategory() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("UNKNOWN_EXERCISE", "some_move", 10, 20000.0)
-            )));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-
-            // Unknown category → title-cased: "Unknown Exercise"
-            assertTrue(volume.containsKey("Unknown Exercise"));
-        }
-
-        @Test
-        @DisplayName("Volume is sorted descending by value")
-        void volumeSortedDescending() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    activeSet("BICEP_CURL", "bicep_curl", 10, 10000.0),     // 100 volume
-                    activeSet("BENCH_PRESS", "bench_press", 10, 80000.0),   // 800 volume
-                    activeSet("SQUAT", "squat", 10, 100000.0)               // 1000 volume
-            )));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-
-            // LinkedHashMap preserves insertion order → check descending
-            List<Double> values = List.copyOf(volume.values());
-            assertEquals(List.of(1000.0, 800.0, 100.0), values);
-        }
+        @SuppressWarnings("unchecked")
+        Map<String, Map<String, Double>> data = (Map<String, Map<String, Double>>) result.get("data");
+        assertTrue(data.containsKey("2026-06-01"));
+        assertEquals(800.0, data.get("2026-06-01").get("Chest"));
     }
 
-    @Nested
-    @DisplayName("Edge cases")
-    class EdgeCases {
+    @Test
+    @DisplayName("getExerciseProgression calculates max weight and 1RM progression curve")
+    void getExerciseProgressionPlotsCurve() {
+        StrengthWorkout w1 = new StrengthWorkout();
+        w1.setWorkoutDate(LocalDate.of(2026, 5, 20));
+        w1.setWorkoutTime(LocalTime.of(10, 0));
+        // 10 reps @ 80kg -> 1RM = 80 * (1 + 10/30) = 106.7kg
+        StrengthWorkoutSet set1 = new StrengthWorkoutSet(w1, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
+        w1.addSet(set1);
 
-        @Test
-        @DisplayName("Handles null exercise sets response gracefully")
-        void handlesNullExerciseSets() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(null);
+        StrengthWorkout w2 = new StrengthWorkout();
+        w2.setWorkoutDate(LocalDate.of(2026, 5, 27));
+        w2.setWorkoutTime(LocalTime.of(10, 0));
+        // 5 reps @ 90kg -> 1RM = 90 * (1 + 5/30) = 105.0kg
+        StrengthWorkoutSet set2 = new StrengthWorkoutSet(w2, 1, "Bench Press", "Panca Piana", 5, BigDecimal.valueOf(90.0));
+        w2.addSet(set2);
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-            assertEquals("success", result.get("status"));
+        when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(w2, w1));
 
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<?> sets = (List<?>) data.get("sets");
-            assertTrue(sets.isEmpty());
-        }
+        Map<String, Object> result = service.getExerciseProgression("Panca Piana"); // query by custom name
+        assertEquals("success", result.get("status"));
 
-        @Test
-        @DisplayName("Handles proxy exception during exercise sets fetch")
-        void handlesProxyException() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenThrow(new RuntimeException("Connection refused"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> data = (List<Map<String, Object>>) result.get("data");
+        assertEquals(1, data.size(), "Should only match the w2 session where the custom name was 'Panca Piana'");
+        assertEquals("2026-05-27", data.get(0).get("date"));
+        assertEquals(90.0, data.get(0).get("maxWeightKg"));
+        assertEquals(105.0, data.get(0).get("estimated1RM"));
 
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            // Should still return success with empty sets (exception is caught)
-            assertEquals("success", result.get("status"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<?> sets = (List<?>) data.get("sets");
-            assertTrue(sets.isEmpty());
-        }
-
-        @Test
-        @DisplayName("Sets with no exercises list still get exercise name from category")
-        void setsWithEmptyExercisesList() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Test")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of(
-                    new ExerciseSetDto("ACTIVE", 10, 50000.0, List.of())
-            )));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-
-            assertEquals(1, sets.size());
-            assertEquals("Unknown Exercise", sets.get(0).get("exercise"));
-        }
-
-        @Test
-        @DisplayName("General stats include all expected fields")
-        void generalStatsFields() {
-            when(proxy.getActivities(0, 30)).thenReturn(List.of(strengthActivity(1, "Chest Day")));
-            when(proxy.getExerciseSets(1)).thenReturn(new ExerciseSetsResponse(List.of()));
-
-            Map<String, Object> result = service.getLastStrengthWorkout(30);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-
-            assertEquals(1L, data.get("activityId"));
-            assertEquals("Chest Day", data.get("activityName"));
-            assertEquals("2024-01-15 09:00:00", data.get("startTimeLocal"));
-            assertEquals("00:30:00", data.get("duration"));
-            assertEquals(1800.0, data.get("durationSeconds"));
-            assertEquals(250, data.get("calories"));
-            assertEquals(120, data.get("averageHR"));
-            assertEquals(155, data.get("maxHR"));
-            assertEquals(2.1, data.get("aerobicTrainingEffect"));
-            assertEquals(3.5, data.get("anaerobicTrainingEffect"));
-        }
+        // Match original name
+        Map<String, Object> result2 = service.getExerciseProgression("Bench Press");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> data2 = (List<Map<String, Object>>) result2.get("data");
+        assertEquals(1, data2.size(), "Should only match the w1 session where the name was 'Bench Press'");
     }
 }

@@ -1,0 +1,95 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-strength-workouts
+      author: giuseppefrattura
+      comment: "Create strength_workout and strength_workout_set tables, and clean up exercise_name_mapping"
+      changes:
+        - dropTable:
+            tableName: exercise_name_mapping
+        - createTable:
+            tableName: strength_workout
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: activity_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: activity_name
+                  type: varchar(255)
+              - column:
+                  name: workout_date
+                  type: date
+                  constraints:
+                    nullable: false
+              - column:
+                  name: workout_time
+                  type: time
+                  constraints:
+                    nullable: false
+              - column:
+                  name: duration_seconds
+                  type: integer
+              - column:
+                  name: calories
+                  type: integer
+              - column:
+                  name: average_hr
+                  type: integer
+              - column:
+                  name: max_hr
+                  type: integer
+              - column:
+                  name: aerobic_te
+                  type: numeric(3,1)
+              - column:
+                  name: anaerobic_te
+                  type: numeric(3,1)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createTable:
+            tableName: strength_workout_set
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: workout_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_set_workout
+                    referencedTableName: strength_workout
+                    referencedColumnNames: id
+                    deleteCascade: true
+              - column:
+                  name: set_number
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: original_exercise_name
+                  type: varchar(255)
+              - column:
+                  name: exercise_name
+                  type: varchar(255)
+              - column:
+                  name: reps
+                  type: integer
+              - column:
+                  name: weight_kg
+                  type: numeric(5,2)

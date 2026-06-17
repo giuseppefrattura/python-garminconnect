@@ -33,10 +33,15 @@ public class RunHrZoneService {
 
     private final GarminProxyClient proxy;
     private final RunningHrZoneRepository repository;
+    private final StrengthWorkoutService strengthWorkoutService;
 
-    public RunHrZoneService(GarminProxyClient proxy, RunningHrZoneRepository repository) {
+    public RunHrZoneService(
+            GarminProxyClient proxy,
+            RunningHrZoneRepository repository,
+            StrengthWorkoutService strengthWorkoutService) {
         this.proxy = proxy;
         this.repository = repository;
+        this.strengthWorkoutService = strengthWorkoutService;
     }
 
     // ---- internal data carrier ----
@@ -164,6 +169,13 @@ public class RunHrZoneService {
         LocalDate today = LocalDate.now();
         LocalDate start = today.minusDays(days);
         Map<String, String> period = Map.of("from", start.toString(), "to", today.toString());
+
+        // Sync strength workouts as part of the unified sync flow
+        try {
+            strengthWorkoutService.syncStrengthWorkouts(Math.max(20, days * 3));
+        } catch (Exception ex) {
+            log.warn("Strength workouts sync failed during unified sync flow: {}", ex.getMessage());
+        }
 
         List<RunEntry> entries = fetchRecentRuns(days);
         if (entries.isEmpty()) {

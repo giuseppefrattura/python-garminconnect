@@ -1759,6 +1759,36 @@
                 </div>
             </div>
 
+            <!-- Workout Analytics Row (Charts) -->
+            <div class="charts-row" style="margin-bottom: 2.5rem;">
+                <!-- Weekly Volume Stacked Bar Chart -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <span style="color: var(--primary);">●</span> Andamento Volume Settimanale (kg per Gruppo Muscolare)
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="workoutWeeklyVolumeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Exercise progression curve (Line Chart) -->
+                <div class="chart-card">
+                    <div class="chart-header" style="flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="chart-title">
+                            <span style="color: var(--success);">●</span> Progressione Carico & Massimale (1RM)
+                        </div>
+                        <select id="progressionExerciseSelector" onchange="fetchExerciseProgressionData(this.value)" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.35rem 0.75rem; color: white; font-family: inherit; font-size: 0.85rem; outline: none; cursor: pointer; min-width: 180px; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                            <option value="">Seleziona esercizio...</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="workoutProgressionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <!-- Workout Detail Panels -->
             <div class="charts-row">
                 <!-- Sets Table Card -->
@@ -1850,6 +1880,8 @@
         // Global Chart instances
         let historicalChart = null;
         let cumulativeChart = null;
+        let weeklyVolumeChartInstance = null;
+        let progressionChartInstance = null;
 
         // Initialize Settings
         document.addEventListener("DOMContentLoaded", () => {
@@ -2628,6 +2660,8 @@
         // ---------------------------------------------------------------------------
         // Workout & Weight Training Analysis Frontend
         // ---------------------------------------------------------------------------
+        let selectedSetId = null;
+
         async function fetchWorkoutData() {
             toggleLoader(true, "Caricamento dell'ultimo allenamento con i pesi...");
             try {
@@ -2650,6 +2684,11 @@
                     showToast(`Errore: ${result.detail || "Impossibile caricare l'allenamento"}`, "error");
                     renderEmptyWorkoutTable(result.detail || "Nessun allenamento trovato.");
                 }
+                
+                // Fetch weekly history and list of unique exercises
+                await fetchWeeklyVolumeData();
+                await fetchExercisesList();
+                
             } catch (err) {
                 console.error("Fetch workout error:", err);
                 toggleLoader(false);
@@ -2671,8 +2710,8 @@
                 hrCard.innerText = `Frequenza cardiaca non registrata`;
             }
             
-            document.getElementById("cardWorkoutAerobic").innerText = `Aerobico: ${data.aerobicTrainingEffect !== null && data.aerobicTrainingEffect !== undefined ? data.aerobicTrainingEffect.toFixed(1) : '—'}`;
-            document.getElementById("cardWorkoutAnaerobic").innerText = `Anaerobico: ${data.anaerobicTrainingEffect !== null && data.anaerobicTrainingEffect !== undefined ? data.anaerobicTrainingEffect.toFixed(1) : '—'}`;
+            document.getElementById("cardWorkoutAerobic").innerText = `Aerobico: ${data.aerobicTrainingEffect !== null && data.aerobicTrainingEffect !== undefined ? Number(data.aerobicTrainingEffect).toFixed(1) : '—'}`;
+            document.getElementById("cardWorkoutAnaerobic").innerText = `Anaerobico: ${data.anaerobicTrainingEffect !== null && data.anaerobicTrainingEffect !== undefined ? Number(data.anaerobicTrainingEffect).toFixed(1) : '—'}`;
 
             const tbody = document.getElementById("workoutSetsTableBody");
             tbody.innerHTML = "";
@@ -2703,7 +2742,7 @@
                         <td style="font-weight: 600; color: white;">${s.reps}</td>
                         <td style="font-weight: 600; color: white;">${s.weightKg.toFixed(1)}</td>
                         <td style="text-align: center;">
-                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal('${quoteOriginal}', '${quoteCurrent}')">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal(${s.setId}, '${quoteOriginal}', '${quoteCurrent}')">
                                 ✏️ Modifica
                             </button>
                         </td>
@@ -2766,10 +2805,8 @@
             `;
         }
 
-        let selectedOriginalExerciseName = "";
-
-        function openEditExerciseModal(originalName, currentCustomName) {
-            selectedOriginalExerciseName = originalName;
+        function openEditExerciseModal(setId, originalName, currentCustomName) {
+            selectedSetId = setId;
             document.getElementById("modalOriginalName").innerText = originalName;
             document.getElementById("modalCustomNameInput").value = currentCustomName;
             
@@ -2788,7 +2825,7 @@
             toggleLoader(true, "Salvataggio della modifica in corso...");
             
             try {
-                const response = await fetch(`/api/exercise-name?originalName=${encodeURIComponent(selectedOriginalExerciseName)}&customName=${encodeURIComponent(customName)}`, {
+                const response = await fetch(`/api/exercise-set/name?setId=${selectedSetId}&customName=${encodeURIComponent(customName)}`, {
                     method: "POST",
                     headers: getAuthHeaders()
                 });
@@ -2797,7 +2834,9 @@
                 
                 if (response.ok) {
                     showToast("Nome dell'esercizio aggiornato con successo!", "success");
-                    fetchWorkoutData();
+                    const currentExerciseFilter = document.getElementById("progressionExerciseSelector").value;
+                    await fetchWorkoutData();
+                    await fetchExercisesList(currentExerciseFilter);
                 } else {
                     const result = await response.json();
                     showToast(`Errore durante il salvataggio: ${result.detail || "Risposta non valida"}`, "error");
@@ -2807,6 +2846,225 @@
                 toggleLoader(false);
                 showToast("Errore di rete o server non raggiungibile.", "error");
             }
+        }
+
+        // ---------------------------------------------------------------------------
+        // Workout Historical Volume and Progression Graphs
+        // ---------------------------------------------------------------------------
+        async function fetchWeeklyVolumeData() {
+            try {
+                const response = await fetch("/api/strength-workouts-history", {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.status === "success" && result.data) {
+                        renderWeeklyVolumeChart(result.data);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching weekly volume data:", err);
+            }
+        }
+
+        function renderWeeklyVolumeChart(weeklyData) {
+            const ctx = document.getElementById("workoutWeeklyVolumeChart").getContext("2d");
+            if (weeklyVolumeChartInstance) {
+                weeklyVolumeChartInstance.destroy();
+            }
+
+            const weeks = Object.keys(weeklyData);
+            if (weeks.length === 0) {
+                return;
+            }
+
+            const muscleGroups = new Set();
+            weeks.forEach(w => {
+                Object.keys(weeklyData[w]).forEach(g => muscleGroups.add(g));
+            });
+            const muscleGroupsList = Array.from(muscleGroups);
+
+            const colorPalette = {
+                "Chest": "#3b82f6",
+                "Back": "#10b981",
+                "Legs": "#eab308",
+                "Shoulders": "#f97316",
+                "Biceps": "#ef4444",
+                "Triceps": "#ec4899",
+                "Core": "#8b5cf6",
+                "Calves": "#14b8a6"
+            };
+            const defaultColors = ["#6b7280", "#a855f7", "#3b82f6", "#10b981", "#eab308", "#f97316", "#ef4444"];
+
+            const datasets = muscleGroupsList.map((group, idx) => {
+                const data = weeks.map(w => weeklyData[w][group] || 0.0);
+                const color = colorPalette[group] || defaultColors[idx % defaultColors.length];
+                return {
+                    label: group,
+                    data: data,
+                    backgroundColor: color,
+                    stack: 'Stack 0'
+                };
+            });
+
+            weeklyVolumeChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: weeks,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    return ` ${item.dataset.label}: ${item.raw.toFixed(1)} kg`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 9 } }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } },
+                            title: { display: true, text: 'Volume Totale (kg)', color: '#9ca3af', font: { family: 'Outfit', size: 11, weight: 500 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function fetchExercisesList(selectedValue = "") {
+            try {
+                const response = await fetch("/api/strength-exercises", {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const list = await response.json();
+                    const selector = document.getElementById("progressionExerciseSelector");
+                    const currentSel = selectedValue || selector.value;
+                    
+                    selector.innerHTML = '<option value="">Seleziona esercizio...</option>';
+                    list.forEach(ex => {
+                        const opt = document.createElement("option");
+                        opt.value = ex;
+                        opt.innerText = ex;
+                        if (ex === currentSel) {
+                            opt.selected = true;
+                        }
+                        selector.appendChild(opt);
+                    });
+                    
+                    if (currentSel && list.includes(currentSel)) {
+                        fetchExerciseProgressionData(currentSel);
+                    } else if (list.length > 0 && !currentSel) {
+                        selector.value = list[0];
+                        fetchExerciseProgressionData(list[0]);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching exercise list:", err);
+            }
+        }
+
+        async function fetchExerciseProgressionData(exercise) {
+            if (!exercise) {
+                if (progressionChartInstance) {
+                    progressionChartInstance.destroy();
+                    progressionChartInstance = null;
+                }
+                return;
+            }
+            try {
+                const response = await fetch(`/api/exercise-progression?exercise=${encodeURIComponent(exercise)}`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.status === "success" && result.data) {
+                        renderProgressionChart(result.data);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching progression data:", err);
+            }
+        }
+
+        function renderProgressionChart(progressionData) {
+            const ctx = document.getElementById("workoutProgressionChart").getContext("2d");
+            if (progressionChartInstance) {
+                progressionChartInstance.destroy();
+            }
+
+            if (!progressionData || progressionData.length === 0) {
+                return;
+            }
+
+            const dates = progressionData.map(d => d.date);
+            const maxWeights = progressionData.map(d => d.maxWeightKg);
+            const est1RMs = progressionData.map(d => d.estimated1RM);
+
+            progressionChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Peso Massimo (kg)',
+                            data: maxWeights,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: '1-Rep Max Stimato (kg)',
+                            data: est1RMs,
+                            borderColor: '#10b981',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 9 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } },
+                            title: { display: true, text: 'Peso (kg)', color: '#9ca3af', font: { family: 'Outfit', size: 11 } }
+                        }
+                    }
+                }
+            });
         }
 
         function logout() {

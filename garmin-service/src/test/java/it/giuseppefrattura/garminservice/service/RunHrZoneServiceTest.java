@@ -33,6 +33,9 @@ class RunHrZoneServiceTest {
     @Mock
     private RunningHrZoneRepository repository;
 
+    @Mock
+    private StrengthWorkoutService strengthWorkoutService;
+
     @InjectMocks
     private RunHrZoneService service;
 

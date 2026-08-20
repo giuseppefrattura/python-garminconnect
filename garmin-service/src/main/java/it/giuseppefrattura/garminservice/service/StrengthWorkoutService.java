@@ -71,13 +71,17 @@ public class StrengthWorkoutService {
             Map.entry("FARMERS_WALK", "Full Body/Core")
     );
 
+    private final PersonalRecordService personalRecordService;
+
     public StrengthWorkoutService(
             GarminProxyClient proxy,
             StrengthWorkoutRepository workoutRepository,
-            StrengthWorkoutSetRepository setRepository) {
+            StrengthWorkoutSetRepository setRepository,
+            PersonalRecordService personalRecordService) {
         this.proxy = proxy;
         this.workoutRepository = workoutRepository;
         this.setRepository = setRepository;
+        this.personalRecordService = personalRecordService;
     }
 
     /**
@@ -181,6 +185,10 @@ public class StrengthWorkoutService {
 
             workoutRepository.save(workout);
             savedCount++;
+        }
+
+        if (savedCount > 0 && personalRecordService != null) {
+            personalRecordService.recalculateAllRecords();
         }
 
         log.info("Finished strength workouts synchronization. Saved {} new workouts.", savedCount);
@@ -296,6 +304,10 @@ public class StrengthWorkoutService {
         result.put("aerobicTrainingEffect", workout.getAerobicTe());
         result.put("anaerobicTrainingEffect", workout.getAnaerobicTe());
 
+        Map<Long, List<String>> prFlags = (personalRecordService != null && workout.getActivityId() != null)
+                ? personalRecordService.getPrFlagsForActivity(workout.getActivityId())
+                : Map.of();
+
         List<Map<String, Object>> setsList = new ArrayList<>();
         Map<String, Double> volumeByGroup = new LinkedHashMap<>();
 
@@ -311,6 +323,11 @@ public class StrengthWorkoutService {
             setEntry.put("reps", set.getReps());
             double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
             setEntry.put("weightKg", weight);
+
+            List<String> prTypes = (set.getId() != null) ? prFlags.getOrDefault(set.getId(), List.of()) : List.of();
+            setEntry.put("isPr", !prTypes.isEmpty());
+            setEntry.put("prTypes", prTypes);
+
             setsList.add(setEntry);
 
             if (weight > 0 && set.getReps() != null && set.getReps() > 0) {
@@ -359,13 +376,13 @@ public class StrengthWorkoutService {
 
         BigDecimal newWeight = null;
         if (weightKg != null) {
-            if (weightKg < 0) {
-                throw new IllegalArgumentException("Weight cannot be negative");
-            }
-            newWeight = BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0);
+            newWeight = BigDecimal.valueOf(Math.round(Math.max(0.0, weightKg) * 10.0) / 10.0);
         }
 
-        Integer newReps = (reps != null && reps >= 0) ? reps : null;
+        Integer newReps = null;
+        if (reps != null) {
+            newReps = Math.max(0, reps);
+        }
 
         if (Boolean.TRUE.equals(applyToAllSimilar) && targetSet.getWorkout() != null) {
             String matchingOrigName = targetSet.getOriginalExerciseName();
@@ -392,6 +409,10 @@ public class StrengthWorkoutService {
             if (newWeight != null) targetSet.setWeightKg(newWeight);
             if (newReps != null) targetSet.setReps(newReps);
             setRepository.save(targetSet);
+        }
+
+        if (personalRecordService != null) {
+            personalRecordService.recalculateAllRecords();
         }
     }
 

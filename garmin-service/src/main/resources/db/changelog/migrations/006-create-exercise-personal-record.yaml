@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-exercise-personal-record
+      author: giuseppe
+      changes:
+        - createTable:
+            tableName: exercise_personal_record
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: exercise_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: muscle_group
+                  type: VARCHAR(50)
+              - column:
+                  name: record_type
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: record_value
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: weight_kg
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reps
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: activity_id
+                  type: BIGINT
+              - column:
+                  name: set_id
+                  type: BIGINT
+              - column:
+                  name: achieved_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_pr_exercise_type
+            tableName: exercise_personal_record
+            columns:
+              - column:
+                  name: exercise_name
+              - column:
+                  name: record_type
+        - createIndex:
+            indexName: idx_pr_activity_id
+            tableName: exercise_personal_record
+            columns:
+              - column:
+                  name: activity_id
+        - createIndex:
+            indexName: idx_pr_set_id
+            tableName: exercise_personal_record
+            columns:
+              - column:
+                  name: set_id

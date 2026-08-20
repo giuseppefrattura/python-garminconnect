@@ -40,6 +40,9 @@ class StrengthWorkoutServiceTest {
     @Mock
     private StrengthWorkoutSetRepository setRepository;
 
+    @Mock
+    private PersonalRecordService personalRecordService;
+
     @InjectMocks
     private StrengthWorkoutService service;
 

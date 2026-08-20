@@ -39,8 +39,7 @@ public class GarminSyncScheduler {
         try {
             Map<String, Object> result = hrZoneService.persistRunHrZones(defaultDays);
             log.info("Automated daily Garmin synchronization completed successfully: {}", result.get("status"));
-            if (result.containsKey("data")) {
-                Map<?, ?> data = (Map<?, ?>) result.get("data");
+            if (result.get("data") instanceof Map<?, ?> data) {
                 log.info("Sync summary -> activitiesCount: {}, savedCount: {}",
                         data.get("activitiesCount"), data.get("savedCount"));
             }

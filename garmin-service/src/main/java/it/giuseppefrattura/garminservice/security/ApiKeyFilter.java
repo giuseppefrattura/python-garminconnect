@@ -5,7 +5,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -33,22 +35,20 @@ public class ApiKeyFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Secure only paths starting with /api
-        if (!path.startsWith("/api")) {
+        if (path == null || !path.startsWith("/api")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         // If the request is already authenticated (e.g. via session cookie or OAuth2 login), bypass API key check
-        org.springframework.security.core.Authentication existingAuth = 
-                SecurityContextHolder.getContext().getAuthentication();
-        if (existingAuth != null && existingAuth.isAuthenticated() && 
-                !(existingAuth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
+        Authentication existingAuth = SecurityContextHolder.getContext().getAuthentication();
+        if (existingAuth != null && existingAuth.isAuthenticated() && !(existingAuth instanceof AnonymousAuthenticationToken)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         // If no API key is configured (empty or blank), bypass security checks.
-        if (apiKey == null || apiKey.trim().isEmpty()) {
+        if (apiKey == null || apiKey.isBlank()) {
             filterChain.doFilter(request, response);
             return;
         }

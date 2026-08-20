@@ -17,7 +17,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Business logic for running HR zone analysis and persistence.
@@ -67,7 +71,7 @@ public class RunHrZoneService {
                 start.toString(), today.toString(), "running");
 
         if (activities == null || activities.isEmpty()) {
-            return List.of();
+            return Collections.emptyList();
         }
 
         List<RunEntry> entries = new ArrayList<>();
@@ -91,7 +95,7 @@ public class RunHrZoneService {
                 if (hrZones != null) {
                     for (HrZoneDto hz : hrZones) {
                         if (hz.zoneNumber() != null && zones.containsKey(hz.zoneNumber())) {
-                            double secs = hz.secsInZone() != null ? hz.secsInZone() : 0;
+                            double secs = hz.secsInZone() != null ? hz.secsInZone() : 0.0;
                             zones.put(hz.zoneNumber(), secs / 60.0);
                         }
                     }
@@ -122,7 +126,7 @@ public class RunHrZoneService {
         if (entries.isEmpty()) {
             return Map.of("status", "success", "data",
                     Map.of("period", period, "activitiesCount", 0,
-                            "zones", Map.of(), "activities", List.of()));
+                            "zones", Map.of(), "activities", Collections.emptyList()));
         }
 
         Map<Integer, Double> aggregated = new LinkedHashMap<>();
@@ -140,8 +144,8 @@ public class RunHrZoneService {
             } else {
                 Map<String, Double> zonesOut = new LinkedHashMap<>();
                 e.zonesMins().forEach((z, mins) -> {
-                    if (mins > 0) zonesOut.put("zone_" + z, round1(mins));
-                    aggregated.merge(z, mins, Double::sum);
+                    if (mins != null && mins > 0) zonesOut.put("zone_" + z, round1(mins));
+                    if (mins != null) aggregated.merge(z, mins, Double::sum);
                 });
                 out.put("zones", zonesOut);
             }
@@ -151,8 +155,8 @@ public class RunHrZoneService {
         Map<String, Double> zonesMinutes = new LinkedHashMap<>();
         aggregated.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .filter(e -> e.getValue() > 0 || e.getKey() == 1)
-                .forEach(e -> zonesMinutes.put("zone_" + e.getKey(), round1(e.getValue())));
+                .filter(e -> (e.getValue() != null && e.getValue() > 0) || e.getKey() == 1)
+                .forEach(e -> zonesMinutes.put("zone_" + e.getKey(), round1(e.getValue() != null ? e.getValue() : 0.0)));
 
         return Map.of("status", "success", "data",
                 Map.of("period", period,
@@ -181,7 +185,7 @@ public class RunHrZoneService {
         if (entries.isEmpty()) {
             return Map.of("status", "success", "data",
                     Map.of("period", period, "activitiesCount", 0,
-                            "savedCount", 0, "saved", List.of()));
+                            "savedCount", 0, "saved", Collections.emptyList()));
         }
 
         List<Map<String, Object>> saved = new ArrayList<>();
@@ -197,11 +201,11 @@ public class RunHrZoneService {
                 entity.setActivityName(e.activityName());
                 entity.setRunDate(e.runDate());
                 entity.setRunTime(e.runTime());
-                entity.setZone1Mins(toBigDecimal(e.zonesMins().get(1)));
-                entity.setZone2Mins(toBigDecimal(e.zonesMins().get(2)));
-                entity.setZone3Mins(toBigDecimal(e.zonesMins().get(3)));
-                entity.setZone4Mins(toBigDecimal(e.zonesMins().get(4)));
-                entity.setZone5Mins(toBigDecimal(e.zonesMins().get(5)));
+                entity.setZone1Mins(toBigDecimal(e.zonesMins().getOrDefault(1, 0.0)));
+                entity.setZone2Mins(toBigDecimal(e.zonesMins().getOrDefault(2, 0.0)));
+                entity.setZone3Mins(toBigDecimal(e.zonesMins().getOrDefault(3, 0.0)));
+                entity.setZone4Mins(toBigDecimal(e.zonesMins().getOrDefault(4, 0.0)));
+                entity.setZone5Mins(toBigDecimal(e.zonesMins().getOrDefault(5, 0.0)));
 
                 repository.save(entity);
 
@@ -210,11 +214,11 @@ public class RunHrZoneService {
                 record.put("activityName", e.activityName());
                 record.put("runDate", e.runDate().toString());
                 record.put("runTime", e.runTime().toString());
-                record.put("zone1Mins", round2(e.zonesMins().get(1)));
-                record.put("zone2Mins", round2(e.zonesMins().get(2)));
-                record.put("zone3Mins", round2(e.zonesMins().get(3)));
-                record.put("zone4Mins", round2(e.zonesMins().get(4)));
-                record.put("zone5Mins", round2(e.zonesMins().get(5)));
+                record.put("zone1Mins", round2(e.zonesMins().getOrDefault(1, 0.0)));
+                record.put("zone2Mins", round2(e.zonesMins().getOrDefault(2, 0.0)));
+                record.put("zone3Mins", round2(e.zonesMins().getOrDefault(3, 0.0)));
+                record.put("zone4Mins", round2(e.zonesMins().getOrDefault(4, 0.0)));
+                record.put("zone5Mins", round2(e.zonesMins().getOrDefault(5, 0.0)));
                 saved.add(record);
             } catch (Exception ex) {
                 log.warn("DB upsert error for activity {}: {}", e.activityId(), ex.getMessage());
@@ -237,7 +241,7 @@ public class RunHrZoneService {
     }
 
     private static BigDecimal toBigDecimal(Double value) {
-        return BigDecimal.valueOf(value != null ? value : 0).setScale(2, RoundingMode.HALF_UP);
+        return BigDecimal.valueOf(value != null ? value : 0.0).setScale(2, RoundingMode.HALF_UP);
     }
 
     private static double round1(double value) {

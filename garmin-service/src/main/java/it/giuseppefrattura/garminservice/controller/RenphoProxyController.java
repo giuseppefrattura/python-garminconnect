@@ -2,11 +2,19 @@ package it.giuseppefrattura.garminservice.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 /**
@@ -38,7 +46,7 @@ public class RenphoProxyController {
         
         // Append query parameters if present
         String queryString = request.getQueryString();
-        if (queryString != null && !queryString.isEmpty()) {
+        if (queryString != null && !queryString.isBlank()) {
             targetUrl += "?" + queryString;
         }
 
@@ -56,12 +64,14 @@ public class RenphoProxyController {
         try {
             return restTemplate.exchange(targetUrl, method, httpEntity, byte[].class);
         } catch (HttpStatusCodeException e) {
+            HttpHeaders responseHeaders = e.getResponseHeaders();
             return ResponseEntity.status(e.getStatusCode())
-                    .headers(e.getResponseHeaders())
+                    .headers(responseHeaders != null ? responseHeaders : new HttpHeaders())
                     .body(e.getResponseBodyAsByteArray());
         } catch (Exception e) {
+            String errorMsg = "Proxy Error: " + (e.getMessage() != null ? e.getMessage() : "Unknown error");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(("Proxy Error: " + e.getMessage()).getBytes());
+                    .body(errorMsg.getBytes(StandardCharsets.UTF_8));
         }
     }
 }

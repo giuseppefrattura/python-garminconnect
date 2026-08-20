@@ -8,13 +8,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -34,7 +34,7 @@ public class GarminProxyClient {
             @Value("${garmin.proxy.api-key:}") String apiKey) {
         RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl);
         
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
+        if (apiKey != null && !apiKey.isBlank()) {
             builder.defaultHeader("X-API-Key", apiKey);
             log.info("GarminProxyClient configured with API Key authentication.");
         } else {
@@ -55,10 +55,11 @@ public class GarminProxyClient {
     )
     public List<ActivityDto> getActivities(int start, int limit) {
         log.debug("Fetching activities (start={}, limit={})", start, limit);
-        return restClient.get()
+        List<ActivityDto> result = restClient.get()
                 .uri("/api/activities?start={start}&limit={limit}", start, limit)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
+        return result != null ? result : Collections.emptyList();
     }
 
     /**
@@ -71,11 +72,12 @@ public class GarminProxyClient {
     )
     public List<ActivityDto> getActivitiesByDate(String startDate, String endDate, String activityType) {
         log.debug("Fetching activities by date ({} to {}, type={})", startDate, endDate, activityType);
-        return restClient.get()
+        List<ActivityDto> result = restClient.get()
                 .uri("/api/activities/by-date?start={start}&end={end}&activity_type={type}",
                         startDate, endDate, activityType != null ? activityType : "")
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
+        return result != null ? result : Collections.emptyList();
     }
 
     /**
@@ -104,9 +106,10 @@ public class GarminProxyClient {
     )
     public List<HrZoneDto> getHrZones(long activityId) {
         log.debug("Fetching HR zones for activity {}", activityId);
-        return restClient.get()
+        List<HrZoneDto> result = restClient.get()
                 .uri("/api/activities/{id}/hr-zones", activityId)
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
+        return result != null ? result : Collections.emptyList();
     }
 }

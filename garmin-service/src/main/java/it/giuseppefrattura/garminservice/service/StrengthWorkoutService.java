@@ -16,7 +16,14 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 
 /**
  * Business logic for strength/weight training analysis.
@@ -210,7 +217,8 @@ public class StrengthWorkoutService {
         List<Map<String, Object>> setsList = new ArrayList<>();
         Map<String, Double> volumeByGroup = new LinkedHashMap<>();
 
-        for (StrengthWorkoutSet set : workout.getSets()) {
+        List<StrengthWorkoutSet> workoutSets = workout.getSets() != null ? workout.getSets() : List.of();
+        for (StrengthWorkoutSet set : workoutSets) {
             Map<String, Object> setEntry = new LinkedHashMap<>();
             setEntry.put("setId", set.getId());
             setEntry.put("setNumber", set.getSetNumber());
@@ -222,9 +230,9 @@ public class StrengthWorkoutService {
             setsList.add(setEntry);
 
             if (weight > 0 && set.getReps() != null && set.getReps() > 0) {
-                String category = set.getOriginalExerciseName().toUpperCase().replace(" ", "_");
-                String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category,
-                        toTitleCase(set.getOriginalExerciseName()));
+                String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
+                String category = orig.toUpperCase().replace(" ", "_");
+                String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
                 volumeByGroup.merge(muscleGroup, set.getReps() * weight, Double::sum);
             }
         }
@@ -266,20 +274,21 @@ public class StrengthWorkoutService {
         Map<String, Map<String, Double>> weeklyData = new TreeMap<>();
 
         for (StrengthWorkout workout : workouts) {
+            if (workout.getWorkoutDate() == null) continue;
             LocalDate monday = workout.getWorkoutDate().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
             String weekKey = monday.toString();
 
-            weeklyData.putIfAbsent(weekKey, new HashMap<>());
-            Map<String, Double> weekMap = weeklyData.get(weekKey);
+            Map<String, Double> weekMap = weeklyData.computeIfAbsent(weekKey, k -> new HashMap<>());
 
-            for (StrengthWorkoutSet set : workout.getSets()) {
+            List<StrengthWorkoutSet> sets = workout.getSets() != null ? workout.getSets() : List.of();
+            for (StrengthWorkoutSet set : sets) {
                 double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
                 int reps = set.getReps() != null ? set.getReps() : 0;
                 
                 if (weight > 0 && reps > 0) {
-                    String category = set.getOriginalExerciseName().toUpperCase().replace(" ", "_");
-                    String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category,
-                            toTitleCase(set.getOriginalExerciseName()));
+                    String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
+                    String category = orig.toUpperCase().replace(" ", "_");
+                    String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
                     weekMap.merge(muscleGroup, reps * weight, Double::sum);
                 }
             }
@@ -312,11 +321,13 @@ public class StrengthWorkoutService {
         Collections.reverse(chronologicalWorkouts);
 
         for (StrengthWorkout workout : chronologicalWorkouts) {
+            if (workout.getWorkoutDate() == null) continue;
             double maxWeight = 0.0;
             double max1RM = 0.0;
             boolean performed = false;
 
-            for (StrengthWorkoutSet set : workout.getSets()) {
+            List<StrengthWorkoutSet> sets = workout.getSets() != null ? workout.getSets() : List.of();
+            for (StrengthWorkoutSet set : sets) {
                 if (exerciseName.equalsIgnoreCase(set.getExerciseName())) {
                     performed = true;
                     double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;

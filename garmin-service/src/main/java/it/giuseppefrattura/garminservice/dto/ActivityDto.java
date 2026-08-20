@@ -3,8 +3,6 @@ package it.giuseppefrattura.garminservice.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Map;
-
 /**
  * Maps a single Garmin activity as returned by the proxy.
  */

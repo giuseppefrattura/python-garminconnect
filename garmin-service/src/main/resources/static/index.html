@@ -966,9 +966,14 @@
         <div class="charts-row">
             <!-- Historical Runs Bar Chart -->
             <div class="chart-card">
-                <div class="chart-header">
+                <div class="chart-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                     <div class="chart-title">
-                        <span style="color: var(--primary);">●</span> Heart-Rate Zones Stacked Breakdown (Historical Sessions)
+                        <span style="color: var(--primary);">●</span> Heart-Rate Zones Breakdown (<span id="hrChartPeriodLabel">Mese Corrente</span>)
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <label for="hrMonthFilterSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Mese:</label>
+                        <select id="hrMonthFilterSelect" onchange="onHrMonthFilterChange(this.value)" style="background: rgba(255, 255, 255, 0.07); color: #f3f4f6; border: 1px solid rgba(255, 255, 255, 0.15); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; outline: none; cursor: pointer;">
+                        </select>
                     </div>
                 </div>
                 <div class="chart-container">
@@ -1882,6 +1887,8 @@
         let cumulativeChart = null;
         let weeklyVolumeChartInstance = null;
         let progressionChartInstance = null;
+        let allRunRecords = [];
+        let selectedHrMonth = 'current';
 
         // Initialize Settings
         document.addEventListener("DOMContentLoaded", () => {
@@ -2032,27 +2039,22 @@
                 renderEmptyTable("No running activities persisted in the PostgreSQL database. Click 'Sync Garmin' to pull training history.");
                 updateMetrics(0, 0, 0, null);
                 destroyCharts();
+                allRunRecords = [];
+                populateHrMonthFilterOptions([]);
                 return;
             }
+
+            allRunRecords = records;
 
             // Calculations for metric cards
             let totalRuns = records.length;
             let totalZone2 = 0;
             let totalVolume = 0;
             
-            // Collect datasets for time-series stacked charts
-            const dates = [];
-            const names = [];
-            const z1Values = [];
-            const z2Values = [];
-            const z3Values = [];
-            const z4Values = [];
-            const z5Values = [];
-            
             // Cumulative totals
             let cumZ1 = 0, cumZ2 = 0, cumZ3 = 0, cumZ4 = 0, cumZ5 = 0;
 
-            // Render table rows
+            // Render table rows & calculate global stats
             records.forEach(r => {
                 const z1 = Number(r.zone1Mins || 0);
                 const z2 = Number(r.zone2Mins || 0);
@@ -2070,15 +2072,6 @@
                 cumZ3 += z3;
                 cumZ4 += z4;
                 cumZ5 += z5;
-
-                // Stacked chart structures (we want chronological order left-to-right, so prepend)
-                dates.unshift(r.runDate);
-                names.unshift(r.activityName || "Running");
-                z1Values.unshift(z1);
-                z2Values.unshift(z2);
-                z3Values.unshift(z3);
-                z4Values.unshift(z4);
-                z5Values.unshift(z5);
 
                 const row = document.createElement("tr");
                 row.innerHTML = `
@@ -2104,11 +2097,100 @@
             const latest = records[0]; // records is sorted DESC, so first element is newest
             updateMetrics(totalRuns, totalZone2, totalVolume, latest);
 
-            // Draw stacked historical chart
-            renderHistoricalChart(dates, names, z1Values, z2Values, z3Values, z4Values, z5Values);
+            // Populate Month Filter dropdown and draw Stacked Chart for Current Month
+            populateHrMonthFilterOptions(records);
+            renderFilteredHistoricalChart();
             
             // Draw cumulative allocation chart
             renderCumulativeChart(cumZ1, cumZ2, cumZ3, cumZ4, cumZ5);
+        }
+
+        function formatMonthLabel(yearMonthStr) {
+            if (!yearMonthStr) return "";
+            const parts = yearMonthStr.split("-");
+            if (parts.length < 2) return yearMonthStr;
+            const date = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+            const monthName = date.toLocaleString('it-IT', { month: 'long' });
+            return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${parts[0]}`;
+        }
+
+        function populateHrMonthFilterOptions(records) {
+            const select = document.getElementById("hrMonthFilterSelect");
+            if (!select) return;
+
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const currentLabel = formatMonthLabel(currentYearMonth);
+
+            const monthsSet = new Set();
+            (records || []).forEach(r => {
+                if (r.runDate && r.runDate.length >= 7) {
+                    monthsSet.add(r.runDate.substring(0, 7));
+                }
+            });
+
+            const sortedMonths = Array.from(monthsSet).sort().reverse();
+
+            let html = `<option value="current">${currentLabel} (Mese Corrente)</option>`;
+            sortedMonths.forEach(m => {
+                if (m !== currentYearMonth) {
+                    html += `<option value="${m}">${formatMonthLabel(m)}</option>`;
+                }
+            });
+            html += `<option value="all">Tutte le corse (Storico completo)</option>`;
+
+            select.innerHTML = html;
+            select.value = selectedHrMonth;
+        }
+
+        function onHrMonthFilterChange(val) {
+            selectedHrMonth = val;
+            renderFilteredHistoricalChart();
+        }
+
+        function renderFilteredHistoricalChart() {
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const periodLabel = document.getElementById("hrChartPeriodLabel");
+
+            let filtered = [];
+            if (selectedHrMonth === 'current') {
+                filtered = allRunRecords.filter(r => r.runDate && r.runDate.startsWith(currentYearMonth));
+                if (periodLabel) periodLabel.innerText = formatMonthLabel(currentYearMonth);
+            } else if (selectedHrMonth === 'all') {
+                filtered = allRunRecords;
+                if (periodLabel) periodLabel.innerText = "Storico Completo";
+            } else {
+                filtered = allRunRecords.filter(r => r.runDate && r.runDate.startsWith(selectedHrMonth));
+                if (periodLabel) periodLabel.innerText = formatMonthLabel(selectedHrMonth);
+            }
+
+            const dates = [];
+            const names = [];
+            const z1Values = [];
+            const z2Values = [];
+            const z3Values = [];
+            const z4Values = [];
+            const z5Values = [];
+
+            // Chronological order left-to-right (filtered records is DESC, so unshift to reverse)
+            filtered.forEach(r => {
+                const z1 = Number(r.zone1Mins || 0);
+                const z2 = Number(r.zone2Mins || 0);
+                const z3 = Number(r.zone3Mins || 0);
+                const z4 = Number(r.zone4Mins || 0);
+                const z5 = Number(r.zone5Mins || 0);
+
+                dates.unshift(r.runDate);
+                names.unshift(r.activityName || "Running");
+                z1Values.unshift(z1);
+                z2Values.unshift(z2);
+                z3Values.unshift(z3);
+                z4Values.unshift(z4);
+                z5Values.unshift(z5);
+            });
+
+            renderHistoricalChart(dates, names, z1Values, z2Values, z3Values, z4Values, z5Values);
         }
 
         function updateMetrics(totalRuns, totalZone2, totalVolume, latestRecord) {

@@ -89,4 +89,18 @@ public class WorkoutController {
             return ResponseEntity.status(500).body(Map.of("status", "error", "detail", "Failed to update set exercise name: " + e.getMessage()));
         }
     }
+
+    /**
+     * Synchronize strength workouts from Garmin Connect into PostgreSQL.
+     */
+    @PostMapping("/sync/strength-workouts")
+    public ResponseEntity<Map<String, Object>> syncStrengthWorkouts(
+            @RequestParam(value = "limit", required = false) Integer limit) {
+        int count = service.syncStrengthWorkouts(limit != null ? limit : defaultLimit);
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Strength workouts synchronization completed",
+                "syncedCount", count
+        ));
+    }
 }

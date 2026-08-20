@@ -1766,10 +1766,14 @@
         <!-- Workout Tab Content -->
         <div id="workoutTabContent" style="display: none;">
             <!-- Workout Actions Panel -->
-            <div class="config-panel" style="margin-bottom: 2rem; justify-content: flex-end;">
-                <button class="btn btn-secondary" onclick="fetchWorkoutData()">
+            <div class="config-panel" style="margin-bottom: 2rem; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="syncWorkoutData()">
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
-                    Aggiorna Allenamento
+                    Sincronizza con Garmin
+                </button>
+                <button class="btn btn-secondary" onclick="fetchWorkoutData(true)">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                    Aggiorna Vista
                 </button>
             </div>
 
@@ -2796,7 +2800,38 @@
         // ---------------------------------------------------------------------------
         let selectedSetId = null;
 
-        async function fetchWorkoutData() {
+        async function syncWorkoutData() {
+            toggleLoader(true, "Sincronizzazione degli allenamenti con Garmin Connect in corso...");
+            try {
+                const response = await fetch("/api/sync/strength-workouts", {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    toggleLoader(false);
+                    showToast("Non autorizzato: X-API-Key non valida o mancante.", "error");
+                    return;
+                }
+
+                const result = await response.json();
+                toggleLoader(false);
+
+                if (result.status === "success") {
+                    const count = result.syncedCount || 0;
+                    showToast(`Sincronizzazione completata! ${count} nuovi allenamenti registrati.`, "success");
+                    await fetchWorkoutData(false);
+                } else {
+                    showToast(`Errore sincronizzazione: ${result.detail || "Errore sconosciuto"}`, "error");
+                }
+            } catch (err) {
+                console.error("Sync workout error:", err);
+                toggleLoader(false);
+                showToast("Errore di rete o timeout durante la sincronizzazione.", "error");
+            }
+        }
+
+        async function fetchWorkoutData(showFeedback = false) {
             toggleLoader(true, "Caricamento dell'ultimo allenamento con i pesi...");
             try {
                 const response = await fetch("/api/last-strength-workout", {
@@ -2814,6 +2849,9 @@
                 
                 if (result.status === "success" && result.data) {
                     renderWorkoutData(result.data);
+                    if (showFeedback) {
+                        showToast("Dati di allenamento aggiornati con successo!", "success");
+                    }
                 } else {
                     showToast(`Errore: ${result.detail || "Impossibile caricare l'allenamento"}`, "error");
                     renderEmptyWorkoutTable(result.detail || "Nessun allenamento trovato.");

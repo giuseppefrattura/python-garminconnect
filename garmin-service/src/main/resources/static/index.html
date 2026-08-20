@@ -336,6 +336,45 @@
             display: block;
         }
 
+        /* Muscle Group Chips for Volume Chart */
+        .muscle-chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .muscle-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 0.28rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.76rem;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            user-select: none;
+        }
+
+        .muscle-chip:hover {
+            background: rgba(255, 255, 255, 0.09);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .muscle-chip.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--primary);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+        }
+
         /* Database Table Card */
         .table-card {
             background: var(--card-bg);
@@ -1766,14 +1805,27 @@
 
             <!-- Workout Analytics Row (Charts) -->
             <div class="charts-row" style="margin-bottom: 2.5rem;">
-                <!-- Weekly Volume Stacked Bar Chart -->
+                <!-- Weekly Volume Bar Chart with Muscle Filter -->
                 <div class="chart-card">
-                    <div class="chart-header">
+                    <div class="chart-header" style="flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="chart-title">
-                            <span style="color: var(--primary);">●</span> Andamento Volume Settimanale (kg per Gruppo Muscolare)
+                            <span style="color: var(--primary);">●</span> Volume Settimanale (<span id="weeklyVolumeFilterLabel">Volume Totale</span>)
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <label for="weeklyVolumeWeeksSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Periodo:</label>
+                            <select id="weeklyVolumeWeeksSelect" onchange="onWeeklyVolumeTimeframeChange(this.value)" style="background: rgba(255, 255, 255, 0.07); color: #f3f4f6; border: 1px solid rgba(255, 255, 255, 0.15); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; outline: none; cursor: pointer;">
+                                <option value="8" selected>Ultime 8 Settimane</option>
+                                <option value="12">Ultime 12 Settimane</option>
+                                <option value="24">Ultime 24 Settimane</option>
+                                <option value="all">Tutte le Settimane</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="chart-container" style="height: 320px;">
+                    <!-- Muscle group filter chips -->
+                    <div id="muscleGroupChipsContainer" class="muscle-chips-container">
+                        <!-- Generated dynamically -->
+                    </div>
+                    <div class="chart-container" style="height: 300px;">
                         <canvas id="workoutWeeklyVolumeChart"></canvas>
                     </div>
                 </div>
@@ -2933,6 +2985,34 @@
         // ---------------------------------------------------------------------------
         // Workout Historical Volume and Progression Graphs
         // ---------------------------------------------------------------------------
+        let cachedWeeklyVolumeData = {};
+        let selectedMuscleGroup = 'ALL';
+        let selectedVolumeWeeks = 8;
+
+        const muscleGroupLabels = {
+            "Chest": "🏋️ Petto",
+            "Back": "🧗 Dorso",
+            "Legs": "🦵 Gambe",
+            "Shoulders": "🎯 Spalle",
+            "Biceps": "💪 Bicipiti",
+            "Triceps": "💪 Tricipiti",
+            "Core": "🧘 Core",
+            "Calves": "🦵 Polpacci",
+            "Back/Legs (Posterior Chain)": "⚡ Catena Posteriore"
+        };
+
+        const muscleGroupColors = {
+            "Chest": "#3b82f6",
+            "Back": "#10b981",
+            "Legs": "#eab308",
+            "Shoulders": "#f97316",
+            "Biceps": "#ef4444",
+            "Triceps": "#ec4899",
+            "Core": "#8b5cf6",
+            "Calves": "#14b8a6",
+            "Back/Legs (Posterior Chain)": "#06b6d4"
+        };
+
         async function fetchWeeklyVolumeData() {
             try {
                 const response = await fetch("/api/strength-workouts-history", {
@@ -2941,7 +3021,9 @@
                 if (response.ok) {
                     const result = await response.json();
                     if (result.status === "success" && result.data) {
-                        renderWeeklyVolumeChart(result.data);
+                        cachedWeeklyVolumeData = result.data;
+                        renderWeeklyVolumeChips(result.data);
+                        renderWeeklyVolumeChart();
                     }
                 }
             } catch (err) {
@@ -2949,80 +3031,156 @@
             }
         }
 
-        function renderWeeklyVolumeChart(weeklyData) {
+        function renderWeeklyVolumeChips(weeklyData) {
+            const container = document.getElementById("muscleGroupChipsContainer");
+            if (!container) return;
+
+            const muscleGroups = new Set();
+            Object.values(weeklyData || {}).forEach(w => {
+                Object.keys(w).forEach(g => {
+                    if (w[g] > 0) muscleGroups.add(g);
+                });
+            });
+
+            const sortedGroups = Array.from(muscleGroups).sort();
+
+            let html = `<button class="muscle-chip ${selectedMuscleGroup === 'ALL' ? 'active' : ''}" onclick="onMuscleChipSelect('ALL')">📊 Tutti (Volume Totale)</button>`;
+
+            sortedGroups.forEach(g => {
+                const label = muscleGroupLabels[g] || g;
+                const isActive = selectedMuscleGroup === g ? 'active' : '';
+                html += `<button class="muscle-chip ${isActive}" onclick="onMuscleChipSelect('${escapeHtml(g)}')">${label}</button>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function onMuscleChipSelect(group) {
+            selectedMuscleGroup = group;
+            renderWeeklyVolumeChips(cachedWeeklyVolumeData);
+            renderWeeklyVolumeChart();
+        }
+
+        function onWeeklyVolumeTimeframeChange(val) {
+            selectedVolumeWeeks = val === 'all' ? 'all' : Number(val);
+            renderWeeklyVolumeChart();
+        }
+
+        function formatWeekDateLabel(dateStr) {
+            if (!dateStr) return "";
+            const parts = dateStr.split("-");
+            if (parts.length < 3) return dateStr;
+            const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            const day = parts[2];
+            const monthName = date.toLocaleString('it-IT', { month: 'short' });
+            return `${day} ${monthName}`;
+        }
+
+        function renderWeeklyVolumeChart() {
             const ctx = document.getElementById("workoutWeeklyVolumeChart").getContext("2d");
             if (weeklyVolumeChartInstance) {
                 weeklyVolumeChartInstance.destroy();
             }
 
-            const weeks = Object.keys(weeklyData);
-            if (weeks.length === 0) {
+            const allWeeks = Object.keys(cachedWeeklyVolumeData || {}).sort();
+            if (allWeeks.length === 0) {
                 return;
             }
 
-            const muscleGroups = new Set();
-            weeks.forEach(w => {
-                Object.keys(weeklyData[w]).forEach(g => muscleGroups.add(g));
-            });
-            const muscleGroupsList = Array.from(muscleGroups);
+            const weeks = selectedVolumeWeeks === 'all' ? allWeeks : allWeeks.slice(-selectedVolumeWeeks);
+            const dateLabels = weeks.map(w => formatWeekDateLabel(w));
 
-            const colorPalette = {
-                "Chest": "#3b82f6",
-                "Back": "#10b981",
-                "Legs": "#eab308",
-                "Shoulders": "#f97316",
-                "Biceps": "#ef4444",
-                "Triceps": "#ec4899",
-                "Core": "#8b5cf6",
-                "Calves": "#14b8a6"
-            };
-            const defaultColors = ["#6b7280", "#a855f7", "#3b82f6", "#10b981", "#eab308", "#f97316", "#ef4444"];
+            // Update subtitle label
+            const subtitleEl = document.getElementById("weeklyVolumeFilterLabel");
+            if (subtitleEl) {
+                const groupName = selectedMuscleGroup === 'ALL' ? 'Volume Totale' : (muscleGroupLabels[selectedMuscleGroup] || selectedMuscleGroup);
+                const periodText = selectedVolumeWeeks === 'all' ? 'Storico Completo' : `Ultime ${weeks.length} Sett.`;
+                subtitleEl.innerText = `${groupName} — ${periodText}`;
+            }
 
-            const datasets = muscleGroupsList.map((group, idx) => {
-                const data = weeks.map(w => weeklyData[w][group] || 0.0);
-                const color = colorPalette[group] || defaultColors[idx % defaultColors.length];
-                return {
-                    label: group,
-                    data: data,
-                    backgroundColor: color,
-                    stack: 'Stack 0'
-                };
-            });
+            let datasets = [];
+
+            if (selectedMuscleGroup === 'ALL') {
+                const totalData = weeks.map(w => {
+                    const groupMap = cachedWeeklyVolumeData[w] || {};
+                    return Object.values(groupMap).reduce((a, b) => a + Number(b || 0), 0);
+                });
+
+                datasets = [{
+                    label: 'Volume Totale',
+                    data: totalData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    hoverBackgroundColor: '#3b82f6',
+                    borderColor: '#60a5fa',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }];
+            } else {
+                const groupData = weeks.map(w => {
+                    const groupMap = cachedWeeklyVolumeData[w] || {};
+                    return Number(groupMap[selectedMuscleGroup] || 0.0);
+                });
+
+                const color = muscleGroupColors[selectedMuscleGroup] || '#3b82f6';
+                const label = muscleGroupLabels[selectedMuscleGroup] || selectedMuscleGroup;
+
+                datasets = [{
+                    label: label,
+                    data: groupData,
+                    backgroundColor: color + 'bf', // 75% opacity
+                    hoverBackgroundColor: color,
+                    borderColor: color,
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }];
+            }
 
             weeklyVolumeChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: weeks,
+                    labels: dateLabels,
                     datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
+                                title: (items) => {
+                                    const idx = items[0].dataIndex;
+                                    return `Settimana del ${weeks[idx]} (${dateLabels[idx]})`;
+                                },
                                 label: (item) => {
-                                    return ` ${item.dataset.label}: ${item.raw.toFixed(1)} kg`;
+                                    return ` ${item.dataset.label}: ${item.raw.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`;
+                                },
+                                afterBody: (items) => {
+                                    if (selectedMuscleGroup !== 'ALL') return [];
+                                    const idx = items[0].dataIndex;
+                                    const weekKey = weeks[idx];
+                                    const groupMap = cachedWeeklyVolumeData[weekKey] || {};
+                                    const sortedEntries = Object.entries(groupMap).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+                                    if (sortedEntries.length === 0) return [];
+                                    const lines = ["", "Dettaglio Muscoli:"];
+                                    sortedEntries.forEach(([g, v]) => {
+                                        const friendlyName = muscleGroupLabels[g] || g;
+                                        lines.push(` • ${friendlyName}: ${v.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`);
+                                    });
+                                    return lines;
                                 }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            stacked: true,
                             grid: { color: 'rgba(255, 255, 255, 0.03)' },
-                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 9 } }
+                            ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } }
                         },
                         y: {
-                            stacked: true,
                             grid: { color: 'rgba(255, 255, 255, 0.05)' },
                             ticks: { color: '#9ca3af', font: { family: 'Outfit', size: 10 } },
-                            title: { display: true, text: 'Volume Totale (kg)', color: '#9ca3af', font: { family: 'Outfit', size: 11, weight: 500 } }
+                            title: { display: true, text: 'Volume (kg)', color: '#9ca3af', font: { family: 'Outfit', size: 11, weight: 500 } }
                         }
                     }
                 }

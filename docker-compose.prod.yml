@@ -4,11 +4,12 @@ services:
     container_name: watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.docker/config.json:/config.json:ro
     environment:
       - WATCHTOWER_POLL_INTERVAL=300
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
+      - REPO_USER=${GHCR_USER:-giuseppefrattura}
+      - REPO_PASS=${GHCR_PAT:-}
     restart: unless-stopped
 
   garmin-proxy:

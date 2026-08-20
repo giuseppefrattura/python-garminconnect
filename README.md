@@ -1,399 +1,284 @@
-[![GitHub Release][releases-shield]][releases]
-[![GitHub Activity][commits-shield]][commits]
-[![License][license-shield]](LICENSE)
-![Project Maintenance][maintenance-shield]
+# 🏃‍♂️ Garmin & Renpho Fitness Platform 🏋️‍♂️
 
-# Python: Garmin Connect
+> Piattaforma completa a microservizi per la raccolta, sincronizzazione, analisi e visualizzazione avanzata dei dati di allenamento **Garmin Connect** e di composizione corporea **Renpho Smart Scale**.
 
-The Garmin Connect API library comes with two examples:
+---
 
-- **`example.py`** - Simple getting-started example showing authentication, token storage, and basic API calls
-- **`demo.py`** - Comprehensive demo providing access to **105+ API methods** organized into **12 categories** for easy navigation
+## 📖 Indice
 
-Note: The demo menu is generated dynamically; exact options may change between releases.
+- [Panoramica](#-panoramica)
+- [Caratteristiche Principali](#-caratteristiche-principali)
+- [Architettura a Microservizi](#-architettura-a-microservizi)
+- [Struttura del Progetto](#-struttura-del-progetto)
+- [Configurazione e Variabili d'Ambiente](#-configurazione-e-variabili-dambiente)
+- [Avvio in Locale (Development)](#-avvio-in-locale-development)
+- [Deploy Automatico in Produzione (CI/CD & Watchtower)](#-deploy-automatico-in-produzione-cicd--watchtower)
+- [Riferimento API](#-riferimento-api)
+- [Sicurezza e Autenticazione](#-sicurezza-e-autenticazione)
+- [Database e Migrazioni (Liquibase)](#-database-e-migrazioni-liquibase)
+
+---
+
+## 🌟 Panoramica
+
+Questa piattaforma trasforma i dati grezzi di **Garmin Connect** e delle bilance intelligenti **Renpho** in una dashboard unificata e interattiva, salvando lo storico delle metriche su un database relazionale **PostgreSQL** per analisi a lungo termine senza dipendere esclusivamente dai cloud proprietari.
+
+L'applicazione è progettata con un'architettura **a microservizi containerizzata** con Docker, garantendo scalabilità, isolamento dei processi e facilità di deploy.
+
+---
+
+## ✨ Caratteristiche Principali
+
+### 🏃 1. Analisi Corsa e Zone Cardio (HR Zones)
+- Estrazione automatica delle attività di corsa da Garmin Connect.
+- Calcolo dettagliato del tempo trascorso nelle **5 zone di frequenza cardiaca** (Z1 - Riscaldamento fino a Z5 - Massimo).
+- Persistenza storica su PostgreSQL e grafici temporali di distribuzione dell'intensità cardiaca.
+
+### 🏋️ 2. Monitoraggio Allenamenti coi Pesi (Strength Workouts)
+- Tracciamento delle sessioni di forza: serie, ripetizioni, carichi e volume totale (kg sollevati).
+- **Mappatura personalizzata degli esercizi (Exercise Name Mapping)**: permette di rinominare e normalizzare gli esercizi Garmin (spesso con nomi generici o in inglese) in etichette personalizzate.
+- Calcolo della progressione dei carichi e stima del volume per gruppo muscolare.
+
+### ⚖️ 3. Composizione Corporea (Renpho Smart Scale)
+- Sincronizzazione automatica dal cloud Renpho Health di tutte le metriche biometriche:
+  - Peso corporeo, Indice di Massa Corporea (BMI).
+  - Percentuale di massa grassa, massa muscolare scheletrica, massa magra.
+  - Percentuale d'acqua, massa ossea, metabolismo basale (BMR).
+- Dashboard dedicata con grafici sull'andamento del peso e della massa corporea nel tempo.
+
+### 📊 4. Dashboard Web Interattiva
+- Interfaccia grafica moderna (Glassmorphic design) responsive e fruibile da desktop e smartphone.
+- Visualizzazione immediata di:
+  - Ultimo allenamento di forza eseguito con dettaglio serie.
+  - Distribuzione settimanale e mensile delle zone cardio di corsa.
+  - Grafici di trend del peso e parametri Renpho.
+
+---
+
+## 🏗️ Architettura a Microservizi
+
+L'applicazione è suddivisa in 3 microservizi indipendenti che comunicano tra loro all'interno della rete Docker:
+
+```mermaid
+flowchart TD
+    subgraph Client
+        Browser[📱 Browser Utente / Dashboard]
+    end
+
+    subgraph Docker Stack
+        GP["garmin-proxy:8080<br/>(FastAPI / Python 3.13)"]
+        GS["garmin-service:8081<br/>(Spring Boot 3 / Java 21)"]
+        RS["renpho-service:8082<br/>(FastAPI / Python 3.12)"]
+    end
+
+    subgraph Esterno
+        GC[☁️ Garmin Connect Cloud]
+        RC[☁️ Renpho Health Cloud]
+        DB[(🐘 PostgreSQL Database)]
+    end
+
+    Browser -->|HTTP / OAuth2 / Web UI| GS
+    GS -->|REST Client + Retry| GP
+    GS -->|REST Proxy / Dati Peso| RS
+    GS -->|Liquibase & JPA| DB
+    RS -->|Persistenza Metriche| DB
+    GP -->|Garth Auth & API| GC
+    RS -->|Sync Dati Bilancia| RC
+```
+
+### 1. `garmin-proxy` (Porta `8080`)
+- **Linguaggio & Framework**: Python 3.13 / FastAPI / Uvicorn.
+- **Scopo**: Gateway/proxy trasparente verso le API di Garmin Connect.
+- **Funzionalità**:
+  - Gestisce l'autenticazione OAuth e il refresh dei token Garmin memorizzati nel volume `/tokens`.
+  - Meccanismo di auto-reautenticazione su errore `GarthHTTPError` per evitare sessioni scadute.
+  - Protezione con `X-API-KEY`.
+
+### 2. `garmin-service` (Porta `8081`)
+- **Linguaggio & Framework**: Java 21 / Spring Boot 3 / Spring Security / Spring Data JPA.
+- **Scopo**: Core applicativo, logica di business e server web della Dashboard.
+- **Funzionalità**:
+  - Serve la Web UI e le API REST.
+  - Gestisce le migrazioni del database con **Liquibase**.
+  - Si connette a `garmin-proxy` con meccanismo di retry esponenziale (`@Retryable`).
+  - Gestisce la sicurezza con autenticazione via Form (Admin) e **OAuth2 Social Login (Google & Apple)**.
+
+### 3. `renpho-service` (Porta `8082`)
+- **Linguaggio & Framework**: Python 3.12 / FastAPI / Uvicorn.
+- **Scopo**: Integrazione con le bilance intelligenti Renpho.
+- **Funzionalità**:
+  - Effettua il login su Renpho Health e recupera lo storico delle pesate.
+  - Salva i dati direttamente su PostgreSQL.
+
+---
+
+## 📁 Struttura del Progetto
+
+```text
+python-garminconnect/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                 # Pipeline CI (Linting, formattazione, tipi)
+│       └── docker-publish.yml     # Pipeline CD (Build e push su GitHub Container Registry)
+├── garmin-proxy/                  # Microservizio FastAPI per proxy Garmin
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+├── garmin-service/                # Microservizio Spring Boot (Core + Dashboard)
+│   ├── Dockerfile
+│   ├── pom.xml
+│   └── src/main/
+│       ├── java/it/giuseppefrattura/garminservice/
+│       │   ├── controller/        # REST Endpoints
+│       │   ├── service/           # Logica di business (Forza, Corsa, Mappature)
+│       │   ├── security/          # Configurazione Spring Security & OAuth2
+│       │   ├── repository/        # Spring Data JPA Repositories
+│       │   └── model/             # Entità JPA
+│       └── resources/
+│           ├── application.yml
+│           ├── db/changelog/      # Script di migrazione Liquibase (001, 002, 003...)
+│           └── static/            # Frontend HTML5, CSS Glassmorphic e JS
+├── renpho-service/                # Microservizio FastAPI per bilancia Renpho
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+├── garminconnect/                 # Libreria Python wrapper per API Garmin
+├── docker-compose.yml             # Compose per sviluppo locale (build da sorgente)
+├── docker-compose.prod.yml        # Compose per produzione (immagini GHCR + Watchtower)
+└── .env                           # File di configurazione (credenziali ed endpoint)
+```
+
+---
+
+## ⚙️ Configurazione e Variabili d'Ambiente
+
+Crea un file `.env` nella radice del progetto configurando i seguenti parametri:
+
+```dotenv
+# --- Sicurezza & API Key tra i servizi ---
+GARMIN_API_KEY=tua-chiave-segreta-123
+
+# --- Database PostgreSQL ---
+DB_HOST=192.168.1.xxx       # o localhost / nome host PostgreSQL
+DB_PORT=5432
+DB_NAME=garmin
+DB_USER=postgres
+DB_PASSWORD=tua_password_postgres
+
+# --- Credenziali Dashboard (Form Login) ---
+DASHBOARD_USER=admin
+DASHBOARD_PASSWORD=tua_password_admin
+
+# --- OAuth2 Login (Opzionale) ---
+GOOGLE_CLIENT_ID=tuo-google-client-id
+GOOGLE_CLIENT_SECRET=tuo-google-client-secret
+APPLE_CLIENT_ID=tuo-apple-client-id
+APPLE_CLIENT_SECRET=tuo-apple-client-secret
+
+# --- Credenziali Renpho Health (Opzionale) ---
+RENPHO_EMAIL=tua_email@renpho.com
+RENPHO_PASSWORD=tua_password_renpho
+```
+
+### Autenticazione Garmin Token
+Prima di avviare il proxy, assicurati che i token di autenticazione Garmin siano presenti nella directory `~/.garminconnect` del tuo host (generati tramite il modulo `garth` o con lo script di login `example.py`).
+
+---
+
+## 🚀 Avvio in Locale (Development)
+
+Per avviare l'intero stack in locale compilando i container dai sorgenti:
 
 ```bash
-$ ./demo.py
-🏃‍♂️ Full-blown Garmin Connect API Demo - Main Menu
-==================================================
-Select a category:
+# 1. Clona il repository
+git clone https://github.com/giuseppefrattura/python-garminconnect.git
+cd python-garminconnect
 
-  [1] 👤 User & Profile
-  [2] 📊 Daily Health & Activity
-  [3] 🔬 Advanced Health Metrics
-  [4] 📈 Historical Data & Trends
-  [5] 🏃 Activities & Workouts
-  [6] ⚖️ Body Composition & Weight
-  [7] 🏆 Goals & Achievements
-  [8] ⌚ Device & Technical
-  [9] 🎽 Gear & Equipment
-  [0] 💧 Hydration & Wellness
-  [a] 🔧 System & Export
-  [b] 📅 Training plans
+# 2. Configura le variabili d'ambiente
+cp .env.example .env # compila con i tuoi valori
 
-  [q] Exit program
+# 3. Avvia lo stack Docker
+docker compose up --build -d
 
-Make your selection:
+# 4. Controlla lo stato dei container
+docker compose ps
 ```
 
-## API Coverage Statistics
+Una volta avviato:
+- **Dashboard Web**: [http://localhost:8081](http://localhost:8081)
+- **Swagger UI (Documentazione API)**: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
+- **Garmin Proxy Health**: [http://localhost:8080/health](http://localhost:8080/health)
 
-- **Total API Methods**: 105+ unique endpoints (snapshot)
-- **Categories**: 12 organized sections
-- **User & Profile**: 4 methods (basic user info, settings)
-- **Daily Health & Activity**: 9 methods (today's health data)
-- **Advanced Health Metrics**: 11 methods (fitness metrics, HRV, VO2, training readiness)
-- **Historical Data & Trends**: 9 methods (date range queries, weekly aggregates)
-- **Activities & Workouts**: 28 methods (comprehensive activity and workout management)
-- **Body Composition & Weight**: 8 methods (weight tracking, body composition)
-- **Goals & Achievements**: 15 methods (challenges, badges, goals)
-- **Device & Technical**: 7 methods (device info, settings)
-- **Gear & Equipment**: 8 methods (gear management, tracking)
-- **Hydration & Wellness**: 9 methods (hydration, blood pressure, menstrual)
-- **System & Export**: 4 methods (reporting, logout, GraphQL)
-- **Training Plans**: 3 methods
+---
 
-### Interactive Features
+## 🚢 Deploy Automatico in Produzione (CI/CD & Watchtower)
 
-- **Enhanced User Experience**: Categorized navigation with emoji indicators
-- **Smart Data Management**: Interactive weigh-in deletion with search capabilities
-- **Comprehensive Coverage**: All major Garmin Connect features are accessible
-- **Error Handling**: Robust error handling with user-friendly prompts
-- **Data Export**: JSON export functionality for all data types
+Il progetto è predisposto per il deploy continuo e automatico sul proprio server domestico o cloud (es. `192.168.1.64`).
 
+### 1. Come Funziona il Flusso
+1. Ad ogni `git push` sul branch `master`, la GitHub Action [`.github/workflows/docker-publish.yml`](file:///.github/workflows/docker-publish.yml) compila le 3 immagini Docker e le carica su **GitHub Container Registry (GHCR)**:
+   - `ghcr.io/giuseppefrattura/garmin-proxy:latest`
+   - `ghcr.io/giuseppefrattura/garmin-service:latest`
+   - `ghcr.io/giuseppefrattura/renpho-service:latest`
+2. Sul server di produzione, il container **Watchtower** presente in [`docker-compose.prod.yml`](file:///docker-compose.prod.yml) effettua il polling periodico su GHCR. Quando rileva nuove immagini, le scarica ed esegue il riavvio controllato dei container a caldo.
 
-A comprehensive Python3 API wrapper for Garmin Connect, providing access to health, fitness, and device data.
-
-## 📖 About
-
-This library enables developers to programmatically access Garmin Connect data including:
-
-- **Health Metrics**: Heart rate, sleep, stress, body composition, SpO2, HRV
-- **Activity Data**: Workouts, scheduled workouts, exercises, training status, performance metrics
-- **Device Information**: Connected devices, settings, alarms, solar data
-- **Goals & Achievements**: Personal records, badges, challenges, race predictions
-- **Historical Data**: Trends, progress tracking, date range queries
-
-Compatible with all Garmin Connect accounts. See <https://connect.garmin.com/>
-
-## 🌐 Web Application & Dashboard Stack (Docker)
-
-In addition to the core library and command-line examples, this repository includes a multi-service containerized web application stack managed via Docker Compose.
-
-The stack comprises the following services:
-
-### 1. Garmin Proxy Service (`garmin-proxy` @ port `8080`)
-* Handles authentication and acts as a caching proxy for the Garmin Connect API.
-* Keeps OAuth tokens active and prevents rate limits.
-
-### 2. Garmin Fitness Analytics Dashboard (`garmin-service` @ port `8081`)
-* A Spring Boot web application serving a gorgeous, interactive glassmorphic dashboard (`http://localhost:8081`).
-* Visualizes your training logs, running metrics, activity trends, and custom Heart Rate Zone distributions.
-* Includes a built-in integration to switch tabs and view scale weight metrics pulled directly from the Renpho service database.
-
-![Garmin Connect Fitness Dashboard](/Users/giuseppefrattura/.gemini/antigravity-ide/brain/cdbf7798-709d-4382-a51d-9801c7883c2a/garmin_dashboard_1780741867826.png)
-
-### 3. Renpho Scale Sync Service & Standalone Dashboard (`renpho-service` @ port `8082`)
-* A FastAPI Python microservice that syncs weight and body composition data (body fat, muscle mass, BMI, bone, water, and impedance resistance) from the Renpho Health API to a local PostgreSQL instance.
-* Runs a background scheduler to automatically fetch new data daily.
-* Serves a standalone, fully-featured weight analytics dashboard (`http://localhost:8082`) with:
-  * **Auto-Sync on Load**: Automatically checks credentials status, connects to the Renpho cloud on page load to pull the latest scale records, and populates the database and graphs.
-  * **Analytics Charts**: Features interactive Chart.js visualizations including a Weight & Body Fat trend line graph and a detailed body mass composition doughnut chart.
-  * **Records History**: Displays all weigh-in logs in a responsive data table with a live search box to filter results by date.
-
-![Renpho Scale Standalone Dashboard](/Users/giuseppefrattura/.gemini/antigravity-ide/brain/cdbf7798-709d-4382-a51d-9801c7883c2a/dashboard_loaded_1780741367927.png)
-
-## 📦 Installation
-
-Install from PyPI:
+### 2. Avvio sul Server di Produzione
+Sul server di produzione (`192.168.1.64`):
 
 ```bash
-python3 -m pip install --upgrade pip
-python3 -m pip install garminconnect
+# Avvia lo stack in produzione con Watchtower
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-## Run demo software (recommended)
-
-```bash
-python3 -m venv .venv --copies
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install pdm
-pdm install --group :example
-
-# Run the simple example
-python3 ./example.py
-
-# Run the comprehensive demo
-python3 ./demo.py
-```
-
-
-## 🛠️ Development
-
-Set up a development environment for contributing:
-
-> **Note**: This project uses [PDM](https://pdm.fming.dev/) for modern Python dependency management and task automation. All development tasks are configured as PDM scripts in `pyproject.toml`. The Python interpreter is automatically configured to use `.venv/bin/python` when you create the virtual environment.
-
-**Environment Setup:**
+---
 
-> **⚠️ Important**: On externally-managed Python environments (like Debian/Ubuntu), you must create a virtual environment before installing PDM to avoid system package conflicts.
+## 🔌 Riferimento API
 
-```bash
-# 1. Create and activate a virtual environment
-python3 -m venv .venv --copies
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+I microservizi espongono endpoint RESTful documentati via OpenAPI/Swagger.
 
-# 2. Install PDM (Python Dependency Manager)
-pip install pdm
+### Endpoint Principali di `garmin-service` (Porta 8081)
 
-# 3. Install all development dependencies
-pdm install --group :all
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `GET` | `/api/last-strength-workout?limit=30` | Restituisce l'ultimo allenamento di forza con serie, carichi, ripetizioni e volume totale. |
+| `GET` | `/api/run-hr-zones?days=10` | Restituisce le zone cardio delle corse degli ultimi *N* giorni (in sola lettura). |
+| `POST` | `/api/run-hr-zones/persist?days=10` | Scarica le corse da Garmin e le salva/aggiorna su PostgreSQL. |
+| `GET` | `/api/exercise-mappings` | Recupera la lista di tutte le mappature personalizzate dei nomi degli esercizi. |
+| `POST` | `/api/exercise-mappings` | Crea o aggiorna la mappatura di un nome esercizio Garmin. |
+| `GET` | `/api/renpho/latest` | Recupera l'ultima rilevazione di peso e composizione corporea. |
+| `GET` | `/actuator/health` | Healthcheck dello stato dell'applicazione e connessione DB. |
 
-# 4. Install optional tools for enhanced development experience
-pip install "black[jupyter]" codespell pre-commit
+### Endpoint di `garmin-proxy` (Porta 8080)
 
-# 5. Setup pre-commit hooks (optional)
-pre-commit install --install-hooks
-```
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `GET` | `/api/activities` | Lista delle attività recenti Garmin. |
+| `GET` | `/api/activities/{activity_id}/exercise-sets` | Dettaglio delle serie e degli esercizi di un allenamento di forza. |
+| `GET` | `/api/activities/{activity_id}/hr-zones` | Distribuzione dei secondi per ogni zona cardiaca dell'attività. |
+| `GET` | `/health` | Healthcheck del proxy e verifica validità token Garmin. |
 
-**Alternative for System-wide PDM Installation:**
-```bash
-# Install PDM via pipx (recommended for system-wide tools)
-python3 -m pip install --user pipx
-pipx install pdm
+---
 
-# Then proceed with project setup
-pdm install --group :all
-```
+## 🔒 Sicurezza e Autenticazione
 
-**Available Development Commands:**
-```bash
-pdm run format      # Auto-format code (isort, black, ruff --fix)
-pdm run lint        # Check code quality (isort, ruff, black, mypy)
-pdm run codespell   # Check spelling errors (install codespell if needed)
-pdm run test        # Run test suite
-pdm run testcov     # Run tests with coverage report
-pdm run all         # Run all checks
-pdm run clean      # Clean build artifacts and cache files
-pdm run build      # Build package for distribution
-pdm run publish    # Build and publish to PyPI
-```
+- **Comunicazione Inter-Service**: La comunicazione tra `garmin-service` e `garmin-proxy` è protetta tramite header `X-API-KEY`.
+- **Autenticazione Dashboard**:
+  - **Form Login**: Accesso protetto con credenziali configurabili (`DASHBOARD_USER` / `DASHBOARD_PASSWORD`).
+  - **OAuth2 Social Login**: Integrazione opzionale per login con account Google o Apple.
+- **Protezione Dati Personali**: Le sessioni e i token Garmin non contengono password in chiaro ma token OAuth crittografati gestiti in volumi protetti.
 
-**View all available commands:**
-```bash
-pdm run --list     # Display all available PDM scripts
-```
+---
 
-**Code Quality Workflow:**
-```bash
-# Before making changes
-pdm run lint       # Check current code quality
+## 🗄️ Database e Migrazioni (Liquibase)
 
-# After making changes
-pdm run format     # Auto-format your code
-pdm run lint       # Verify code quality
-pdm run codespell  # Check spelling
-pdm run test       # Run tests to ensure nothing broke
-```
+Le tabelle del database PostgreSQL vengono create e aggiornate automaticamente all'avvio di `garmin-service` tramite **Liquibase** (`garmin-service/src/main/resources/db/changelog/`):
 
-Run these commands before submitting PRs to ensure code quality standards.
+- **`001-create-running-hr-zones.yaml`**: Tabella per memorizzare le corse con i minuti trascorsi nelle zone cardio 1-5.
+- **`002-create-exercise-name-mapping.yaml`**: Tabella per salvare i mapping personalizzati dei nomi degli esercizi di forza.
+- **`003-create-strength-workouts.yaml`**: Tabelle relazionali `strength_workouts` e `strength_workout_sets` per lo storico completo delle serie e dei massimali.
 
-## 🔐 Authentication
+---
 
-The library uses the same OAuth authentication as the official Garmin Connect app via [Garth](https://github.com/matin/garth).
+## 📄 Licenza
 
-**Key Features:**
-- Login credentials valid for one year (no repeated logins)
-- Secure OAuth token storage
-- Same authentication flow as official app
-
-**Advanced Configuration:**
-```python
-# Optional: Custom OAuth consumer (before login)
-import os
-import garth
-garth.sso.OAUTH_CONSUMER = {
-    'key': os.getenv('GARTH_OAUTH_KEY', '<YOUR_KEY>'),
-    'secret': os.getenv('GARTH_OAUTH_SECRET', '<YOUR_SECRET>'),
-}
-# Note: Set these env vars securely; placeholders are non-sensitive.
-```
-
-**Token Storage:**
-Tokens are automatically saved to `~/.garminconnect` directory for persistent authentication.
-For security, ensure restrictive permissions:
-
-```bash
-chmod 700 ~/.garminconnect
-chmod 600 ~/.garminconnect/* 2>/dev/null || true
-```
-
-## 🧪 Testing
-
-Run the test suite to verify functionality:
-
-**Prerequisites:**
-
-Create tokens in ~/.garminconnect by running the example program.
-
-```bash
-# Install development dependencies
-pdm install --group :all
-```
-
-**Run Tests:**
-
-```bash
-pdm run test        # Run all tests
-pdm run testcov     # Run tests with coverage report
-```
-
-Optional: keep test tokens isolated
-
-```bash
-export GARMINTOKENS="$(mktemp -d)"
-python3 ./example.py # create fresh tokens for tests
-pdm run test
-```
-
-**Note:** Tests automatically use `~/.garminconnect` as the default token file location. You can override this by setting the `GARMINTOKENS` environment variable. Run `example.py` first to generate authentication tokens for testing.
-
-**For Developers:** Tests use VCR cassettes to record/replay HTTP interactions. If tests fail with authentication errors, ensure valid tokens exist in `~/.garminconnect`
-
-## 📦 Publishing
-
-For package maintainers:
-
-**Setup PyPI credentials:**
-
-```bash
-pip install twine
-# Edit with your preferred editor, or create via here-doc:
-# cat > ~/.pypirc <<'EOF'
-# [pypi]
-# username = __token__
-# password = <PyPI_API_TOKEN>
-# EOF
-```
-
-```ini
-[pypi]
-username = __token__
-password = <PyPI_API_TOKEN>
-```
-
-Recommended: use environment variables and restrict file perms
-
-```bash
-chmod 600 ~/.pypirc
-export TWINE_USERNAME="__token__"
-export TWINE_PASSWORD="<PyPI_API_TOKEN>"
-```
-
-**Publish new version:**
-
-```bash
-pdm run publish    # Build and publish to PyPI
-```
-
-**Alternative publishing steps:**
-
-```bash
-pdm run build      # Build package only
-pdm publish        # Publish pre-built package
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how you can help:
-
-- **Report Issues**: Bug reports and feature requests via GitHub issues
-- **Submit PRs**: Code improvements, new features, documentation updates
-- **Testing**: Help test new features and report compatibility issues
-- **Documentation**: Improve examples, add use cases, fix typos
-
-**Before Contributing:**
-1. Set up development environment (`pdm install --group :all`)
-2. Execute code quality checks (`pdm run format && pdm run lint`)
-3. Test your changes (`pdm run test`)
-4. Follow existing code style and patterns
-
-**Development Workflow:**
-```bash
-# 1. Setup environment (with virtual environment)
-python3 -m venv .venv --copies
-source .venv/bin/activate
-pip install pdm
-pdm install --group :all
-
-# 2. Make your changes
-# ... edit code ...
-
-# 3. Quality checks
-pdm run format     # Auto-format code
-pdm run lint       # Check code quality
-pdm run test       # Run tests
-
-# 4. Submit PR
-git commit -m "Your changes"
-git push origin your-branch
-```
-
-### Jupyter Notebook
-
-Explore the API interactively with our [reference notebook](https://github.com/giuseppefrattura/python-garminconnect/blob/master/reference.ipynb).
-
-### Python Code Examples
-
-```python
-from garminconnect import Garmin
-import os
-
-# Initialize and login
-client = Garmin(
-    os.getenv("GARMIN_EMAIL", "<YOUR_EMAIL>"),
-    os.getenv("GARMIN_PASSWORD", "<YOUR_PASSWORD>")
-)
-client.login()
-
-# Get today's stats
-from datetime import date
-_today = date.today().strftime('%Y-%m-%d')
-stats = client.get_stats(_today)
-
-# Get heart rate data
-hr_data = client.get_heart_rates(_today)
-print(f"Resting HR: {hr_data.get('restingHeartRate', 'n/a')}")
-```
-
-### Additional Resources
-- **Simple Example**: [example.py](https://raw.githubusercontent.com/giuseppefrattura/python-garminconnect/master/example.py) - Getting started guide
-- **Comprehensive Demo**: [demo.py](https://raw.githubusercontent.com/giuseppefrattura/python-garminconnect/master/demo.py) - All 105+ API methods
-- **API Documentation**: Comprehensive method documentation in source code
-- **Test Cases**: Real-world usage examples in `tests/` directory
-
-## 🙏 Acknowledgments
-
-Special thanks to all contributors who have helped improve this project:
-
-- **Community Contributors**: Bug reports, feature requests, and code improvements
-- **Issue Reporters**: Helping identify and resolve compatibility issues
-- **Feature Developers**: Adding new API endpoints and functionality
-- **Documentation Authors**: Improving examples and user guides
-
-This project thrives thanks to community involvement and feedback.
-
-## 💖 Support This Project
-
-If you find this library or dashboard stack useful, please consider supporting the project:
-
-- **⭐ Star this repository** - Help others discover the project
-- **🐛 Report Issues** - Help improve stability and compatibility by opening issues
-- **📖 Spread the Word** - Share with other fitness and automation developers
-
-[releases-shield]: https://img.shields.io/github/release/giuseppefrattura/python-garminconnect.svg?style=for-the-badge
-[releases]: https://github.com/giuseppefrattura/python-garminconnect/releases
-[commits-shield]: https://img.shields.io/github/commit-activity/y/giuseppefrattura/python-garminconnect.svg?style=for-the-badge
-[commits]: https://github.com/giuseppefrattura/python-garminconnect/commits/main
-[license-shield]: https://img.shields.io/github/license/giuseppefrattura/python-garminconnect.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-giuseppefrattura-blue.svg?style=for-the-badge
+Distribuito sotto licenza **MIT**. Consulta il file [`LICENSE`](file:///LICENSE) per ulteriori dettagli.

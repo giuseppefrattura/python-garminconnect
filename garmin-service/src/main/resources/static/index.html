@@ -900,112 +900,160 @@
                 text-align: center;
                 justify-items: center;
             }
-        /* --- Trophy Room & PR Styles --- */
+        /* --- Compact & Sleek Trophy Room & PR Styles --- */
+        .trophy-section-card {
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(234, 179, 8, 0.22);
+            border-radius: 18px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 2rem;
+            position: relative;
+            background-image: radial-gradient(circle at 10% 0%, rgba(234, 179, 8, 0.08) 0%, transparent 65%);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
         .trophy-room-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 1.25rem;
-            margin-top: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 0.85rem;
+            margin-top: 0.85rem;
         }
 
         .trophy-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 1.25rem;
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
             display: flex;
             flex-direction: column;
-            gap: 0.85rem;
+            gap: 0.6rem;
             position: relative;
-            overflow: hidden;
-            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+            backdrop-filter: blur(8px);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .trophy-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(234, 179, 8, 0.4);
-            box-shadow: 0 10px 25px rgba(234, 179, 8, 0.1);
+            transform: translateY(-2px);
+            border-color: rgba(234, 179, 8, 0.5);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4), 0 0 14px rgba(234, 179, 8, 0.18);
         }
 
         .trophy-card-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            gap: 0.5rem;
+            align-items: center;
+            gap: 0.4rem;
         }
 
         .trophy-exercise-title {
-            font-size: 1.05rem;
+            font-size: 0.92rem;
             font-weight: 700;
             color: #ffffff;
-            line-height: 1.3;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .trophy-metrics-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 0.5rem;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 0.65rem 0.5rem;
-            text-align: center;
+        .trophy-hero-1rm {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(16, 185, 129, 0.08));
+            border: 1px solid rgba(234, 179, 8, 0.25);
+            border-radius: 8px;
+            padding: 0.4rem 0.65rem;
         }
 
-        .trophy-metric-item .val {
-            font-size: 1.1rem;
+        .trophy-hero-val {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fef08a;
+            letter-spacing: -0.3px;
+        }
+
+        .trophy-hero-tag {
+            font-size: 0.62rem;
             font-weight: 700;
-            color: #f3f4f6;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .trophy-submetrics-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem;
+        }
+
+        .trophy-submetric-box {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 6px;
+            padding: 0.3rem 0.45rem;
+        }
+
+        .trophy-submetric-val {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #e2e8f0;
             line-height: 1.2;
         }
 
-        .trophy-metric-item .lbl {
-            font-size: 0.68rem;
+        .trophy-submetric-lbl {
+            font-size: 0.62rem;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 2px;
+            margin-top: 1px;
         }
 
         .trophy-card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
             border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 0.65rem;
+            padding-top: 0.45rem;
+            margin-top: 0.1rem;
         }
 
         .trophy-timeline-btn {
-            background: transparent;
+            background: rgba(234, 179, 8, 0.08);
             border: 1px solid rgba(234, 179, 8, 0.3);
-            color: #facc15;
-            padding: 3px 8px;
+            color: #fde047;
+            padding: 2px 8px;
             border-radius: 6px;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
         }
 
         .trophy-timeline-btn:hover {
-            background: rgba(234, 179, 8, 0.15);
+            background: rgba(234, 179, 8, 0.22);
             border-color: #facc15;
+            color: #ffffff;
         }
 
         .pr-gold-badge {
             display: inline-flex;
             align-items: center;
             gap: 3px;
-            font-size: 0.7rem;
+            font-size: 0.68rem;
             font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 6px;
-            background: linear-gradient(135deg, rgba(234, 179, 8, 0.25), rgba(202, 138, 4, 0.15));
-            color: #fde047;
-            border: 1px solid rgba(234, 179, 8, 0.5);
-            box-shadow: 0 0 10px rgba(234, 179, 8, 0.25);
-            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.28), rgba(202, 138, 4, 0.15));
+            color: #fef08a;
+            border: 1px solid rgba(234, 179, 8, 0.55);
+            box-shadow: 0 0 8px rgba(234, 179, 8, 0.25);
+            letter-spacing: 0.3px;
         }
     </style>
 </head>
@@ -1910,35 +1958,6 @@
                 </div>
             </div>
 
-            <!-- Trophy Room Section (PRs & 1RM) -->
-            <div class="chart-card" style="margin-bottom: 2.5rem;">
-                <div class="chart-header" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center; width: 100%;">
-                    <div>
-                        <div class="chart-title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
-                            <span>🏆</span> Trophy Room & Massimali 1RM
-                        </div>
-                        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 0 0;">Migliori record personali all-time e massimali teorici stimati (Brzycki & Epley).</p>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.78rem;" onclick="recalculatePersonalRecords()" title="Ricalcola tutti i PR dallo storico">
-                            🔄 Ricalcola Tutti i PR
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Muscle Group filter chips for Trophy Room -->
-                <div id="trophyMuscleChipsContainer" class="muscle-chips-container" style="margin-top: 0.75rem;">
-                    <!-- Filter buttons rendered dynamically -->
-                </div>
-
-                <!-- Trophy Room Grid -->
-                <div id="trophyRoomContainer" class="trophy-room-grid">
-                    <div class="empty-state" style="padding: 2rem 0; grid-column: 1 / -1;">
-                        <p>Caricamento Record Personali...</p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Workout Analytics Row (Charts) -->
             <div class="charts-row" style="margin-bottom: 2.5rem;">
                 <!-- Weekly Volume Bar Chart with Muscle Filter -->
@@ -2028,6 +2047,38 @@
                         <div class="empty-state" style="padding: 1.5rem 0;">
                             <p>Caricamento volume muscoli...</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Redesigned Compact & Sleek Trophy Room Section (PRs & 1RM) as the last element -->
+            <div class="trophy-section-card">
+                <div class="chart-header" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                        <div class="chart-title" style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.05rem;">
+                            <span style="font-size: 1.2rem;">🏆</span>
+                            <span style="background: linear-gradient(135deg, #ffffff, #fde047); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">
+                                Trophy Room & Massimali 1RM
+                            </span>
+                        </div>
+                        <p style="font-size: 0.76rem; color: var(--text-muted); margin: 2px 0 0 0;">Migliori record personali all-time e massimali teorici stimati (Brzycki & Epley).</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-color: rgba(234, 179, 8, 0.35); color: #fde047;" onclick="recalculatePersonalRecords()" title="Ricalcola tutti i PR dallo storico">
+                            🔄 Ricalcola Tutti i PR
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter chips for Trophy Room -->
+                <div id="trophyMuscleChipsContainer" class="muscle-chips-container" style="margin-top: 0.75rem;">
+                    <!-- Filter buttons rendered dynamically -->
+                </div>
+
+                <!-- Compact Trophy Room Grid -->
+                <div id="trophyRoomContainer" class="trophy-room-grid">
+                    <div class="empty-state" style="padding: 1.5rem 0; grid-column: 1 / -1;">
+                        <p>Caricamento Record Personali...</p>
                     </div>
                 </div>
             </div>
@@ -3634,10 +3685,23 @@
         }
 
         // ---------------------------------------------------------------------------
-        // Trophy Room & Personal Records Logic
+        // Trophy Room & Personal Records Logic (Compact & Big Lifts Filter)
         // ---------------------------------------------------------------------------
         let cachedTrophyCards = [];
-        let selectedTrophyMuscleGroup = 'ALL';
+        let selectedTrophyFilter = 'BIG_LIFTS';
+
+        const BIG_LIFTS_PATTERNS = [
+            'bench', 'panca', 'squat', 'deadlift', 'stacco', 
+            'press', 'military', 'lento', 'curl', 'pull up', 'pull-up', 
+            'trazioni', 'lat pulldown', 'lat', 'row', 'rematore', 
+            'dip', 'leg press', 'clean', 'lunge', 'calf'
+        ];
+
+        function isBigLift(exerciseName) {
+            if (!exerciseName) return false;
+            const lower = exerciseName.toLowerCase();
+            return BIG_LIFTS_PATTERNS.some(p => lower.includes(p));
+        }
 
         async function fetchTrophyRoom() {
             try {
@@ -3660,26 +3724,36 @@
             const container = document.getElementById("trophyMuscleChipsContainer");
             if (!container) return;
 
+            const bigLiftsCount = (cards || []).filter(c => isBigLift(c.exerciseName)).length;
+            const totalCount = (cards || []).length;
+
             const groups = new Set();
             (cards || []).forEach(c => {
                 if (c.muscleGroup) groups.add(c.muscleGroup);
             });
 
             const sortedGroups = Array.from(groups).sort();
-            let html = `<button class="muscle-chip ${selectedTrophyMuscleGroup === 'ALL' ? 'active' : ''}" onclick="onTrophyChipSelect('ALL')">🏆 Tutti (${cards.length})</button>`;
+            let html = `
+                <button class="muscle-chip ${selectedTrophyFilter === 'BIG_LIFTS' ? 'active' : ''}" onclick="onTrophyChipSelect('BIG_LIFTS')" style="border-color: rgba(234, 179, 8, 0.4);">
+                    🌟 Principali (${bigLiftsCount})
+                </button>
+                <button class="muscle-chip ${selectedTrophyFilter === 'ALL' ? 'active' : ''}" onclick="onTrophyChipSelect('ALL')">
+                    🏆 Tutti (${totalCount})
+                </button>
+            `;
 
             sortedGroups.forEach(g => {
                 const label = muscleGroupLabels[g] || g;
                 const count = cards.filter(c => c.muscleGroup === g).length;
-                const isActive = selectedTrophyMuscleGroup === g ? 'active' : '';
+                const isActive = selectedTrophyFilter === g ? 'active' : '';
                 html += `<button class="muscle-chip ${isActive}" onclick="onTrophyChipSelect('${escapeHtml(g)}')">${label} (${count})</button>`;
             });
 
             container.innerHTML = html;
         }
 
-        function onTrophyChipSelect(group) {
-            selectedTrophyMuscleGroup = group;
+        function onTrophyChipSelect(filter) {
+            selectedTrophyFilter = filter;
             renderTrophyChips(cachedTrophyCards);
             renderTrophyRoom();
         }
@@ -3688,15 +3762,20 @@
             const container = document.getElementById("trophyRoomContainer");
             if (!container) return;
 
-            const filtered = selectedTrophyMuscleGroup === 'ALL'
-                ? cachedTrophyCards
-                : cachedTrophyCards.filter(c => c.muscleGroup === selectedTrophyMuscleGroup);
+            let filtered = [];
+            if (selectedTrophyFilter === 'BIG_LIFTS') {
+                filtered = cachedTrophyCards.filter(c => isBigLift(c.exerciseName));
+            } else if (selectedTrophyFilter === 'ALL') {
+                filtered = cachedTrophyCards;
+            } else {
+                filtered = cachedTrophyCards.filter(c => c.muscleGroup === selectedTrophyFilter);
+            }
 
             if (!filtered || filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state" style="padding: 2rem 0; grid-column: 1 / -1;">
-                        <h3>Nessun Record Personale</h3>
-                        <p>Sincronizza i tuoi allenamenti per calcolare automaticamente tutti i tuoi PR.</p>
+                    <div class="empty-state" style="padding: 1.5rem 0; grid-column: 1 / -1;">
+                        <h4 style="font-size: 0.95rem; color: #f3f4f6; margin-bottom: 0.25rem;">Nessun Record Trovato</h4>
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Prova a selezionare un altro filtro o sincronizza gli allenamenti.</p>
                     </div>
                 `;
                 return;
@@ -3717,31 +3796,33 @@
                 html += `
                     <div class="trophy-card">
                         <div class="trophy-card-header">
-                            <div>
-                                <div class="trophy-exercise-title">${escapeHtml(c.exerciseName)}</div>
+                            <div style="display: flex; align-items: center; gap: 5px; overflow: hidden;">
+                                <span style="font-size: 0.9rem;">🏆</span>
+                                <div class="trophy-exercise-title" title="${escapeHtml(c.exerciseName)}">${escapeHtml(c.exerciseName)}</div>
                             </div>
-                            <span class="trophy-badge" style="background: ${badgeColor}25; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
+                            <span style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}40; font-size: 0.62rem; padding: 2px 6px; border-radius: 999px; font-weight: 600; white-space: nowrap;">
                                 ${escapeHtml(friendlyMuscle)}
                             </span>
                         </div>
 
-                        <div class="trophy-metrics-row">
-                            <div class="trophy-metric-item">
-                                <div class="val" style="color: #10b981;">${est1RmDisplay} <span style="font-size: 0.7rem;">kg</span></div>
-                                <div class="lbl">1RM Stimato</div>
+                        <div class="trophy-hero-1rm">
+                            <div class="trophy-hero-val">${est1RmDisplay} <span style="font-size: 0.72rem; font-weight: 600; color: #a3e635;">kg</span></div>
+                            <div class="trophy-hero-tag">1RM Stimato</div>
+                        </div>
+
+                        <div class="trophy-submetrics-row">
+                            <div class="trophy-submetric-box">
+                                <div class="trophy-submetric-lbl">Max Carico</div>
+                                <div class="trophy-submetric-val" style="color: #818cf8;">${maxWeightDisplay} kg <span style="font-size: 0.65rem; font-weight: normal; color: var(--text-muted);">${repsDisplay ? `(${repsDisplay})` : ''}</span></div>
                             </div>
-                            <div class="trophy-metric-item">
-                                <div class="val" style="color: #6366f1;">${maxWeightDisplay} <span style="font-size: 0.7rem;">kg</span></div>
-                                <div class="lbl">Max Carico ${repsDisplay ? `(${repsDisplay})` : ''}</div>
-                            </div>
-                            <div class="trophy-metric-item">
-                                <div class="val" style="color: #f59e0b;">${maxVolDisplay} <span style="font-size: 0.7rem;">kg</span></div>
-                                <div class="lbl">Max Set Volume</div>
+                            <div class="trophy-submetric-box">
+                                <div class="trophy-submetric-lbl">Max Set Vol</div>
+                                <div class="trophy-submetric-val" style="color: #fbbf24;">${maxVolDisplay} kg</div>
                             </div>
                         </div>
 
                         <div class="trophy-card-footer">
-                            <span>Record: <strong style="color: white;">${dateAchieved}</strong></span>
+                            <span style="font-size: 0.68rem; color: var(--text-muted);">📅 ${dateAchieved}</span>
                             <button class="trophy-timeline-btn" onclick="openPrTimelineModal('${quoteEx}')">
                                 📈 Storico PR
                             </button>

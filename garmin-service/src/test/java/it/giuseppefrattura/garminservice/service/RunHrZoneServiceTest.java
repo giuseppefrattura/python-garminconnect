@@ -62,7 +62,6 @@ class RunHrZoneServiceTest {
     // -----------------------------------------------------------------------
     @Nested
     @DisplayName("getRunHrZones — read-only aggregation")
-    @SuppressWarnings("null")
     class GetRunHrZones {
 
         @Test
@@ -188,7 +187,6 @@ class RunHrZoneServiceTest {
     // -----------------------------------------------------------------------
     @Nested
     @DisplayName("persistRunHrZones — DB upsert")
-    @SuppressWarnings("null")
     class PersistRunHrZones {
 
         @Test

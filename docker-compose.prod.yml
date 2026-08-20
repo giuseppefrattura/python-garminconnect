@@ -1,0 +1,73 @@
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.docker/config.json:/config.json:ro
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    restart: unless-stopped
+
+  garmin-proxy:
+    image: ghcr.io/giuseppefrattura/garmin-proxy:latest
+    container_name: garmin-proxy
+    ports:
+      - "8080:8080"
+    environment:
+      - GARMINTOKENS=/tokens
+      - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ~/.garminconnect:/tokens:ro
+    restart: unless-stopped
+
+  garmin-service:
+    image: ghcr.io/giuseppefrattura/garmin-service:latest
+    container_name: garmin-service
+    ports:
+      - "8081:8081"
+    environment:
+      - GARMIN_PROXY_URL=http://garmin-proxy:8080
+      - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-garmin}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-admin}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-google-placeholder-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-google-placeholder-client-secret}
+      - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-apple-placeholder-client-id}
+      - APPLE_CLIENT_SECRET=${APPLE_CLIENT_SECRET:-apple-placeholder-client-secret}
+      - RENPHO_SERVICE_URL=http://renpho-service:8082
+    depends_on:
+      garmin-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  renpho-service:
+    image: ghcr.io/giuseppefrattura/renpho-service:latest
+    container_name: renpho-service
+    environment:
+      - RENPHO_EMAIL=${RENPHO_EMAIL}
+      - RENPHO_PASSWORD=${RENPHO_PASSWORD}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-garmin}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+    restart: unless-stopped

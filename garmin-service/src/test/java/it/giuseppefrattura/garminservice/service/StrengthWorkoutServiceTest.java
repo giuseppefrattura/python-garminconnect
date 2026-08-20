@@ -113,25 +113,49 @@ class StrengthWorkoutServiceTest {
     }
 
     @Test
-    @DisplayName("updateSetDetails saves customized name, weightKg, and reps")
+    @DisplayName("updateSetDetails saves customized name, muscleGroup, weightKg, reps and applies batch update")
     void updateSetDetailsModifiesRecord() {
-        StrengthWorkoutSet set = new StrengthWorkoutSet(null, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
-        set.setId(10L);
+        StrengthWorkout workout = new StrengthWorkout();
+        StrengthWorkoutSet set1 = new StrengthWorkoutSet(workout, 1, "Unknown", "Unknown", 10, BigDecimal.valueOf(80.0));
+        set1.setId(10L);
+        StrengthWorkoutSet set2 = new StrengthWorkoutSet(workout, 2, "Unknown", "Unknown", 10, BigDecimal.valueOf(80.0));
+        set2.setId(11L);
+        workout.addSet(set1);
+        workout.addSet(set2);
 
-        when(setRepository.findById(10L)).thenReturn(Optional.of(set));
+        when(setRepository.findById(10L)).thenReturn(Optional.of(set1));
 
-        // Update to custom name, new weight, new reps
-        service.updateSetDetails(10L, "Panca Piana", 85.5, 12);
-        assertEquals("Panca Piana", set.getExerciseName());
-        assertEquals(BigDecimal.valueOf(85.5), set.getWeightKg());
-        assertEquals(12, set.getReps());
-        verify(setRepository, times(1)).save(set);
+        // Update single set with custom name and explicit muscle group
+        service.updateSetDetails(10L, "Panca Piana", "Chest", 85.5, 12, false);
+        assertEquals("Panca Piana", set1.getExerciseName());
+        assertEquals("Chest", set1.getMuscleGroup());
+        assertEquals(BigDecimal.valueOf(85.5), set1.getWeightKg());
+        assertEquals(12, set1.getReps());
+        verify(setRepository, times(1)).save(set1);
 
-        // Reset to original name
-        service.updateSetDetails(10L, "", 90.0, 8);
-        assertEquals("Bench Press", set.getExerciseName());
-        assertEquals(BigDecimal.valueOf(90.0), set.getWeightKg());
-        assertEquals(8, set.getReps());
+        // Batch update all matching sets
+        service.updateSetDetails(10L, "Panca Piana", "Chest", 90.0, 8, true);
+        assertEquals("Panca Piana", set2.getExerciseName());
+        assertEquals("Chest", set2.getMuscleGroup());
+        assertEquals(BigDecimal.valueOf(90.0), set1.getWeightKg());
+        assertEquals(8, set1.getReps());
+    }
+
+    @Test
+    @DisplayName("resolveMuscleGroup properly detects muscle group from custom name or explicit group")
+    void resolveMuscleGroupInfersCorrectly() {
+        StrengthWorkoutSet set1 = new StrengthWorkoutSet(null, 1, "Unknown", "Lat Machine", null, 10, BigDecimal.valueOf(60.0));
+        assertEquals("Back", service.resolveMuscleGroup(set1));
+
+        StrengthWorkoutSet set2 = new StrengthWorkoutSet(null, 2, "Unknown", "Squat", null, 10, BigDecimal.valueOf(100.0));
+        assertEquals("Legs", service.resolveMuscleGroup(set2));
+
+        StrengthWorkoutSet set3 = new StrengthWorkoutSet(null, 3, "Unknown", "Military Press", null, 10, BigDecimal.valueOf(40.0));
+        assertEquals("Shoulders", service.resolveMuscleGroup(set3));
+
+        // Explicit override
+        StrengthWorkoutSet set4 = new StrengthWorkoutSet(null, 4, "Unknown", "Dip", "Triceps", 10, BigDecimal.valueOf(20.0));
+        assertEquals("Triceps", service.resolveMuscleGroup(set4));
     }
 
     @Test
@@ -141,7 +165,7 @@ class StrengthWorkoutServiceTest {
         workout.setWorkoutDate(LocalDate.of(2026, 6, 1)); // Monday
         workout.setWorkoutTime(LocalTime.of(10, 0));
         
-        StrengthWorkoutSet set = new StrengthWorkoutSet(workout, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
+        StrengthWorkoutSet set = new StrengthWorkoutSet(workout, 1, "Unknown", "Panca Piana", "Chest", 10, BigDecimal.valueOf(80.0));
         workout.addSet(set);
 
         when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(workout));

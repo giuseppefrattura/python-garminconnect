@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/migrations/003-create-strength-workouts.yaml
   - include:
       file: db/changelog/migrations/004-add-performance-indexes.yaml
+  - include:
+      file: db/changelog/migrations/005-add-muscle-group-to-set.yaml

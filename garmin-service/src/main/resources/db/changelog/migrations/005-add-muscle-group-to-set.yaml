@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-add-muscle-group-to-set
+      author: antigravity
+      comment: "Add muscle_group column to strength_workout_set table"
+      changes:
+        - addColumn:
+            tableName: strength_workout_set
+            columns:
+              - column:
+                  name: muscle_group
+                  type: VARCHAR(100)

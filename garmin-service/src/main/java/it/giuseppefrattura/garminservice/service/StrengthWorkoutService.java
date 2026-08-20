@@ -168,6 +168,7 @@ public class StrengthWorkoutService {
                             setEntry.setSetNumber(setNum++);
                             setEntry.setOriginalExerciseName(exName);
                             setEntry.setExerciseName(exName);
+                            setEntry.setMuscleGroup(resolveMuscleGroup(exName, exName, null));
                             setEntry.setReps(reps);
                             setEntry.setWeightKg(BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0));
                             workout.addSet(setEntry);
@@ -184,6 +185,87 @@ public class StrengthWorkoutService {
 
         log.info("Finished strength workouts synchronization. Saved {} new workouts.", savedCount);
         return savedCount;
+    }
+
+    /**
+     * Resolve target muscle group for a given set, following priority:
+     * 1. Explicit muscleGroup stored on the set
+     * 2. Inferred from current (custom) exerciseName
+     * 3. Inferred from originalExerciseName
+     * 4. Garmin Category mapping
+     * 5. "Altro" (fallback)
+     */
+    public String resolveMuscleGroup(StrengthWorkoutSet set) {
+        if (set == null) return "Altro";
+        return resolveMuscleGroup(set.getExerciseName(), set.getOriginalExerciseName(), set.getMuscleGroup());
+    }
+
+    public String resolveMuscleGroup(String customName, String originalName, String explicitMuscleGroup) {
+        if (explicitMuscleGroup != null && !explicitMuscleGroup.isBlank()) {
+            return explicitMuscleGroup.trim();
+        }
+
+        if (customName != null && !customName.isBlank()) {
+            String inferred = inferMuscleGroupFromName(customName);
+            if (inferred != null) {
+                return inferred;
+            }
+        }
+
+        if (originalName != null && !originalName.isBlank()) {
+            String inferred = inferMuscleGroupFromName(originalName);
+            if (inferred != null) {
+                return inferred;
+            }
+            String category = originalName.toUpperCase().replace(" ", "_");
+            if (MUSCLE_GROUP_MAP.containsKey(category)) {
+                return MUSCLE_GROUP_MAP.get(category);
+            }
+        }
+
+        return "Altro";
+    }
+
+    private String inferMuscleGroupFromName(String name) {
+        if (name == null) return null;
+        String lower = name.toLowerCase();
+        if (lower.contains("panca") || lower.contains("bench") || lower.contains("petto") || lower.contains("chest") 
+                || lower.contains("croci") || lower.contains("push up") || lower.contains("push-up") 
+                || lower.contains("dip") || lower.contains("spinte")) {
+            return "Chest";
+        }
+        if (lower.contains("lat machine") || lower.contains("lat pull") || lower.contains("lat_pull") 
+                || lower.contains("trazioni") || lower.contains("pull up") || lower.contains("pull-up") 
+                || lower.contains("rematore") || lower.contains("row") || lower.contains("pulley") 
+                || lower.contains("dorso") || lower.contains("back") || lower.contains("stacco") 
+                || lower.contains("deadlift") || lower.contains("shrug")) {
+            return "Back";
+        }
+        if (lower.contains("spalle") || lower.contains("shoulder") || lower.contains("military") 
+                || lower.contains("lento") || lower.contains("alzate") || lower.contains("lateral raise") 
+                || lower.contains("front raise") || lower.contains("arnold") || lower.contains("deltoid")) {
+            return "Shoulders";
+        }
+        if (lower.contains("squat") || lower.contains("leg press") || lower.contains("leg extension") 
+                || lower.contains("leg curl") || lower.contains("gambe") || lower.contains("legs") 
+                || lower.contains("affondi") || lower.contains("lunge") || lower.contains("polpacci") 
+                || lower.contains("calf") || lower.contains("quadricipiti")) {
+            return "Legs";
+        }
+        if (lower.contains("bicipiti") || lower.contains("biceps") || lower.contains("curl") 
+                || lower.contains("hammer")) {
+            return "Biceps";
+        }
+        if (lower.contains("tricipiti") || lower.contains("triceps") || lower.contains("french") 
+                || lower.contains("pushdown") || lower.contains("push down") || lower.contains("kickback")) {
+            return "Triceps";
+        }
+        if (lower.contains("crunch") || lower.contains("plank") || lower.contains("addome") 
+                || lower.contains("abs") || lower.contains("core") || lower.contains("sit up") 
+                || lower.contains("sit-up")) {
+            return "Core";
+        }
+        return null;
     }
 
     /**
@@ -224,16 +306,15 @@ public class StrengthWorkoutService {
             setEntry.put("setNumber", set.getSetNumber());
             setEntry.put("exercise", set.getExerciseName());
             setEntry.put("originalExercise", set.getOriginalExerciseName());
+            String group = resolveMuscleGroup(set);
+            setEntry.put("muscleGroup", group);
             setEntry.put("reps", set.getReps());
             double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
             setEntry.put("weightKg", weight);
             setsList.add(setEntry);
 
             if (weight > 0 && set.getReps() != null && set.getReps() > 0) {
-                String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
-                String category = orig.toUpperCase().replace(" ", "_");
-                String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
-                volumeByGroup.merge(muscleGroup, set.getReps() * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
+                volumeByGroup.merge(group, set.getReps() * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
             }
         }
 
@@ -249,48 +330,77 @@ public class StrengthWorkoutService {
     }
 
     /**
-     * Update the exercise name and weight/reps of a specific set by ID.
+     * Update the exercise name, muscle group, and weight/reps of a specific set by ID.
      *
      * @param setId database primary key of the set
      * @param customName custom name to assign (null/empty to revert to original)
+     * @param muscleGroup explicit muscle group (null to auto-resolve)
      * @param weightKg new weight in kg (null to keep current)
      * @param reps new repetition count (null to keep current)
+     * @param applyToAllSimilar if true, applies the name and muscle group to all matching sets in the same session
      */
-    public void updateSetDetails(Long setId, String customName, Double weightKg, Integer reps) {
+    public void updateSetDetails(Long setId, String customName, String muscleGroup, Double weightKg, Integer reps, Boolean applyToAllSimilar) {
         if (setId == null) {
             throw new IllegalArgumentException("Set ID must not be null");
         }
-        StrengthWorkoutSet set = setRepository.findById(setId)
+        StrengthWorkoutSet targetSet = setRepository.findById(setId)
                 .orElseThrow(() -> new IllegalArgumentException("Set not found with ID: " + setId));
-        
+
+        String newExerciseName;
         if (customName == null || customName.isBlank()) {
-            set.setExerciseName(set.getOriginalExerciseName());
+            newExerciseName = targetSet.getOriginalExerciseName();
         } else {
-            set.setExerciseName(customName.trim());
+            newExerciseName = customName.trim();
         }
 
+        String targetMuscleGroup = (muscleGroup != null && !muscleGroup.isBlank())
+                ? muscleGroup.trim()
+                : resolveMuscleGroup(newExerciseName, targetSet.getOriginalExerciseName(), null);
+
+        BigDecimal newWeight = null;
         if (weightKg != null) {
             if (weightKg < 0) {
                 throw new IllegalArgumentException("Weight cannot be negative");
             }
-            set.setWeightKg(BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0));
+            newWeight = BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0);
         }
 
-        if (reps != null && reps >= 0) {
-            set.setReps(reps);
-        }
+        Integer newReps = (reps != null && reps >= 0) ? reps : null;
 
-        setRepository.save(set);
+        if (Boolean.TRUE.equals(applyToAllSimilar) && targetSet.getWorkout() != null) {
+            String matchingOrigName = targetSet.getOriginalExerciseName();
+            String matchingCurName = targetSet.getExerciseName();
+            List<StrengthWorkoutSet> allSets = targetSet.getWorkout().getSets();
+            if (allSets != null) {
+                for (StrengthWorkoutSet s : allSets) {
+                    boolean matches = (matchingOrigName != null && matchingOrigName.equals(s.getOriginalExerciseName()))
+                            || (matchingCurName != null && matchingCurName.equals(s.getExerciseName()));
+                    if (matches) {
+                        s.setExerciseName(newExerciseName);
+                        s.setMuscleGroup(targetMuscleGroup);
+                        if (s.getId().equals(targetSet.getId())) {
+                            if (newWeight != null) s.setWeightKg(newWeight);
+                            if (newReps != null) s.setReps(newReps);
+                        }
+                        setRepository.save(s);
+                    }
+                }
+            }
+        } else {
+            targetSet.setExerciseName(newExerciseName);
+            targetSet.setMuscleGroup(targetMuscleGroup);
+            if (newWeight != null) targetSet.setWeightKg(newWeight);
+            if (newReps != null) targetSet.setReps(newReps);
+            setRepository.save(targetSet);
+        }
     }
 
-    /**
-     * Update the exercise name of a specific set by ID.
-     *
-     * @param setId database primary key of the set
-     * @param customName custom name to assign (null/empty to revert to original)
-     */
+    public void updateSetDetails(Long setId, String customName, Double weightKg, Integer reps) {
+        updateSetDetails(setId, customName, null, weightKg, reps, false);
+    }
+
     public void updateSetExerciseName(Long setId, String customName) {
-        updateSetDetails(setId, customName, null, null);
+        updateSetDetails(setId, customName, null, null, null, false);
     }
 
     /**
@@ -313,9 +423,7 @@ public class StrengthWorkoutService {
                 int reps = set.getReps() != null ? set.getReps() : 0;
                 
                 if (weight > 0 && reps > 0) {
-                    String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
-                    String category = orig.toUpperCase().replace(" ", "_");
-                    String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
+                    String muscleGroup = resolveMuscleGroup(set);
                     weekMap.merge(muscleGroup, reps * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
                 }
             }

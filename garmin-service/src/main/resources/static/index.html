@@ -1905,9 +1905,9 @@
 
     <!-- Edit Exercise Details Modal -->
     <div class="loader-overlay" id="editExerciseModal" style="display: none; justify-content: center; align-items: center; z-index: 1001;">
-        <div style="background: rgba(22, 28, 45, 0.95); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 480px; max-width: 90%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease;">
+        <div style="background: rgba(22, 28, 45, 0.95); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 500px; max-width: 90%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease;">
             <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff, var(--primary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Modifica Serie ed Esercizio</h3>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Modifica il nome visualizzato, il carico (kg) o le ripetizioni per questa serie.</p>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Modifica il nome, il gruppo muscolare target, il carico (kg) o le ripetizioni.</p>
             
             <div style="margin-bottom: 1rem;">
                 <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Originale Garmin:</label>
@@ -1916,10 +1916,56 @@
             
             <div style="margin-bottom: 1.25rem;">
                 <label for="modalCustomNameInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Personalizzato:</label>
-                <input type="text" id="modalCustomNameInput" placeholder="Es. Panca Piana, Lat Machine..." style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                <input type="text" id="modalCustomNameInput" list="exerciseSuggestions" placeholder="Es. Panca Piana, Lat Machine, Squat..." oninput="autoDetectMuscleGroup(this.value)" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                <datalist id="exerciseSuggestions">
+                    <option value="Panca Piana (Bench Press)">
+                    <option value="Panca Inclinata (Incline Bench Press)">
+                    <option value="Croci con Manubri (Chest Fly)">
+                    <option value="Dip Parallele">
+                    <option value="Push Up (Piegamenti)">
+                    <option value="Lat Machine (Lat Pulldown)">
+                    <option value="Pulley Basso (Seated Cable Row)">
+                    <option value="Rematore con Bilanciere (Barbell Row)">
+                    <option value="Trazioni alla Sbarra (Pull Up)">
+                    <option value="Stacco da Terra (Deadlift)">
+                    <option value="Squat con Bilanciere (Back Squat)">
+                    <option value="Front Squat">
+                    <option value="Leg Press">
+                    <option value="Leg Extension">
+                    <option value="Leg Curl">
+                    <option value="Affondi con Manubri (Lunges)">
+                    <option value="Calf Polpacci (Calf Raise)">
+                    <option value="Military Press (Overhead Press)">
+                    <option value="Lento Avanti con Manubri">
+                    <option value="Alzate Laterali (Lateral Raise)">
+                    <option value="Alzate Posteriori (Rear Delt Fly)">
+                    <option value="Curl con Bilanciere (Bicep Curl)">
+                    <option value="Curl Manubri Inclinata">
+                    <option value="Hammer Curl">
+                    <option value="French Press Bilanciere EZ">
+                    <option value="Pushdown ai Cavi (Triceps)">
+                    <option value="Crunch Addominali">
+                    <option value="Plank">
+                </datalist>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.75rem;">
+            <div style="margin-bottom: 1.25rem;">
+                <label for="modalMuscleGroupSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Gruppo Muscolare Target:</label>
+                <select id="modalMuscleGroupSelect" style="background: #111827; border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <option value="Chest">Petto (Chest)</option>
+                    <option value="Back">Dorso (Back)</option>
+                    <option value="Shoulders">Spalle (Shoulders)</option>
+                    <option value="Legs">Gambe (Legs)</option>
+                    <option value="Calves">Polpacci (Calves)</option>
+                    <option value="Biceps">Bicipiti (Biceps)</option>
+                    <option value="Triceps">Tricipiti (Triceps)</option>
+                    <option value="Core">Addome / Core</option>
+                    <option value="Full Body (Olympic)">Full Body</option>
+                    <option value="Altro">Altro / Sconosciuto</option>
+                </select>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
                 <div>
                     <label for="modalWeightInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Carico (kg):</label>
                     <input type="number" id="modalWeightInput" step="0.5" min="0" placeholder="0.0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
@@ -1928,6 +1974,11 @@
                     <label for="modalRepsInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Ripetizioni:</label>
                     <input type="number" id="modalRepsInput" step="1" min="0" placeholder="0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
                 </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.03); padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                <input type="checkbox" id="modalApplyToSimilar" style="accent-color: var(--primary); transform: scale(1.15); cursor: pointer;">
+                <label for="modalApplyToSimilar" style="font-size: 0.85rem; color: #e2e8f0; cursor: pointer; user-select: none;">Applica nome e muscolo target a tutte le serie simili di questo workout</label>
             </div>
             
             <div style="display: flex; justify-content: flex-end; gap: 1rem;">
@@ -2914,19 +2965,30 @@
                     const row = document.createElement("tr");
                     const escOriginal = escapeHtml(s.originalExercise || s.exercise);
                     const escCurrent = escapeHtml(s.exercise);
+                    const muscleGroup = s.muscleGroup || 'Altro';
+                    const escMuscleGroup = escapeHtml(muscleGroup);
                     const quoteOriginal = escOriginal.replace(/'/g, "\\'");
                     const quoteCurrent = escCurrent === escOriginal ? "" : escCurrent.replace(/'/g, "\\'");
+                    const quoteMuscleGroup = escMuscleGroup.replace(/'/g, "\\'");
+                    
+                    const badgeColor = muscleGroupColors[muscleGroup] || '#3b82f6';
+                    const friendlyMuscle = muscleGroupLabels[muscleGroup] || muscleGroup;
                     
                     row.innerHTML = `
                         <td style="font-weight: 600; color: white;">${s.setNumber}</td>
                         <td style="font-weight: 500; color: var(--primary);">
-                            ${escapeHtml(s.exercise)}
-                            ${s.originalExercise && s.originalExercise !== s.exercise ? `<span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 2px;">Garmin: ${escapeHtml(s.originalExercise)}</span>` : ''}
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <span style="font-size: 0.95rem; font-weight: 600; color: white;">${escapeHtml(s.exercise)}</span>
+                                <span style="font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: ${badgeColor}25; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
+                                    ${escapeHtml(friendlyMuscle)}
+                                </span>
+                            </div>
+                            ${s.originalExercise && s.originalExercise !== s.exercise ? `<span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 3px;">Garmin: ${escapeHtml(s.originalExercise)}</span>` : ''}
                         </td>
                         <td style="font-weight: 600; color: white;">${s.reps}</td>
                         <td style="font-weight: 600; color: white;">${s.weightKg.toFixed(1)}</td>
                         <td style="text-align: center;">
-                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal(${s.setId}, '${quoteOriginal}', '${quoteCurrent}', ${s.weightKg}, ${s.reps})">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal(${s.setId}, '${quoteOriginal}', '${quoteCurrent}', '${quoteMuscleGroup}', ${s.weightKg}, ${s.reps})">
                                 ✏️ Modifica
                             </button>
                         </td>
@@ -2953,6 +3015,8 @@
                 volumeKeys.forEach(k => {
                     const volVal = volumeData[k];
                     const percentage = Math.min(100, (volVal / maxVol) * 100);
+                    const friendlyName = muscleGroupLabels[k] || k;
+                    const groupColor = muscleGroupColors[k] || '#3b82f6';
                     
                     const item = document.createElement("div");
                     item.style.display = "flex";
@@ -2961,11 +3025,11 @@
                     
                     item.innerHTML = `
                         <div style="display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 500;">
-                            <span style="color: white;">${escapeHtml(k)}</span>
-                            <span style="color: var(--primary); font-weight: 600;">${volVal.toFixed(1)} kg</span>
+                            <span style="color: white;">${escapeHtml(friendlyName)}</span>
+                            <span style="color: ${groupColor}; font-weight: 600;">${volVal.toFixed(1)} kg</span>
                         </div>
                         <div style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; border: 1px solid var(--border-color);">
-                            <div style="background: linear-gradient(90deg, var(--primary), var(--success)); width: ${percentage}%; height: 100%; border-radius: 4px; transition: width 0.8s ease-out;"></div>
+                            <div style="background: ${groupColor}; width: ${percentage}%; height: 100%; border-radius: 4px; transition: width 0.8s ease-out;"></div>
                         </div>
                     `;
                     volumeContainer.appendChild(item);
@@ -2989,12 +3053,51 @@
             `;
         }
 
-        function openEditExerciseModal(setId, originalName, currentCustomName, currentWeight, currentReps) {
+        function autoDetectMuscleGroup(name) {
+            if (!name) return;
+            const lower = name.toLowerCase();
+            const select = document.getElementById("modalMuscleGroupSelect");
+            if (!select) return;
+            
+            if (lower.includes("panca") || lower.includes("bench") || lower.includes("petto") || lower.includes("chest") || lower.includes("croci") || lower.includes("push up") || lower.includes("dip") || lower.includes("piegamenti") || lower.includes("spinte")) {
+                select.value = "Chest";
+            } else if (lower.includes("lat") || lower.includes("trazioni") || lower.includes("pull up") || lower.includes("rematore") || lower.includes("row") || lower.includes("pulley") || lower.includes("dorso") || lower.includes("back") || lower.includes("stacco") || lower.includes("deadlift")) {
+                select.value = "Back";
+            } else if (lower.includes("spalle") || lower.includes("shoulder") || lower.includes("military") || lower.includes("lento") || lower.includes("alzate") || lower.includes("lateral") || lower.includes("arnold") || lower.includes("deltoid")) {
+                select.value = "Shoulders";
+            } else if (lower.includes("squat") || lower.includes("leg") || lower.includes("gambe") || lower.includes("affondi") || lower.includes("lunge") || lower.includes("quadricipiti") || lower.includes("femorali")) {
+                select.value = "Legs";
+            } else if (lower.includes("polpacci") || lower.includes("calf")) {
+                select.value = "Calves";
+            } else if (lower.includes("bicipiti") || lower.includes("bicep") || lower.includes("curl") || lower.includes("hammer")) {
+                select.value = "Biceps";
+            } else if (lower.includes("tricipiti") || lower.includes("tricep") || lower.includes("french") || lower.includes("pushdown") || lower.includes("kickback")) {
+                select.value = "Triceps";
+            } else if (lower.includes("crunch") || lower.includes("plank") || lower.includes("addome") || lower.includes("abs") || lower.includes("core")) {
+                select.value = "Core";
+            }
+        }
+
+        function openEditExerciseModal(setId, originalName, currentCustomName, currentMuscleGroup, currentWeight, currentReps) {
             selectedSetId = setId;
-            document.getElementById("modalOriginalName").innerText = originalName;
-            document.getElementById("modalCustomNameInput").value = currentCustomName;
+            document.getElementById("modalOriginalName").innerText = originalName || "—";
+            document.getElementById("modalCustomNameInput").value = currentCustomName || "";
+            
+            const select = document.getElementById("modalMuscleGroupSelect");
+            if (select) {
+                select.value = currentMuscleGroup || "Altro";
+                if (select.selectedIndex === -1) {
+                    select.value = "Altro";
+                }
+            }
+            
             document.getElementById("modalWeightInput").value = (currentWeight !== undefined && currentWeight !== null) ? currentWeight : 0;
             document.getElementById("modalRepsInput").value = (currentReps !== undefined && currentReps !== null) ? currentReps : 0;
+            
+            const batchCheckbox = document.getElementById("modalApplyToSimilar");
+            if (batchCheckbox) {
+                batchCheckbox.checked = false;
+            }
             
             const modal = document.getElementById("editExerciseModal");
             modal.style.display = "flex";
@@ -3006,18 +3109,20 @@
 
         async function saveCustomExerciseDetails() {
             const customName = document.getElementById("modalCustomNameInput").value.trim();
+            const muscleGroup = document.getElementById("modalMuscleGroupSelect") ? document.getElementById("modalMuscleGroupSelect").value : "";
             const weightVal = parseFloat(document.getElementById("modalWeightInput").value);
             const repsVal = parseInt(document.getElementById("modalRepsInput").value, 10);
+            const applyToAllSimilar = document.getElementById("modalApplyToSimilar") ? document.getElementById("modalApplyToSimilar").checked : false;
             
             const weightKg = isNaN(weightVal) ? 0 : Math.max(0, weightVal);
             const reps = isNaN(repsVal) ? 0 : Math.max(0, repsVal);
 
             closeEditExerciseModal();
             
-            toggleLoader(true, "Salvataggio delle modifiche in corso...");
+            toggleLoader(true, "Salvataggio e ricalcolo volumi in corso...");
             
             try {
-                const url = `/api/exercise-set/name?setId=${selectedSetId}&customName=${encodeURIComponent(customName)}&weightKg=${weightKg}&reps=${reps}`;
+                const url = `/api/exercise-set/name?setId=${selectedSetId}&customName=${encodeURIComponent(customName)}&muscleGroup=${encodeURIComponent(muscleGroup)}&weightKg=${weightKg}&reps=${reps}&applyToAllSimilar=${applyToAllSimilar}`;
                 const response = await fetch(url, {
                     method: "POST",
                     headers: getAuthHeaders()
@@ -3026,7 +3131,7 @@
                 toggleLoader(false);
                 
                 if (response.ok) {
-                    showToast("Serie aggiornata con successo!", "success");
+                    showToast("Serie e volumi muscolari aggiornati con successo!", "success");
                     const currentExerciseFilter = document.getElementById("progressionExerciseSelector").value;
                     await fetchWorkoutData();
                     await fetchExercisesList(currentExerciseFilter);

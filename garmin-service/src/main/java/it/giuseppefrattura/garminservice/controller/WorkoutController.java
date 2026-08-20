@@ -74,16 +74,18 @@ public class WorkoutController {
     }
 
     /**
-     * Update a specific set's name, weight (kg), and/or reps by database ID.
+     * Update a specific set's name, muscle group, weight (kg), and/or reps by database ID.
      */
     @PostMapping({"/exercise-set/name", "/exercise-set"})
     public ResponseEntity<Map<String, Object>> saveSetDetails(
             @RequestParam("setId") Long setId,
             @RequestParam(value = "customName", required = false) String customName,
+            @RequestParam(value = "muscleGroup", required = false) String muscleGroup,
             @RequestParam(value = "weightKg", required = false) Double weightKg,
-            @RequestParam(value = "reps", required = false) Integer reps) {
+            @RequestParam(value = "reps", required = false) Integer reps,
+            @RequestParam(value = "applyToAllSimilar", required = false, defaultValue = "false") Boolean applyToAllSimilar) {
         try {
-            service.updateSetDetails(setId, customName, weightKg, reps);
+            service.updateSetDetails(setId, customName, muscleGroup, weightKg, reps, applyToAllSimilar);
             return ResponseEntity.ok(Map.of("status", "success", "detail", "Set details updated successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400).body(Map.of("status", "error", "detail", e.getMessage()));

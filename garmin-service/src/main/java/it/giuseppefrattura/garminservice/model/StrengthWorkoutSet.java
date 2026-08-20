@@ -43,6 +43,9 @@ public class StrengthWorkoutSet {
     @Column(name = "weight_kg", precision = 5, scale = 2)
     private BigDecimal weightKg;
 
+    @Column(name = "muscle_group", length = 100)
+    private String muscleGroup;
+
     public StrengthWorkoutSet() {}
 
     public StrengthWorkoutSet(StrengthWorkout workout, Integer setNumber, String originalExerciseName, String exerciseName, Integer reps, BigDecimal weightKg) {
@@ -50,6 +53,16 @@ public class StrengthWorkoutSet {
         this.setNumber = setNumber;
         this.originalExerciseName = originalExerciseName;
         this.exerciseName = exerciseName;
+        this.reps = reps;
+        this.weightKg = weightKg;
+    }
+
+    public StrengthWorkoutSet(StrengthWorkout workout, Integer setNumber, String originalExerciseName, String exerciseName, String muscleGroup, Integer reps, BigDecimal weightKg) {
+        this.workout = workout;
+        this.setNumber = setNumber;
+        this.originalExerciseName = originalExerciseName;
+        this.exerciseName = exerciseName;
+        this.muscleGroup = muscleGroup;
         this.reps = reps;
         this.weightKg = weightKg;
     }
@@ -70,6 +83,9 @@ public class StrengthWorkoutSet {
 
     public String getExerciseName() { return exerciseName; }
     public void setExerciseName(String exerciseName) { this.exerciseName = exerciseName; }
+
+    public String getMuscleGroup() { return muscleGroup; }
+    public void setMuscleGroup(String muscleGroup) { this.muscleGroup = muscleGroup; }
 
     public Integer getReps() { return reps; }
     public void setReps(Integer reps) { this.reps = reps; }

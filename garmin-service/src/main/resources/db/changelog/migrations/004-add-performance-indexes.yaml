@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-add-performance-indexes
+      author: giuseppefrattura
+      comment: "Add performance indexes for workouts, sets, and running HR zones"
+      changes:
+        - createIndex:
+            tableName: strength_workout
+            indexName: idx_strength_workout_date_time
+            columns:
+              - column:
+                  name: workout_date
+                  descending: true
+              - column:
+                  name: workout_time
+                  descending: true
+        - createIndex:
+            tableName: strength_workout_set
+            indexName: idx_strength_set_workout_id
+            columns:
+              - column:
+                  name: workout_id
+        - createIndex:
+            tableName: strength_workout_set
+            indexName: idx_strength_set_exercise_name
+            columns:
+              - column:
+                  name: exercise_name
+        - createIndex:
+            tableName: running_hr_zones
+            indexName: idx_running_hr_zones_date_time
+            columns:
+              - column:
+                  name: run_date
+                  descending: true
+              - column:
+                  name: run_time
+                  descending: true

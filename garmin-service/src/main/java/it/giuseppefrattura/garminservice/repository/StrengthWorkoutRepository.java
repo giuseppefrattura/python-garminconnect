@@ -1,6 +1,7 @@
 package it.giuseppefrattura.garminservice.repository;
 
 import it.giuseppefrattura.garminservice.model.StrengthWorkout;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,8 +15,9 @@ import java.util.List;
 public interface StrengthWorkoutRepository extends JpaRepository<StrengthWorkout, Long> {
 
     /**
-     * Find the most recent strength training activity.
+     * Find the most recent strength training activity with sets eagerly fetched.
      */
+    @EntityGraph(attributePaths = {"sets"})
     Optional<StrengthWorkout> findFirstByOrderByWorkoutDateDescWorkoutTimeDesc();
 
     /**
@@ -24,7 +26,8 @@ public interface StrengthWorkoutRepository extends JpaRepository<StrengthWorkout
     boolean existsByActivityId(Long activityId);
 
     /**
-     * Retrieve all workouts ordered by date and time descending.
+     * Retrieve all workouts ordered by date and time descending with sets eagerly fetched.
      */
+    @EntityGraph(attributePaths = {"sets"})
     List<StrengthWorkout> findAllByOrderByWorkoutDateDescWorkoutTimeDesc();
 }

@@ -63,6 +63,11 @@ class InMemoryCache:
 
     def set(self, key: str, value):
         with self.lock:
+            if len(self.cache) > 200:
+                now = time.time()
+                expired = [k for k, (exp, _) in self.cache.items() if now > exp]
+                for k in expired:
+                    del self.cache[k]
             expiry = time.time() + self.ttl
             self.cache[key] = (expiry, value)
 

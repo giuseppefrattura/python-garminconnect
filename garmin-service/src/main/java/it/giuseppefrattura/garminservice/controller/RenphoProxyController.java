@@ -71,9 +71,13 @@ public class RenphoProxyController {
                     .headers(responseHeaders != null ? responseHeaders : new HttpHeaders())
                     .body(e.getResponseBodyAsByteArray());
         } catch (Exception e) {
-            String errorMsg = "Proxy Error: " + (e.getMessage() != null ? e.getMessage() : "Unknown error");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(errorMsg.getBytes(StandardCharsets.UTF_8));
+            String detail = e.getMessage() != null ? e.getMessage().replace("\"", "\\\"") : "Connection failed";
+            String errorJson = "{\"status\":\"error\",\"detail\":\"Renpho service is unavailable: " + detail + "\"}";
+            HttpHeaders errorHeaders = new HttpHeaders();
+            errorHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .headers(errorHeaders)
+                    .body(errorJson.getBytes(StandardCharsets.UTF_8));
         }
     }
 }

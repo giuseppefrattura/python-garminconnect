@@ -25,7 +25,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) // Disable CSRF for local app/SSO redirect comfort
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/login.html", "/favicon.png", "/css/**", "/js/**").permitAll()
+                .requestMatchers("/login", "/login.html", "/favicon.png", "/css/**", "/js/**", "/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

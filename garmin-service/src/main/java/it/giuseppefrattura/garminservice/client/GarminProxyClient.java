@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.lang.NonNull;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * HTTP client that talks to the garmin-proxy FastAPI service.
@@ -30,9 +32,9 @@ public class GarminProxyClient {
     private final RestClient restClient;
 
     public GarminProxyClient(
-            @Value("${garmin.proxy.base-url}") String baseUrl,
+            @Value("${garmin.proxy.base-url}") @NonNull String baseUrl,
             @Value("${garmin.proxy.api-key:}") String apiKey) {
-        RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl);
+        RestClient.Builder builder = RestClient.builder().baseUrl(Objects.requireNonNull(baseUrl, "baseUrl must not be null"));
         
         if (apiKey != null && !apiKey.isBlank()) {
             builder.defaultHeader("X-API-Key", apiKey);

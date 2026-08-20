@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class RunHrZoneServiceTest {
 
     @Mock
@@ -61,6 +62,7 @@ class RunHrZoneServiceTest {
     // -----------------------------------------------------------------------
     @Nested
     @DisplayName("getRunHrZones — read-only aggregation")
+    @SuppressWarnings("null")
     class GetRunHrZones {
 
         @Test
@@ -186,6 +188,7 @@ class RunHrZoneServiceTest {
     // -----------------------------------------------------------------------
     @Nested
     @DisplayName("persistRunHrZones — DB upsert")
+    @SuppressWarnings("null")
     class PersistRunHrZones {
 
         @Test

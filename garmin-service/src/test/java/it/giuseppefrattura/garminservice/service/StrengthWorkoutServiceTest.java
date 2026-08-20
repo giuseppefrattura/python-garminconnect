@@ -10,7 +10,6 @@ import it.giuseppefrattura.garminservice.model.StrengthWorkout;
 import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutSetRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class StrengthWorkoutServiceTest {
 
     @Mock
@@ -52,10 +52,6 @@ class StrengthWorkoutServiceTest {
     private ExerciseSetDto activeSet(String category, String name, int reps, double weightGrams) {
         return new ExerciseSetDto("ACTIVE", reps, weightGrams,
                 List.of(new ExerciseDto(category, name)));
-    }
-
-    private ExerciseSetDto restSet() {
-        return new ExerciseSetDto("REST", null, null, null);
     }
 
     @Test

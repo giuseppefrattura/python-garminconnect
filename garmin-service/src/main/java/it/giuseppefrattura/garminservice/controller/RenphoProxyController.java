@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.Objects;
 
 /**
  * Controller that proxies Renpho requests to the internal FastAPI service.
@@ -37,12 +39,12 @@ public class RenphoProxyController {
     @RequestMapping(value = "/**", method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
     public ResponseEntity<byte[]> proxyRenphoRequest(
             @RequestBody(required = false) byte[] body,
-            HttpMethod method,
+            @NonNull HttpMethod method,
             HttpServletRequest request) {
 
         String path = request.getRequestURI();
         // Construct target URL (e.g. http://renpho-service:8082/api/renpho/measurements)
-        String targetUrl = renphoServiceUrl + path;
+        String targetUrl = renphoServiceUrl + (path != null ? path : "");
         
         // Append query parameters if present
         String queryString = request.getQueryString();
@@ -62,7 +64,7 @@ public class RenphoProxyController {
         HttpEntity<byte[]> httpEntity = new HttpEntity<>(body, headers);
 
         try {
-            return restTemplate.exchange(targetUrl, method, httpEntity, byte[].class);
+            return restTemplate.exchange(targetUrl, Objects.requireNonNull(method, "HttpMethod must not be null"), httpEntity, byte[].class);
         } catch (HttpStatusCodeException e) {
             HttpHeaders responseHeaders = e.getResponseHeaders();
             return ResponseEntity.status(e.getStatusCode())

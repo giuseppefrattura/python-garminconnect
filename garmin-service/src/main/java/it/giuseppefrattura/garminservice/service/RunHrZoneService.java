@@ -145,7 +145,7 @@ public class RunHrZoneService {
                 Map<String, Double> zonesOut = new LinkedHashMap<>();
                 e.zonesMins().forEach((z, mins) -> {
                     if (mins != null && mins > 0) zonesOut.put("zone_" + z, round1(mins));
-                    if (mins != null) aggregated.merge(z, mins, Double::sum);
+                    if (mins != null) aggregated.merge(z, mins, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
                 });
                 out.put("zones", zonesOut);
             }

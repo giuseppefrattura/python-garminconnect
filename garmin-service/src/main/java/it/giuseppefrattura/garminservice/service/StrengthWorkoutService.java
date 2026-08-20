@@ -233,7 +233,7 @@ public class StrengthWorkoutService {
                 String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
                 String category = orig.toUpperCase().replace(" ", "_");
                 String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
-                volumeByGroup.merge(muscleGroup, set.getReps() * weight, Double::sum);
+                volumeByGroup.merge(muscleGroup, set.getReps() * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
             }
         }
 
@@ -255,6 +255,9 @@ public class StrengthWorkoutService {
      * @param customName custom name to assign (null/empty to revert to original)
      */
     public void updateSetExerciseName(Long setId, String customName) {
+        if (setId == null) {
+            throw new IllegalArgumentException("Set ID must not be null");
+        }
         StrengthWorkoutSet set = setRepository.findById(setId)
                 .orElseThrow(() -> new IllegalArgumentException("Set not found with ID: " + setId));
         
@@ -289,7 +292,7 @@ public class StrengthWorkoutService {
                     String orig = set.getOriginalExerciseName() != null ? set.getOriginalExerciseName() : "Unknown";
                     String category = orig.toUpperCase().replace(" ", "_");
                     String muscleGroup = MUSCLE_GROUP_MAP.getOrDefault(category, toTitleCase(orig));
-                    weekMap.merge(muscleGroup, reps * weight, Double::sum);
+                    weekMap.merge(muscleGroup, reps * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
                 }
             }
         }

@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg2  # type: ignore
+from psycopg2.extras import RealDictCursor  # type: ignore
 from dotenv import load_dotenv
 from renpho import RenphoClient
 

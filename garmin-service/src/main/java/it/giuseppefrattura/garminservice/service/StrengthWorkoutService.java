@@ -249,12 +249,14 @@ public class StrengthWorkoutService {
     }
 
     /**
-     * Update the exercise name of a specific set by ID.
+     * Update the exercise name and weight/reps of a specific set by ID.
      *
      * @param setId database primary key of the set
      * @param customName custom name to assign (null/empty to revert to original)
+     * @param weightKg new weight in kg (null to keep current)
+     * @param reps new repetition count (null to keep current)
      */
-    public void updateSetExerciseName(Long setId, String customName) {
+    public void updateSetDetails(Long setId, String customName, Double weightKg, Integer reps) {
         if (setId == null) {
             throw new IllegalArgumentException("Set ID must not be null");
         }
@@ -266,7 +268,29 @@ public class StrengthWorkoutService {
         } else {
             set.setExerciseName(customName.trim());
         }
+
+        if (weightKg != null) {
+            if (weightKg < 0) {
+                throw new IllegalArgumentException("Weight cannot be negative");
+            }
+            set.setWeightKg(BigDecimal.valueOf(Math.round(weightKg * 10.0) / 10.0));
+        }
+
+        if (reps != null && reps >= 0) {
+            set.setReps(reps);
+        }
+
         setRepository.save(set);
+    }
+
+    /**
+     * Update the exercise name of a specific set by ID.
+     *
+     * @param setId database primary key of the set
+     * @param customName custom name to assign (null/empty to revert to original)
+     */
+    public void updateSetExerciseName(Long setId, String customName) {
+        updateSetDetails(setId, customName, null, null);
     }
 
     /**

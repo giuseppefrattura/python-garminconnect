@@ -74,19 +74,21 @@ public class WorkoutController {
     }
 
     /**
-     * Rename a specific set by database ID.
+     * Update a specific set's name, weight (kg), and/or reps by database ID.
      */
-    @PostMapping("/exercise-set/name")
-    public ResponseEntity<Map<String, Object>> saveSetExerciseName(
+    @PostMapping({"/exercise-set/name", "/exercise-set"})
+    public ResponseEntity<Map<String, Object>> saveSetDetails(
             @RequestParam("setId") Long setId,
-            @RequestParam(value = "customName", required = false) String customName) {
+            @RequestParam(value = "customName", required = false) String customName,
+            @RequestParam(value = "weightKg", required = false) Double weightKg,
+            @RequestParam(value = "reps", required = false) Integer reps) {
         try {
-            service.updateSetExerciseName(setId, customName);
-            return ResponseEntity.ok(Map.of("status", "success", "detail", "Set exercise name updated successfully"));
+            service.updateSetDetails(setId, customName, weightKg, reps);
+            return ResponseEntity.ok(Map.of("status", "success", "detail", "Set details updated successfully"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(400).body(Map.of("status", "error", "detail", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("status", "error", "detail", "Failed to update set exercise name: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("status", "error", "detail", "Failed to update set details: " + e.getMessage()));
         }
     }
 

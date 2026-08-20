@@ -113,21 +113,25 @@ class StrengthWorkoutServiceTest {
     }
 
     @Test
-    @DisplayName("updateSetExerciseName saves customized or default name")
-    void updateSetExerciseNameModifiesRecord() {
+    @DisplayName("updateSetDetails saves customized name, weightKg, and reps")
+    void updateSetDetailsModifiesRecord() {
         StrengthWorkoutSet set = new StrengthWorkoutSet(null, 1, "Bench Press", "Bench Press", 10, BigDecimal.valueOf(80.0));
         set.setId(10L);
 
         when(setRepository.findById(10L)).thenReturn(Optional.of(set));
 
-        // Update to custom name
-        service.updateSetExerciseName(10L, "Panca Piana");
+        // Update to custom name, new weight, new reps
+        service.updateSetDetails(10L, "Panca Piana", 85.5, 12);
         assertEquals("Panca Piana", set.getExerciseName());
+        assertEquals(BigDecimal.valueOf(85.5), set.getWeightKg());
+        assertEquals(12, set.getReps());
         verify(setRepository, times(1)).save(set);
 
-        // Reset to original
-        service.updateSetExerciseName(10L, "");
+        // Reset to original name
+        service.updateSetDetails(10L, "", 90.0, 8);
         assertEquals("Bench Press", set.getExerciseName());
+        assertEquals(BigDecimal.valueOf(90.0), set.getWeightKg());
+        assertEquals(8, set.getReps());
     }
 
     @Test

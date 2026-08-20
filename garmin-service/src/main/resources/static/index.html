@@ -1903,25 +1903,36 @@
         </div>
     </div>
 
-    <!-- Edit Exercise Name Modal -->
+    <!-- Edit Exercise Details Modal -->
     <div class="loader-overlay" id="editExerciseModal" style="display: none; justify-content: center; align-items: center; z-index: 1001;">
-        <div style="background: rgba(22, 28, 45, 0.95); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 450px; max-width: 90%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease;">
-            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff, var(--primary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Modifica Nome Esercizio</h3>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Modifica il nome visualizzato per questo esercizio. Lascia vuoto per ripristinare il nome predefinito.</p>
+        <div style="background: rgba(22, 28, 45, 0.95); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 480px; max-width: 90%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease;">
+            <h3 style="font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; background: linear-gradient(135deg, #fff, var(--primary)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Modifica Serie ed Esercizio</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">Modifica il nome visualizzato, il carico (kg) o le ripetizioni per questa serie.</p>
             
             <div style="margin-bottom: 1rem;">
                 <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Originale Garmin:</label>
                 <div id="modalOriginalName" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem; font-family: monospace; font-size: 0.9rem; color: white;">—</div>
             </div>
             
-            <div style="margin-bottom: 2rem;">
+            <div style="margin-bottom: 1.25rem;">
                 <label for="modalCustomNameInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Nome Personalizzato:</label>
                 <input type="text" id="modalCustomNameInput" placeholder="Es. Panca Piana, Lat Machine..." style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.75rem;">
+                <div>
+                    <label for="modalWeightInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Carico (kg):</label>
+                    <input type="number" id="modalWeightInput" step="0.5" min="0" placeholder="0.0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                </div>
+                <div>
+                    <label for="modalRepsInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Ripetizioni:</label>
+                    <input type="number" id="modalRepsInput" step="1" min="0" placeholder="0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                </div>
             </div>
             
             <div style="display: flex; justify-content: flex-end; gap: 1rem;">
                 <button class="btn btn-secondary" onclick="closeEditExerciseModal()">Annulla</button>
-                <button class="btn" onclick="saveCustomExerciseName()">Salva</button>
+                <button class="btn" onclick="saveCustomExerciseDetails()">Salva</button>
             </div>
         </div>
     </div>
@@ -2915,7 +2926,7 @@
                         <td style="font-weight: 600; color: white;">${s.reps}</td>
                         <td style="font-weight: 600; color: white;">${s.weightKg.toFixed(1)}</td>
                         <td style="text-align: center;">
-                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal(${s.setId}, '${quoteOriginal}', '${quoteCurrent}')">
+                            <button class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; border-radius: 8px;" onclick="openEditExerciseModal(${s.setId}, '${quoteOriginal}', '${quoteCurrent}', ${s.weightKg}, ${s.reps})">
                                 ✏️ Modifica
                             </button>
                         </td>
@@ -2978,10 +2989,12 @@
             `;
         }
 
-        function openEditExerciseModal(setId, originalName, currentCustomName) {
+        function openEditExerciseModal(setId, originalName, currentCustomName, currentWeight, currentReps) {
             selectedSetId = setId;
             document.getElementById("modalOriginalName").innerText = originalName;
             document.getElementById("modalCustomNameInput").value = currentCustomName;
+            document.getElementById("modalWeightInput").value = (currentWeight !== undefined && currentWeight !== null) ? currentWeight : 0;
+            document.getElementById("modalRepsInput").value = (currentReps !== undefined && currentReps !== null) ? currentReps : 0;
             
             const modal = document.getElementById("editExerciseModal");
             modal.style.display = "flex";
@@ -2991,14 +3004,21 @@
             document.getElementById("editExerciseModal").style.display = "none";
         }
 
-        async function saveCustomExerciseName() {
+        async function saveCustomExerciseDetails() {
             const customName = document.getElementById("modalCustomNameInput").value.trim();
+            const weightVal = parseFloat(document.getElementById("modalWeightInput").value);
+            const repsVal = parseInt(document.getElementById("modalRepsInput").value, 10);
+            
+            const weightKg = isNaN(weightVal) ? 0 : Math.max(0, weightVal);
+            const reps = isNaN(repsVal) ? 0 : Math.max(0, repsVal);
+
             closeEditExerciseModal();
             
-            toggleLoader(true, "Salvataggio della modifica in corso...");
+            toggleLoader(true, "Salvataggio delle modifiche in corso...");
             
             try {
-                const response = await fetch(`/api/exercise-set/name?setId=${selectedSetId}&customName=${encodeURIComponent(customName)}`, {
+                const url = `/api/exercise-set/name?setId=${selectedSetId}&customName=${encodeURIComponent(customName)}&weightKg=${weightKg}&reps=${reps}`;
+                const response = await fetch(url, {
                     method: "POST",
                     headers: getAuthHeaders()
                 });
@@ -3006,7 +3026,7 @@
                 toggleLoader(false);
                 
                 if (response.ok) {
-                    showToast("Nome dell'esercizio aggiornato con successo!", "success");
+                    showToast("Serie aggiornata con successo!", "success");
                     const currentExerciseFilter = document.getElementById("progressionExerciseSelector").value;
                     await fetchWorkoutData();
                     await fetchExercisesList(currentExerciseFilter);
@@ -3015,10 +3035,14 @@
                     showToast(`Errore durante il salvataggio: ${result.detail || "Risposta non valida"}`, "error");
                 }
             } catch (err) {
-                console.error("Save custom name error:", err);
+                console.error("Save custom exercise details error:", err);
                 toggleLoader(false);
                 showToast("Errore di rete o server non raggiungibile.", "error");
             }
+        }
+
+        function saveCustomExerciseName() {
+            return saveCustomExerciseDetails();
         }
 
         // ---------------------------------------------------------------------------

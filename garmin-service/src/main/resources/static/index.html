@@ -3133,10 +3133,19 @@
             if (!dateStr) return "";
             const parts = dateStr.split("-");
             if (parts.length < 3) return dateStr;
-            const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-            const day = parts[2];
-            const monthName = date.toLocaleString('it-IT', { month: 'short' });
-            return `${day} ${monthName}`;
+            const start = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            
+            const startDay = start.getDate();
+            const startMonth = start.toLocaleString('it-IT', { month: 'short' });
+            const endDay = end.getDate();
+            const endMonth = end.toLocaleString('it-IT', { month: 'short' });
+            
+            if (startMonth === endMonth) {
+                return `${startDay}-${endDay} ${startMonth}`;
+            }
+            return `${startDay} ${startMonth}-${endDay} ${endMonth}`;
         }
 
         function renderWeeklyVolumeChart() {
@@ -3213,7 +3222,7 @@
                             callbacks: {
                                 title: (items) => {
                                     const idx = items[0].dataIndex;
-                                    return `Settimana del ${weeks[idx]} (${dateLabels[idx]})`;
+                                    return `Settimana ${dateLabels[idx]} (dal lunedì ${weeks[idx]})`;
                                 },
                                 label: (item) => {
                                     return ` ${item.dataset.label}: ${item.raw.toLocaleString('it-IT', { maximumFractionDigits: 1 })} kg`;

@@ -1,0 +1,112 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-create-daily-health-metrics
+      author: giuseppe
+      changes:
+        - createTable:
+            tableName: daily_health_metrics
+            columns:
+              - column:
+                  name: metric_date
+                  type: DATE
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: sleep_score
+                  type: INTEGER
+              - column:
+                  name: sleep_qualifier
+                  type: VARCHAR(50)
+              - column:
+                  name: sleep_duration_seconds
+                  type: INTEGER
+              - column:
+                  name: deep_sleep_seconds
+                  type: INTEGER
+              - column:
+                  name: light_sleep_seconds
+                  type: INTEGER
+              - column:
+                  name: rem_sleep_seconds
+                  type: INTEGER
+              - column:
+                  name: awake_seconds
+                  type: INTEGER
+              - column:
+                  name: resting_heart_rate
+                  type: INTEGER
+              - column:
+                  name: body_battery_wake
+                  type: INTEGER
+              - column:
+                  name: body_battery_max
+                  type: INTEGER
+              - column:
+                  name: body_battery_min
+                  type: INTEGER
+              - column:
+                  name: body_battery_charged
+                  type: INTEGER
+              - column:
+                  name: body_battery_drained
+                  type: INTEGER
+              - column:
+                  name: hrv_nightly_avg
+                  type: DOUBLE PRECISION
+              - column:
+                  name: hrv_status
+                  type: VARCHAR(30)
+              - column:
+                  name: hrv_weekly_avg
+                  type: DOUBLE PRECISION
+              - column:
+                  name: hrv_baseline_low
+                  type: DOUBLE PRECISION
+              - column:
+                  name: hrv_baseline_balanced_low
+                  type: DOUBLE PRECISION
+              - column:
+                  name: hrv_baseline_balanced_upper
+                  type: DOUBLE PRECISION
+              - column:
+                  name: avg_stress_level
+                  type: INTEGER
+              - column:
+                  name: max_stress_level
+                  type: INTEGER
+              - column:
+                  name: stress_rest_duration_seconds
+                  type: INTEGER
+              - column:
+                  name: stress_low_duration_seconds
+                  type: INTEGER
+              - column:
+                  name: stress_medium_duration_seconds
+                  type: INTEGER
+              - column:
+                  name: stress_high_duration_seconds
+                  type: INTEGER
+              - column:
+                  name: readiness_score
+                  type: INTEGER
+              - column:
+                  name: readiness_level
+                  type: VARCHAR(30)
+              - column:
+                  name: readiness_advice
+                  type: VARCHAR(500)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+        - createIndex:
+            indexName: idx_health_metric_date
+            tableName: daily_health_metrics
+            columns:
+              - column:
+                  name: metric_date

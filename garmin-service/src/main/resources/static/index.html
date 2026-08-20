@@ -1055,6 +1055,287 @@
             box-shadow: 0 0 8px rgba(234, 179, 8, 0.25);
             letter-spacing: 0.3px;
         }
+
+        /* --- Health & Biometrics Styles --- */
+        .health-hero-card {
+            background: linear-gradient(135deg, rgba(16, 24, 40, 0.85), rgba(15, 23, 42, 0.75));
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 2rem;
+            align-items: center;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @media (max-width: 900px) {
+            .health-hero-card {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        .readiness-gauge-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .readiness-svg-wrap {
+            position: relative;
+            width: 170px;
+            height: 170px;
+        }
+
+        .readiness-svg-wrap svg {
+            transform: rotate(-90deg);
+        }
+
+        .readiness-center-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .readiness-score-num {
+            font-size: 2.75rem;
+            font-weight: 800;
+            line-height: 1;
+            background: linear-gradient(135deg, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .readiness-score-max {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .readiness-badge-pill {
+            margin-top: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-optimal {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-moderate {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .badge-fatigued {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .health-coach-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .coach-advice-bubble {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 4px solid var(--primary);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+        }
+
+        .coach-advice-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #93c5fd;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .coach-advice-text {
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.5;
+        }
+
+        .health-micro-chips {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .health-chip {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .health-chip-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .health-chip-val {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .health-chip-sub {
+            font-size: 0.68rem;
+            color: #94a3b8;
+        }
+
+        /* Sleep Stage Bar */
+        .sleep-stage-bar {
+            display: flex;
+            height: 22px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 1rem 0 0.75rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .sleep-stage-seg {
+            height: 100%;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .sleep-seg-deep { background: #8b5cf6; }
+        .sleep-seg-rem { background: #06b6d4; }
+        .sleep-seg-light { background: #3b82f6; }
+        .sleep-seg-awake { background: #64748b; }
+
+        .sleep-legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        .sleep-legend-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sleep-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* Relative Strength Cards */
+        .relative-strength-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .relative-card {
+            background: linear-gradient(145deg, rgba(26, 32, 53, 0.7), rgba(18, 22, 38, 0.85));
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            padding: 1.15rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .relative-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .relative-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .relative-hero-ratio {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .relative-ratio-val {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #38bdf8;
+            line-height: 1;
+        }
+
+        .relative-ratio-unit {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .relative-subgrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -1081,6 +1362,10 @@
             <button class="tab-btn active" id="tabBtnGarmin" onclick="switchTab('garmin')">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                 🏃 Garmin Analytics
+            </button>
+            <button class="tab-btn" id="tabBtnHealth" onclick="switchTab('health')">
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+                🫀 Salute & Biometria
             </button>
             <button class="tab-btn" id="tabBtnRenpho" onclick="switchTab('renpho')">
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -2083,6 +2368,222 @@
                 </div>
             </div>
         </div>
+
+        <!-- Health & Biometrics Tab Content -->
+        <div id="healthTabContent" style="display: none;">
+            <!-- Health Control Panel -->
+            <div class="config-panel" style="margin-bottom: 2rem; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <div class="input-group">
+                        <label for="healthDatePicker">Data Metriche:</label>
+                        <input type="date" id="healthDatePicker" onchange="loadHealthForSelectedDate(this.value)">
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="syncHealthData()">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                        Sincronizza Salute Garmin
+                    </button>
+                    <button class="btn btn-secondary" onclick="fetchHealthData()">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
+                        Aggiorna
+                    </button>
+                </div>
+            </div>
+
+            <!-- Daily Readiness & Smart Coaching Hero Card -->
+            <div class="health-hero-card">
+                <div class="readiness-gauge-box">
+                    <div class="readiness-svg-wrap">
+                        <svg width="170" height="170" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="10" />
+                            <circle id="readinessProgressCircle" cx="60" cy="60" r="50" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.159" stroke-dashoffset="314.159" style="transition: stroke-dashoffset 1s ease, stroke 0.5s ease;" />
+                        </svg>
+                        <div class="readiness-center-text">
+                            <span class="readiness-score-num" id="readinessScoreNum">--</span>
+                            <span class="readiness-score-max">Readiness / 100</span>
+                        </div>
+                    </div>
+                    <div id="readinessBadgePill" class="readiness-badge-pill badge-moderate">
+                        <span>Caricamento...</span>
+                    </div>
+                </div>
+
+                <div class="health-coach-content">
+                    <div class="coach-advice-bubble">
+                        <div class="coach-advice-title">
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            Consiglio per la Sessione Odierna
+                        </div>
+                        <div class="coach-advice-text" id="readinessAdviceText">
+                            Caricamento analisi fisiologica e prontezza all'allenamento...
+                        </div>
+                    </div>
+
+                    <div class="health-micro-chips">
+                        <div class="health-chip">
+                            <span class="health-chip-label">Punteggio Sonno</span>
+                            <span class="health-chip-val" id="chipSleepScore">--</span>
+                            <span class="health-chip-sub" id="chipSleepQuality">—</span>
+                        </div>
+                        <div class="health-chip">
+                            <span class="health-chip-label">Body Battery</span>
+                            <span class="health-chip-val" id="chipBodyBattery">--</span>
+                            <span class="health-chip-sub" id="chipBodyBatterySub">Max / Risveglio</span>
+                        </div>
+                        <div class="health-chip">
+                            <span class="health-chip-label">HRV Notturno</span>
+                            <span class="health-chip-val" id="chipHrv">-- ms</span>
+                            <span class="health-chip-sub" id="chipHrvStatus">Stato HRV</span>
+                        </div>
+                        <div class="health-chip">
+                            <span class="health-chip-label">Stress Giornaliero</span>
+                            <span class="health-chip-val" id="chipStress">-- / 100</span>
+                            <span class="health-chip-sub" id="chipStressSub">Livello Medio</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Sleep & Stages Breakdown -->
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="color: #a855f7;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+                            Architettura del Sonno & Fasi
+                        </h2>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Dettaglio della durata e distribuzione delle fasi di riposo</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1.5rem;">
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Durata Totale</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff;" id="sleepTotalDuration">--h --m</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Battito a Riposo</div>
+                            <div style="font-size: 1.25rem; font-weight: 800; color: #f43f5e;" id="sleepRestingHr">-- bpm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Horizontal Stacked Progress Bar -->
+                <div class="sleep-stage-bar" id="sleepStageBar">
+                    <div class="sleep-stage-seg sleep-seg-deep" id="segDeep" style="width: 0%;" title="Profondo"></div>
+                    <div class="sleep-stage-seg sleep-seg-rem" id="segRem" style="width: 0%;" title="REM"></div>
+                    <div class="sleep-stage-seg sleep-seg-light" id="segLight" style="width: 0%;" title="Leggero"></div>
+                    <div class="sleep-stage-seg sleep-seg-awake" id="segAwake" style="width: 0%;" title="Veglia"></div>
+                </div>
+
+                <!-- Legend / Metric Cards for Sleep Stages -->
+                <div class="sleep-legend-grid">
+                    <div class="sleep-legend-card">
+                        <div class="sleep-dot" style="background: #8b5cf6;"></div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Profondo</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: #ffffff;" id="valDeepSleep">--m (0%)</div>
+                        </div>
+                    </div>
+                    <div class="sleep-legend-card">
+                        <div class="sleep-dot" style="background: #06b6d4;"></div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">REM</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: #ffffff;" id="valRemSleep">--m (0%)</div>
+                        </div>
+                    </div>
+                    <div class="sleep-legend-card">
+                        <div class="sleep-dot" style="background: #3b82f6;"></div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Leggero</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: #ffffff;" id="valLightSleep">--m (0%)</div>
+                        </div>
+                    </div>
+                    <div class="sleep-legend-card">
+                        <div class="sleep-dot" style="background: #64748b;"></div>
+                        <div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Veglia</div>
+                            <div style="font-size: 0.95rem; font-weight: 700; color: #ffffff;" id="valAwakeSleep">--m (0%)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Health Trends 30-Day Charts -->
+            <div class="grid-2-col" style="margin-bottom: 2rem;">
+                <div class="glass-card">
+                    <div class="card-header" style="margin-bottom: 1rem;">
+                        <div>
+                            <h2 style="font-size: 1.15rem; font-weight: 700; color: #ffffff;">Trend HRV Notturno (30 Giorni)</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Variabilità cardiaca notturna vs media settimanale</p>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" style="height: 260px;">
+                        <canvas id="healthHrvChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-header" style="margin-bottom: 1rem;">
+                        <div>
+                            <h2 style="font-size: 1.15rem; font-weight: 700; color: #ffffff;">Body Battery & Stress</h2>
+                            <p style="font-size: 0.8rem; color: var(--text-muted);">Ricarica energetica e livello di stress medio</p>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" style="height: 260px;">
+                        <canvas id="healthBodyBatteryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Renpho Biometrics & Strength Integration (Relative Strength & Recomposition) -->
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+                    <div>
+                        <h2 style="font-size: 1.25rem; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" style="color: #38bdf8;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                            Forza Relativa & Composizione Corporea Renpho
+                        </h2>
+                        <p style="font-size: 0.85rem; color: var(--text-muted);">Rapporto di forza rispetto al Peso Corporeo (BW) e Massa Magra (FFM)</p>
+                    </div>
+
+                    <!-- Current Renpho Metrics Summary -->
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <div class="health-chip" style="min-width: 100px; padding: 0.45rem 0.75rem;">
+                            <span class="health-chip-label">Peso Attuale</span>
+                            <span class="health-chip-val" id="renphoCurrentWeight">-- kg</span>
+                        </div>
+                        <div class="health-chip" style="min-width: 100px; padding: 0.45rem 0.75rem;">
+                            <span class="health-chip-label">Grasso Corporeo</span>
+                            <span class="health-chip-val" id="renphoCurrentBf">-- %</span>
+                        </div>
+                        <div class="health-chip" style="min-width: 100px; padding: 0.45rem 0.75rem;">
+                            <span class="health-chip-label">Massa Magra (FFM)</span>
+                            <span class="health-chip-val" id="renphoCurrentFfm">-- kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relative Strength Cards Grid -->
+                <div class="relative-strength-grid" id="relativeStrengthGrid">
+                    <div class="empty-state" style="padding: 1.5rem 0; grid-column: 1 / -1;">
+                        <p>Caricamento metriche di forza relativa...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body Recomposition Correlation Chart -->
+            <div class="glass-card" style="margin-bottom: 2rem;">
+                <div class="card-header" style="margin-bottom: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.15rem; font-weight: 700; color: #ffffff;">Correlazione Ricostituzione Corporea (Renpho $\times$ Tonnellaggio)</h2>
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Andamento Peso (kg) e % Grasso (Asse Sinistro) rispetto al Volume Allenamento (Asse Destro)</p>
+                    </div>
+                </div>
+                <div class="chart-wrapper" style="height: 320px;">
+                    <canvas id="recompositionTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Edit Exercise Details Modal -->
@@ -2671,37 +3172,45 @@
 
         function switchTab(tab) {
             const garminBtn = document.getElementById("tabBtnGarmin");
+            const healthBtn = document.getElementById("tabBtnHealth");
             const renphoBtn = document.getElementById("tabBtnRenpho");
             const mealBtn = document.getElementById("tabBtnMeal");
             const workoutBtn = document.getElementById("tabBtnWorkout");
             const garminContent = document.getElementById("garminTabContent");
+            const healthContent = document.getElementById("healthTabContent");
             const renphoContent = document.getElementById("renphoTabContent");
             const mealContent = document.getElementById("mealTabContent");
             const workoutContent = document.getElementById("workoutTabContent");
             
             // Remove active classes
-            garminBtn.classList.remove("active");
-            renphoBtn.classList.remove("active");
-            mealBtn.classList.remove("active");
+            if (garminBtn) garminBtn.classList.remove("active");
+            if (healthBtn) healthBtn.classList.remove("active");
+            if (renphoBtn) renphoBtn.classList.remove("active");
+            if (mealBtn) mealBtn.classList.remove("active");
             if (workoutBtn) workoutBtn.classList.remove("active");
             
             // Hide all tab contents
-            garminContent.style.display = "none";
-            renphoContent.style.display = "none";
-            mealContent.style.display = "none";
+            if (garminContent) garminContent.style.display = "none";
+            if (healthContent) healthContent.style.display = "none";
+            if (renphoContent) renphoContent.style.display = "none";
+            if (mealContent) mealContent.style.display = "none";
             if (workoutContent) workoutContent.style.display = "none";
             
             if (tab === "garmin") {
-                garminBtn.classList.add("active");
-                garminContent.style.display = "block";
+                if (garminBtn) garminBtn.classList.add("active");
+                if (garminContent) garminContent.style.display = "block";
                 fetchDatabaseData();
+            } else if (tab === "health") {
+                if (healthBtn) healthBtn.classList.add("active");
+                if (healthContent) healthContent.style.display = "block";
+                fetchHealthData();
             } else if (tab === "renpho") {
-                renphoBtn.classList.add("active");
-                renphoContent.style.display = "block";
+                if (renphoBtn) renphoBtn.classList.add("active");
+                if (renphoContent) renphoContent.style.display = "block";
                 fetchRenphoData();
             } else if (tab === "meal") {
-                mealBtn.classList.add("active");
-                mealContent.style.display = "block";
+                if (mealBtn) mealBtn.classList.add("active");
+                if (mealContent) mealContent.style.display = "block";
             } else if (tab === "workout") {
                 if (workoutBtn) workoutBtn.classList.add("active");
                 if (workoutContent) workoutContent.style.display = "block";
@@ -3924,6 +4433,446 @@
 
         function closePrTimelineModal() {
             document.getElementById("prTimelineModal").style.display = "none";
+        }
+
+        // ---------------------------------------------------------------------------
+        // Health & Biometrics Logic (Task 2)
+        // ---------------------------------------------------------------------------
+        let healthHrvChartInstance = null;
+        let healthBodyBatteryChartInstance = null;
+        let recompositionTrendChartInstance = null;
+
+        async function fetchHealthData(selectedDate = null) {
+            const datePicker = document.getElementById("healthDatePicker");
+            const todayStr = new Date().toISOString().substring(0, 10);
+            
+            if (!selectedDate && datePicker && !datePicker.value) {
+                datePicker.value = todayStr;
+            }
+            const queryDate = selectedDate || (datePicker ? datePicker.value : todayStr);
+
+            try {
+                let url = queryDate === todayStr ? "/api/health/today-readiness" : `/api/health/daily?date=${queryDate}`;
+                const response = await fetch(url, { headers: getAuthHeaders() });
+                
+                if (response.ok) {
+                    const res = await response.json();
+                    const data = res.data;
+                    if (data) {
+                        updateReadinessUI(data);
+                        updateSleepUI(data);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching daily health metrics:", err);
+            }
+
+            // Load 30-day trends and biometrics correlations
+            loadHealthTrends(30);
+            loadRelativeStrength();
+            loadRecompositionTrend();
+        }
+
+        function loadHealthForSelectedDate(date) {
+            if (date) fetchHealthData(date);
+        }
+
+        function updateReadinessUI(data) {
+            const score = data.readinessScore !== undefined && data.readinessScore !== null ? Number(data.readinessScore) : 70;
+            const level = data.readinessLevel || "MODERATE";
+            const advice = data.readinessAdvice || "Dati fisiologici stabili. Procedi con l'allenamento mantenendo una buona gestione del carico.";
+
+            // Update Score & Label
+            const scoreEl = document.getElementById("readinessScoreNum");
+            if (scoreEl) scoreEl.innerText = score;
+
+            // SVG Circle Dashoffset (circumference = 2 * PI * 50 = 314.159)
+            const circle = document.getElementById("readinessProgressCircle");
+            if (circle) {
+                const total = 314.159;
+                const offset = total - (total * (score / 100));
+                circle.style.strokeDashoffset = offset;
+                
+                if (score >= 80) circle.style.stroke = "#10b981"; // Emerald
+                else if (score >= 55) circle.style.stroke = "#f59e0b"; // Amber
+                else circle.style.stroke = "#ef4444"; // Rose
+            }
+
+            // Badge Pill
+            const badgeEl = document.getElementById("readinessBadgePill");
+            if (badgeEl) {
+                badgeEl.className = "readiness-badge-pill";
+                if (score >= 80) {
+                    badgeEl.classList.add("badge-optimal");
+                    badgeEl.innerHTML = "<span>🟢 Recupero Ottimale</span>";
+                } else if (score >= 55) {
+                    badgeEl.classList.add("badge-moderate");
+                    badgeEl.innerHTML = "<span>🟡 Recupero Standard</span>";
+                } else {
+                    badgeEl.classList.add("badge-fatigued");
+                    badgeEl.innerHTML = "<span>🔴 Affaticamento Rilevato</span>";
+                }
+            }
+
+            // Advice Text
+            const adviceEl = document.getElementById("readinessAdviceText");
+            if (adviceEl) adviceEl.innerText = advice;
+
+            // Micro Chips
+            const sleepScoreEl = document.getElementById("chipSleepScore");
+            const sleepQualityEl = document.getElementById("chipSleepQuality");
+            if (sleepScoreEl) sleepScoreEl.innerText = data.sleepScore ? `${data.sleepScore} / 100` : "--";
+            if (sleepQualityEl) sleepQualityEl.innerText = data.sleepQualifier ? data.sleepQualifier : (data.sleepScore ? (data.sleepScore >= 80 ? "Ottimo" : "Discreto") : "—");
+
+            const bbEl = document.getElementById("chipBodyBattery");
+            const bbSubEl = document.getElementById("chipBodyBatterySub");
+            if (bbEl) {
+                const max = data.bodyBatteryMax !== null && data.bodyBatteryMax !== undefined ? data.bodyBatteryMax : "--";
+                const wake = data.bodyBatteryWake !== null && data.bodyBatteryWake !== undefined ? data.bodyBatteryWake : "--";
+                bbEl.innerText = `${max} / ${wake}`;
+            }
+            if (bbSubEl) bbSubEl.innerText = "Max / Risveglio";
+
+            const hrvEl = document.getElementById("chipHrv");
+            const hrvStatusEl = document.getElementById("chipHrvStatus");
+            if (hrvEl) hrvEl.innerText = data.hrvNightlyAvg ? `${Math.round(data.hrvNightlyAvg)} ms` : "-- ms";
+            if (hrvStatusEl) hrvStatusEl.innerText = data.hrvStatus || "In linea con baseline";
+
+            const stressEl = document.getElementById("chipStress");
+            const stressSubEl = document.getElementById("chipStressSub");
+            if (stressEl) stressEl.innerText = data.avgStressLevel !== null && data.avgStressLevel !== undefined ? `${data.avgStressLevel} / 100` : "--";
+            if (stressSubEl) stressSubEl.innerText = data.avgStressLevel ? (data.avgStressLevel < 25 ? "Riposo / Basso" : data.avgStressLevel < 50 ? "Basso / Moderato" : "Elevato") : "Livello Medio";
+        }
+
+        function updateSleepUI(data) {
+            const totalSec = Number(data.sleepDurationSeconds || 0);
+            const deepSec = Number(data.deepSleepSeconds || 0);
+            const remSec = Number(data.remSleepSeconds || 0);
+            const lightSec = Number(data.lightSleepSeconds || 0);
+            const awakeSec = Number(data.awakeSeconds || 0);
+
+            // Total Hours & Mins
+            const totalEl = document.getElementById("sleepTotalDuration");
+            if (totalEl) {
+                if (totalSec > 0) {
+                    const h = Math.floor(totalSec / 3600);
+                    const m = Math.floor((totalSec % 3600) / 60);
+                    totalEl.innerText = `${h}h ${m}m`;
+                } else {
+                    totalEl.innerText = "--h --m";
+                }
+            }
+
+            // Resting HR
+            const hrEl = document.getElementById("sleepRestingHr");
+            if (hrEl) hrEl.innerText = data.restingHeartRate ? `${data.restingHeartRate} bpm` : "-- bpm";
+
+            // Stage Bar & Percentages
+            const sum = (deepSec + remSec + lightSec + awakeSec) || totalSec || 1;
+            const pctDeep = ((deepSec / sum) * 100).toFixed(1);
+            const pctRem = ((remSec / sum) * 100).toFixed(1);
+            const pctLight = ((lightSec / sum) * 100).toFixed(1);
+            const pctAwake = ((awakeSec / sum) * 100).toFixed(1);
+
+            const segDeep = document.getElementById("segDeep");
+            const segRem = document.getElementById("segRem");
+            const segLight = document.getElementById("segLight");
+            const segAwake = document.getElementById("segAwake");
+
+            if (segDeep) segDeep.style.width = `${pctDeep}%`;
+            if (segRem) segRem.style.width = `${pctRem}%`;
+            if (segLight) segLight.style.width = `${pctLight}%`;
+            if (segAwake) segAwake.style.width = `${pctAwake}%`;
+
+            const formatStageTime = (sec, pct) => {
+                if (!sec || sec <= 0) return `0m (0%)`;
+                const h = Math.floor(sec / 3600);
+                const m = Math.floor((sec % 3600) / 60);
+                const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                return `${timeStr} (${pct}%)`;
+            };
+
+            const valDeep = document.getElementById("valDeepSleep");
+            const valRem = document.getElementById("valRemSleep");
+            const valLight = document.getElementById("valLightSleep");
+            const valAwake = document.getElementById("valAwakeSleep");
+
+            if (valDeep) valDeep.innerText = formatStageTime(deepSec, pctDeep);
+            if (valRem) valRem.innerText = formatStageTime(remSec, pctRem);
+            if (valLight) valLight.innerText = formatStageTime(lightSec, pctLight);
+            if (valAwake) valAwake.innerText = formatStageTime(awakeSec, pctAwake);
+        }
+
+        async function loadHealthTrends(days = 30) {
+            try {
+                const response = await fetch(`/api/health/history?days=${days}`, { headers: getAuthHeaders() });
+                if (!response.ok) return;
+                const result = await response.json();
+                const list = result.data || [];
+                if (list.length === 0) return;
+
+                const labels = list.map(m => m.metricDate);
+                const hrvNightly = list.map(m => m.hrvNightlyAvg);
+                const hrvWeekly = list.map(m => m.hrvWeeklyAvg);
+                const bodyBatteryMax = list.map(m => m.bodyBatteryMax);
+                const bodyBatteryWake = list.map(m => m.bodyBatteryWake);
+                const avgStress = list.map(m => m.avgStressLevel);
+
+                // Render HRV Chart
+                const hrvCtx = document.getElementById("healthHrvChart");
+                if (hrvCtx) {
+                    if (healthHrvChartInstance) healthHrvChartInstance.destroy();
+                    healthHrvChartInstance = new Chart(hrvCtx.getContext("2d"), {
+                        type: "line",
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: "HRV Notturno (ms)",
+                                    data: hrvNightly,
+                                    borderColor: "#38bdf8",
+                                    backgroundColor: "rgba(56, 189, 248, 0.15)",
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: "#38bdf8"
+                                },
+                                {
+                                    label: "Media Settimanale Baseline",
+                                    data: hrvWeekly,
+                                    borderColor: "#a855f7",
+                                    borderDash: [5, 5],
+                                    fill: false,
+                                    tension: 0.35,
+                                    pointRadius: 0
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { color: "#e2e8f0" } }
+                            },
+                            scales: {
+                                x: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } },
+                                y: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" }, title: { display: true, text: "ms", color: "#94a3b8" } }
+                            }
+                        }
+                    });
+                }
+
+                // Render Body Battery & Stress Chart
+                const bbCtx = document.getElementById("healthBodyBatteryChart");
+                if (bbCtx) {
+                    if (healthBodyBatteryChartInstance) healthBodyBatteryChartInstance.destroy();
+                    healthBodyBatteryChartInstance = new Chart(bbCtx.getContext("2d"), {
+                        type: "line",
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: "Body Battery Max",
+                                    data: bodyBatteryMax,
+                                    borderColor: "#10b981",
+                                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointRadius: 3
+                                },
+                                {
+                                    label: "Stress Medio",
+                                    data: avgStress,
+                                    borderColor: "#f43f5e",
+                                    backgroundColor: "rgba(244, 63, 94, 0.08)",
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointRadius: 3
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { color: "#e2e8f0" } }
+                            },
+                            scales: {
+                                x: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } },
+                                y: { min: 0, max: 100, grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8" } }
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading health trends:", err);
+            }
+        }
+
+        async function loadRelativeStrength() {
+            try {
+                const response = await fetch("/api/biometrics/relative-strength", { headers: getAuthHeaders() });
+                if (!response.ok) return;
+                const result = await response.json();
+
+                // Update Renpho Summary Chips
+                const weightEl = document.getElementById("renphoCurrentWeight");
+                const bfEl = document.getElementById("renphoCurrentBf");
+                const ffmEl = document.getElementById("renphoCurrentFfm");
+
+                if (weightEl) weightEl.innerText = result.currentWeightKg ? `${result.currentWeightKg.toFixed(1)} kg` : "-- kg";
+                if (bfEl) bfEl.innerText = result.currentBodyFatPct ? `${result.currentBodyFatPct.toFixed(1)} %` : "-- %";
+                if (ffmEl) ffmEl.innerText = result.currentFfmKg ? `${result.currentFfmKg.toFixed(1)} kg` : "-- kg";
+
+                // Populate Relative Strength Cards Grid
+                const grid = document.getElementById("relativeStrengthGrid");
+                if (!grid) return;
+
+                const exercises = result.exercises || [];
+                if (exercises.length === 0) {
+                    grid.innerHTML = '<div class="empty-state" style="padding: 1.5rem 0; grid-column: 1 / -1;"><p>Nessun massimale registrato per calcolare la forza relativa.</p></div>';
+                    return;
+                }
+
+                let html = '';
+                exercises.forEach(ex => {
+                    const ratioBw = ex.relativeToBw !== null && ex.relativeToBw !== undefined ? ex.relativeToBw.toFixed(2) : '—';
+                    const ratioFfm = ex.relativeToFfm !== null && ex.relativeToFfm !== undefined ? ex.relativeToFfm.toFixed(2) : '—';
+                    const est1Rm = ex.estimated1RmKg ? ex.estimated1RmKg.toFixed(1) : '—';
+                    const maxWeight = ex.maxWeightKg ? `${ex.maxWeightKg.toFixed(1)} kg × ${ex.maxWeightReps || 1}` : '—';
+
+                    html += `
+                        <div class="relative-card">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                                <div class="relative-card-title" title="${escapeHtml(ex.exerciseName)}">${escapeHtml(ex.exerciseName)}</div>
+                                <span class="pr-gold-badge" style="font-size: 0.65rem;">1RM ${est1Rm} kg</span>
+                            </div>
+                            <div class="relative-hero-ratio">
+                                <span class="relative-ratio-val">${ratioBw}x</span>
+                                <span class="relative-ratio-unit">Peso Corporeo (BW)</span>
+                            </div>
+                            <div class="relative-subgrid">
+                                <div>
+                                    <div style="font-size: 0.68rem; color: var(--text-muted);">Forza / Massa Magra</div>
+                                    <div style="font-size: 0.95rem; font-weight: 700; color: #a78bfa;">${ratioFfm}x FFM</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.68rem; color: var(--text-muted);">Carico Massimo</div>
+                                    <div style="font-size: 0.95rem; font-weight: 700; color: #f1f5f9;">${maxWeight}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                grid.innerHTML = html;
+            } catch (err) {
+                console.error("Error loading relative strength:", err);
+            }
+        }
+
+        async function loadRecompositionTrend() {
+            try {
+                const response = await fetch("/api/biometrics/recomposition-trend", { headers: getAuthHeaders() });
+                if (!response.ok) return;
+                const result = await response.json();
+                const points = result.data || [];
+                if (points.length === 0) return;
+
+                const labels = points.map(p => p.date);
+                const weights = points.map(p => p.weightKg);
+                const bodyFats = points.map(p => p.bodyFatPct);
+                const volumes = points.map(p => p.workoutVolumeKg);
+
+                const ctx = document.getElementById("recompositionTrendChart");
+                if (!ctx) return;
+
+                if (recompositionTrendChartInstance) recompositionTrendChartInstance.destroy();
+                recompositionTrendChartInstance = new Chart(ctx.getContext("2d"), {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: "Peso Corporeo (kg)",
+                                data: weights,
+                                borderColor: "#38bdf8",
+                                backgroundColor: "transparent",
+                                yAxisID: "yBody",
+                                tension: 0.3,
+                                pointRadius: 3
+                            },
+                            {
+                                label: "% Grasso Corporeo",
+                                data: bodyFats,
+                                borderColor: "#f59e0b",
+                                backgroundColor: "transparent",
+                                yAxisID: "yBody",
+                                tension: 0.3,
+                                pointRadius: 3
+                            },
+                            {
+                                label: "Tonnellaggio Sessione (kg)",
+                                data: volumes,
+                                type: "bar",
+                                backgroundColor: "rgba(168, 85, 247, 0.35)",
+                                borderColor: "rgba(168, 85, 247, 0.8)",
+                                borderWidth: 1,
+                                yAxisID: "yVolume",
+                                barThickness: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { labels: { color: "#e2e8f0" } }
+                        },
+                        scales: {
+                            x: { grid: { color: "rgba(255, 255, 255, 0.05)" }, ticks: { color: "#94a3b8", maxTicksLimit: 12 } },
+                            yBody: {
+                                type: "linear",
+                                position: "left",
+                                grid: { color: "rgba(255, 255, 255, 0.05)" },
+                                ticks: { color: "#38bdf8" },
+                                title: { display: true, text: "Peso (kg) / BF %", color: "#38bdf8" }
+                            },
+                            yVolume: {
+                                type: "linear",
+                                position: "right",
+                                grid: { drawOnChartArea: false },
+                                ticks: { color: "#a855f7" },
+                                title: { display: true, text: "Volume Allenamento (kg)", color: "#a855f7" }
+                            }
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Error loading recomposition trend:", err);
+            }
+        }
+
+        async function syncHealthData() {
+            showLoader();
+            try {
+                const response = await fetch("/api/health/sync?days=14", {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const res = await response.json();
+                    alert(`✅ Sincronizzazione salute completata con successo! (${res.syncedDays || 14} giorni sincronizzati)`);
+                    fetchHealthData();
+                } else {
+                    alert("⚠️ Errore durante la sincronizzazione dei dati salute da Garmin Connect.");
+                }
+            } catch (err) {
+                console.error("Health sync error:", err);
+                alert("⚠️ Errore di connessione durante la sincronizzazione.");
+            } finally {
+                hideLoader();
+            }
         }
 
         function logout() {

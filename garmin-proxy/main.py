@@ -314,6 +314,142 @@ async def get_hr_zones(
     return val
 
 
+@app.get(
+    "/api/health/daily-summary",
+    summary="Daily aggregated health and recovery data",
+    tags=["Health"],
+    dependencies=[Security(verify_api_key)],
+)
+async def get_daily_health_summary(
+    date: str = Query(..., description="Date (YYYY-MM-DD)"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+):
+    """Return aggregated sleep, body battery, HRV, and stress data for a specific date."""
+    cache_key = f"daily_health_summary:{date}"
+    if not bypass_cache:
+        cached_val = _cache.get(cache_key)
+        if cached_val is not None:
+            log.info("Cache hit for key: %s", cache_key)
+            return cached_val
+
+    def _fetch_all(api: Garmin):
+        summary = {"date": date, "sleep": None, "body_battery": None, "hrv": None, "stress": None}
+        try:
+            summary["sleep"] = api.get_sleep_data(date)
+        except Exception as e:
+            log.warning("Failed to fetch sleep for %s: %s", date, e)
+
+        try:
+            bb = api.get_body_battery(date)
+            summary["body_battery"] = bb
+        except Exception as e:
+            log.warning("Failed to fetch body battery for %s: %s", date, e)
+
+        try:
+            summary["hrv"] = api.get_hrv_data(date)
+        except Exception as e:
+            log.warning("Failed to fetch HRV for %s: %s", date, e)
+
+        try:
+            summary["stress"] = api.get_all_day_stress(date)
+        except Exception as e:
+            log.warning("Failed to fetch stress for %s: %s", date, e)
+
+        return summary
+
+    val = _call_with_reauth(_fetch_all)
+    _cache.set(cache_key, val)
+    return val
+
+
+@app.get(
+    "/api/health/sleep",
+    summary="Sleep data for a date",
+    tags=["Health"],
+    dependencies=[Security(verify_api_key)],
+)
+async def get_sleep_data(
+    date: str = Query(..., description="Date (YYYY-MM-DD)"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+):
+    """Return detailed sleep data and sleep stages for a date."""
+    cache_key = f"sleep:{date}"
+    if not bypass_cache:
+        cached_val = _cache.get(cache_key)
+        if cached_val is not None:
+            return cached_val
+
+    val = _call_with_reauth(lambda api: api.get_sleep_data(date))
+    _cache.set(cache_key, val)
+    return val
+
+
+@app.get(
+    "/api/health/body-battery",
+    summary="Body Battery for a date",
+    tags=["Health"],
+    dependencies=[Security(verify_api_key)],
+)
+async def get_body_battery(
+    date: str = Query(..., description="Date (YYYY-MM-DD)"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+):
+    """Return Body Battery timeline and events for a date."""
+    cache_key = f"body_battery:{date}"
+    if not bypass_cache:
+        cached_val = _cache.get(cache_key)
+        if cached_val is not None:
+            return cached_val
+
+    val = _call_with_reauth(lambda api: api.get_body_battery(date))
+    _cache.set(cache_key, val)
+    return val
+
+
+@app.get(
+    "/api/health/hrv",
+    summary="HRV status and nightly data",
+    tags=["Health"],
+    dependencies=[Security(verify_api_key)],
+)
+async def get_hrv_data(
+    date: str = Query(..., description="Date (YYYY-MM-DD)"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+):
+    """Return Heart Rate Variability (HRV) metrics and baseline for a date."""
+    cache_key = f"hrv:{date}"
+    if not bypass_cache:
+        cached_val = _cache.get(cache_key)
+        if cached_val is not None:
+            return cached_val
+
+    val = _call_with_reauth(lambda api: api.get_hrv_data(date))
+    _cache.set(cache_key, val)
+    return val
+
+
+@app.get(
+    "/api/health/stress",
+    summary="All-day stress data",
+    tags=["Health"],
+    dependencies=[Security(verify_api_key)],
+)
+async def get_stress_data(
+    date: str = Query(..., description="Date (YYYY-MM-DD)"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+):
+    """Return all-day stress breakdown and metrics for a date."""
+    cache_key = f"stress:{date}"
+    if not bypass_cache:
+        cached_val = _cache.get(cache_key)
+        if cached_val is not None:
+            return cached_val
+
+    val = _call_with_reauth(lambda api: api.get_all_day_stress(date))
+    _cache.set(cache_key, val)
+    return val
+
+
 @app.post(
     "/api/cache/clear",
     summary="Clear the in-memory cache",

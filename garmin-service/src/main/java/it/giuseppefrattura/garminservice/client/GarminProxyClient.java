@@ -114,4 +114,21 @@ public class GarminProxyClient {
                 .body(new ParameterizedTypeReference<>() {});
         return result != null ? result : Collections.emptyList();
     }
+
+    /**
+     * Fetch aggregated daily health summary (sleep, HRV, body battery, stress) for a given date.
+     */
+    @Retryable(
+            retryFor = {ResourceAccessException.class, RestClientException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1000, multiplier = 2)
+    )
+    public java.util.Map<String, Object> getDailyHealthSummary(String date) {
+        log.debug("Fetching daily health summary for date {}", date);
+        java.util.Map<String, Object> result = restClient.get()
+                .uri("/api/health/daily-summary?date={date}", date)
+                .retrieve()
+                .body(new ParameterizedTypeReference<>() {});
+        return result != null ? result : Collections.emptyMap();
+    }
 }

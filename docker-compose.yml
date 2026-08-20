@@ -14,7 +14,7 @@ services:
       retries: 3
       start_period: 10s
     volumes:
-      - ~/.garminconnect:/tokens:ro
+      - ~/.garminconnect:/tokens
     restart: unless-stopped
 
   garmin-service:

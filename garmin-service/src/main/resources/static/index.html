@@ -1617,9 +1617,13 @@
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     <span>Installa App</span>
                 </button>
+                <button class="btn btn-secondary" style="background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.35); color: #c7d2fe; padding: 0.4rem 0.85rem;" onclick="open2FaModal()">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    <span>Sicurezza</span>
+                </button>
                 <button class="btn btn-secondary" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; padding: 0.4rem 0.85rem;" onclick="logout()">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    Logout
+                    <span>Logout</span>
                 </button>
             </div>
         </header>
@@ -2952,6 +2956,59 @@
             </div>
         </div>
     </div>
+
+    <!-- 2FA Security Settings Modal -->
+    <div class="loader-overlay" id="security2FaModal" style="display: none; justify-content: center; align-items: center; z-index: 1003;">
+        <div style="background: rgba(22, 28, 45, 0.96); border: 1px solid var(--border-color); border-radius: 20px; padding: 2rem; width: 500px; max-width: 92%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 12px; padding: 8px; color: #818cf8;">
+                        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.2rem; font-weight: 800; color: #ffffff;">Sicurezza Account & 2FA</h3>
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Proteggi il tuo account con autenticazione a due fattori (TOTP)</p>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.85rem;" onclick="close2FaModal()">✕</button>
+            </div>
+
+            <!-- Current Status Box -->
+            <div id="secStatusBox" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 1.15rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Stato Protezione 2FA</div>
+                    <div id="secStatusText" style="font-size: 1.05rem; font-weight: 800; color: #10b981; margin-top: 2px;">Caricamento...</div>
+                </div>
+                <span id="secStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 0.8rem; padding: 4px 10px; border-radius: 8px;">Attiva</span>
+            </div>
+
+            <!-- 2FA Setup Flow Container (Hidden when not setting up) -->
+            <div id="secSetupContainer" style="display: none; flex-direction: column; gap: 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 14px; padding: 1.25rem;">
+                <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.4;">
+                    Scansiona questo codice QR con l'app <strong>Google Authenticator</strong>, <strong>Authy</strong> o <strong>1Password</strong>:
+                </p>
+                <div style="display: flex; justify-content: center; background: #ffffff; border-radius: 12px; padding: 12px; width: fit-content; margin: 0 auto;">
+                    <img id="secQrImage" src="" alt="QR Code 2FA" style="width: 160px; height: 160px; display: block;" />
+                </div>
+                <div style="background: rgba(0, 0, 0, 0.3); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 8px 12px; text-align: center;">
+                    <span style="font-size: 0.72rem; color: #94a3b8; display: block;">oppure inserisci la chiave manuale:</span>
+                    <strong id="secSecretText" style="font-family: monospace; font-size: 0.95rem; color: #818cf8; letter-spacing: 1px;">—</strong>
+                </div>
+                <div>
+                    <label for="secVerifyCodeInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.4rem;">Codice di Verifica a 6 cifre:</label>
+                    <input type="text" id="secVerifyCodeInput" maxlength="6" inputmode="numeric" placeholder="123456" style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.75rem; width: 100%; color: white; font-family: monospace; font-size: 1.25rem; text-align: center; letter-spacing: 4px; outline: none;" />
+                </div>
+                <button class="btn" onclick="confirm2FaEnable()" style="width: 100%; justify-content: center; padding: 0.75rem;">Conferma & Attiva 2FA</button>
+            </div>
+
+            <!-- Action Buttons Footer -->
+            <div id="secActionsFooter" style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 1rem;">
+                <button id="secToggleBtn" class="btn" onclick="handle2FaToggleClick()">Configura 2FA</button>
+                <button class="btn btn-secondary" onclick="close2FaModal()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Spinner Loading Overlay -->
     <div class="loader-overlay" id="loadingOverlay">
@@ -5190,6 +5247,172 @@
             form.action = '/logout';
             document.body.appendChild(form);
             form.submit();
+        }
+
+        // ====================================================================
+        // 2FA Security Management
+        // ====================================================================
+        let current2FaState = {
+            authenticated: false,
+            totpEnabled: false,
+            username: '',
+            pendingSecret: ''
+        };
+
+        async function open2FaModal() {
+            triggerHaptic(20);
+            const modal = document.getElementById("security2FaModal");
+            if (modal) modal.style.display = "flex";
+            await load2FaStatus();
+        }
+
+        function close2FaModal() {
+            const modal = document.getElementById("security2FaModal");
+            if (modal) modal.style.display = "none";
+            const setupContainer = document.getElementById("secSetupContainer");
+            if (setupContainer) setupContainer.style.display = "none";
+            current2FaState.pendingSecret = '';
+        }
+
+        async function load2FaStatus() {
+            try {
+                const response = await fetch("/api/auth/status", {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    current2FaState.authenticated = data.authenticated;
+                    current2FaState.totpEnabled = data.totpEnabled;
+                    current2FaState.username = data.username;
+
+                    const statusText = document.getElementById("secStatusText");
+                    const statusBadge = document.getElementById("secStatusBadge");
+                    const toggleBtn = document.getElementById("secToggleBtn");
+
+                    if (data.totpEnabled) {
+                        statusText.innerText = "Attiva e Protetto (TOTP)";
+                        statusText.style.color = "#10b981";
+                        statusBadge.innerText = "ATTIVA";
+                        statusBadge.style.background = "rgba(16, 185, 129, 0.15)";
+                        statusBadge.style.color = "#10b981";
+                        statusBadge.style.borderColor = "rgba(16, 185, 129, 0.35)";
+
+                        toggleBtn.innerText = "Disattiva 2FA";
+                        toggleBtn.className = "btn btn-secondary";
+                        toggleBtn.style.color = "#ef4444";
+                        toggleBtn.style.borderColor = "rgba(239, 68, 68, 0.35)";
+                    } else {
+                        statusText.innerText = "Non Attiva (Solo Password)";
+                        statusText.style.color = "#f59e0b";
+                        statusBadge.innerText = "NON ATTIVA";
+                        statusBadge.style.background = "rgba(245, 158, 11, 0.15)";
+                        statusBadge.style.color = "#f59e0b";
+                        statusBadge.style.borderColor = "rgba(245, 158, 11, 0.35)";
+
+                        toggleBtn.innerText = "Configura & Attiva 2FA";
+                        toggleBtn.className = "btn";
+                        toggleBtn.style.color = "#ffffff";
+                        toggleBtn.style.borderColor = "transparent";
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading 2FA status:", err);
+            }
+        }
+
+        async function handle2FaToggleClick() {
+            if (current2FaState.totpEnabled) {
+                const code = prompt("Inserisci il codice a 6 cifre dalla tua app Authenticator per confermare la disattivazione:");
+                if (!code) return;
+                try {
+                    const response = await fetch("/api/auth/2fa/disable", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...getAuthHeaders()
+                        },
+                        body: JSON.stringify({ code: code.trim() })
+                    });
+                    const res = await response.json();
+                    if (response.ok && res.success) {
+                        alert("✅ 2FA disattivata con successo.");
+                        await load2FaStatus();
+                    } else {
+                        alert("⚠️ " + (res.message || "Codice non valido"));
+                    }
+                } catch (e) {
+                    alert("⚠️ Errore di connessione durante la disattivazione.");
+                }
+            } else {
+                await start2FaSetup();
+            }
+        }
+
+        async function start2FaSetup() {
+            try {
+                const response = await fetch("/api/auth/2fa/setup", {
+                    method: "POST",
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    current2FaState.pendingSecret = data.secret;
+
+                    const setupContainer = document.getElementById("secSetupContainer");
+                    const qrImg = document.getElementById("secQrImage");
+                    const secretText = document.getElementById("secSecretText");
+
+                    // Render QR Code using standard QR API
+                    const encodedQrUri = encodeURIComponent(data.qrUri);
+                    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedQrUri}`;
+                    secretText.innerText = data.secret;
+
+                    setupContainer.style.display = "flex";
+                    document.getElementById("secVerifyCodeInput").focus();
+                } else {
+                    alert("⚠️ Impossibile avviare il setup 2FA. Riprova.");
+                }
+            } catch (err) {
+                console.error("2FA setup error:", err);
+                alert("⚠️ Errore di rete durante il setup 2FA.");
+            }
+        }
+
+        async function confirm2FaEnable() {
+            const codeInput = document.getElementById("secVerifyCodeInput");
+            const code = codeInput ? codeInput.value.trim() : "";
+            if (!code || code.length !== 6) {
+                alert("⚠️ Inserisci il codice numerico a 6 cifre generato dalla tua app Authenticator.");
+                return;
+            }
+
+            try {
+                const response = await fetch("/api/auth/2fa/enable", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...getAuthHeaders()
+                    },
+                    body: JSON.stringify({
+                        secret: current2FaState.pendingSecret,
+                        code: code
+                    })
+                });
+
+                const res = await response.json();
+                if (response.ok && res.success) {
+                    triggerHaptic(50);
+                    alert("🎉 Autenticazione a Due Fattori (2FA) ATTIVATA con successo!");
+                    document.getElementById("secSetupContainer").style.display = "none";
+                    codeInput.value = "";
+                    await load2FaStatus();
+                } else {
+                    alert("⚠️ " + (res.message || "Codice errato. Riprova."));
+                }
+            } catch (err) {
+                console.error("2FA enable error:", err);
+                alert("⚠️ Errore durante la conferma del codice 2FA.");
+            }
         }
 
         // ====================================================================

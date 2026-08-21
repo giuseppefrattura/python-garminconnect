@@ -2,8 +2,6 @@ services:
   garmin-proxy:
     build: ./garmin-proxy
     container_name: garmin-proxy
-    ports:
-      - "8080:8080"
     environment:
       - GARMINTOKENS=/tokens
       - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}

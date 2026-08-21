@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/migrations/006-create-exercise-personal-record.yaml
   - include:
       file: db/changelog/migrations/007-create-daily-health-metrics.yaml
+  - include:
+      file: db/changelog/migrations/008-create-users-table.yaml

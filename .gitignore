@@ -9,6 +9,8 @@
 .Spotlight-V100
 .Trashes
 Icon?
+!garmin-service/src/main/resources/static/icons/
+!garmin-service/src/main/resources/static/icons/**
 ehthumbs.db
 
 # Windows

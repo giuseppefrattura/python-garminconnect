@@ -1593,6 +1593,208 @@
                 grid-template-columns: 1fr !important;
             }
         }
+        /* --- Gym Mode Screen Wake Lock Indicator --- */
+        .gym-mode-btn {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #6ee7b7;
+            padding: 0.42rem 0.85rem;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+            user-select: none;
+        }
+
+        .gym-mode-btn.active {
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-color: #34d399;
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+            animation: pulse-gym 2.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse-gym {
+            0%, 100% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+            50% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.7); }
+        }
+
+        /* --- Quick Weight & Reps Stepper Buttons --- */
+        .stepper-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .stepper-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .stepper-btn:active, .stepper-btn:hover {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.6);
+            color: #ffffff;
+            transform: scale(0.96);
+        }
+
+        /* --- Floating Rest Timer Widget --- */
+        .floating-rest-timer {
+            position: fixed;
+            bottom: calc(75px + env(safe-area-inset-bottom, 0px));
+            right: 18px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 16px;
+            padding: 0.75rem 1rem;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(99, 102, 241, 0.25);
+            z-index: 998;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            width: 260px;
+            animation: slideUpTimer 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideUpTimer {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rest-timer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .rest-timer-display {
+            font-size: 1.85rem;
+            font-weight: 900;
+            font-family: monospace;
+            color: #ffffff;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .rest-timer-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .rest-timer-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #6366f1, #10b981);
+            transition: width 1s linear;
+        }
+
+        .rest-timer-presets {
+            display: flex;
+            justify-content: space-between;
+            gap: 4px;
+        }
+
+        .rest-preset-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 4px 2px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .rest-preset-btn:hover, .rest-preset-btn.active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+            color: #ffffff;
+        }
+
+        /* --- Barbell Plate Visualizer --- */
+        .barbell-visualizer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 110px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 10px 16px;
+            margin: 12px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .barbell-shaft {
+            height: 14px;
+            width: 45px;
+            background: #94a3b8;
+            border-radius: 4px 0 0 4px;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .barbell-collar {
+            height: 42px;
+            width: 14px;
+            background: #64748b;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .barbell-sleeve {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #334155;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 0 4px 4px 0;
+            min-width: 140px;
+        }
+
+        .plate-disc {
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.62rem;
+            font-weight: 900;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .plate-20 { height: 92px; width: 20px; background: #2563eb; }
+        .plate-15 { height: 78px; width: 18px; background: #eab308; color: #000; }
+        .plate-10 { height: 66px; width: 16px; background: #10b981; }
+        .plate-5  { height: 52px; width: 14px; background: #f8fafc; color: #000; }
+        .plate-2_5{ height: 42px; width: 12px; background: #1e293b; border: 1px solid #475569; }
+        .plate-1_25{ height: 34px; width: 10px; background: #94a3b8; color: #000; }
     </style>
 </head>
 <body>
@@ -1613,6 +1815,10 @@
             </div>
             
             <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="gymModeHeaderBtn" class="gym-mode-btn" onclick="toggleGymMode()" title="Mantiene lo schermo attivo durante l'allenamento">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    <span id="gymModeHeaderLabel">Gym Mode</span>
+                </button>
                 <button id="pwaInstallBtn" class="pwa-install-btn" onclick="promptPwaInstall()">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     <span>Installa App</span>
@@ -2474,6 +2680,14 @@
         <div id="workoutTabContent" style="display: none;">
             <!-- Workout Actions Panel -->
             <div class="config-panel" style="margin-bottom: 2rem; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="openPlateCalculator()" title="Calcola i dischi da caricare sul bilanciere">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                    ⚖️ Dischi Bilanciere
+                </button>
+                <button class="btn btn-secondary" onclick="toggleRestTimerVisibility()" title="Mostra/Nascondi il timer di recupero serie">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    ⏱️ Timer Recupero
+                </button>
                 <button class="btn btn-primary" onclick="syncWorkoutData()">
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.228 10H18M12 21V9" /></svg>
                     Sincronizza con Garmin
@@ -2919,20 +3133,43 @@
                 </select>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                 <div>
-                    <label for="modalWeightInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Carico (kg):</label>
-                    <input type="number" id="modalWeightInput" step="0.5" min="0" placeholder="0.0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <label for="modalWeightInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Carico (kg):</label>
+                        <button type="button" class="stepper-btn" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); padding: 2px 6px; font-size: 0.7rem;" onclick="openPlateCalcFromModal()" title="Calcola dischi per lato">⚖️ Dischi</button>
+                    </div>
+                    <input type="number" id="modalWeightInput" step="0.5" min="0" placeholder="0.0" inputmode="decimal" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1.05rem; font-weight: 700; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <div class="stepper-row">
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(-5)">-5</button>
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(-2.5)">-2.5</button>
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(-1.25)">-1.25</button>
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(1.25)">+1.25</button>
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(2.5)">+2.5</button>
+                        <button type="button" class="stepper-btn" onclick="stepModalWeight(5)">+5</button>
+                    </div>
                 </div>
                 <div>
-                    <label for="modalRepsInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Ripetizioni:</label>
-                    <input type="number" id="modalRepsInput" step="1" min="0" placeholder="0" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <label for="modalRepsInput" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Ripetizioni:</label>
+                    </div>
+                    <input type="number" id="modalRepsInput" step="1" min="0" placeholder="0" inputmode="numeric" style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color); border-radius: 12px; padding: 0.75rem; width: 100%; color: white; font-family: inherit; font-size: 1.05rem; font-weight: 700; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border-color)'">
+                    <div class="stepper-row">
+                        <button type="button" class="stepper-btn" style="flex: 1; text-align: center;" onclick="stepModalReps(-1)">-1</button>
+                        <button type="button" class="stepper-btn" style="flex: 1; text-align: center;" onclick="stepModalReps(1)">+1</button>
+                    </div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.03); padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color);">
-                <input type="checkbox" id="modalApplyToSimilar" style="accent-color: var(--primary); transform: scale(1.15); cursor: pointer;">
-                <label for="modalApplyToSimilar" style="font-size: 0.85rem; color: #e2e8f0; cursor: pointer; user-select: none;">Applica nome e muscolo target a tutte le serie simili di questo workout</label>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; background: rgba(255, 255, 255, 0.03); padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <input type="checkbox" id="modalApplyToSimilar" style="accent-color: var(--primary); transform: scale(1.15); cursor: pointer;">
+                    <label for="modalApplyToSimilar" style="font-size: 0.82rem; color: #e2e8f0; cursor: pointer; user-select: none;">Applica nome e muscolo a serie simili</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; background: rgba(99, 102, 241, 0.06); padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                    <input type="checkbox" id="modalAutoRestTimer" checked style="accent-color: #6366f1; transform: scale(1.15); cursor: pointer;">
+                    <label for="modalAutoRestTimer" style="font-size: 0.82rem; color: #c7d2fe; cursor: pointer; user-select: none;">⏱️ Avvia timer recupero (90s) al salvataggio</label>
+                </div>
             </div>
             
             <div style="display: flex; justify-content: flex-end; gap: 1rem;">
@@ -3009,8 +3246,83 @@
         </div>
     </div>
 
+    <!-- Floating Rest Timer Widget -->
+    <div id="floatingRestTimer" class="floating-rest-timer">
+        <div class="rest-timer-header">
+            <span style="font-size: 0.78rem; font-weight: 700; color: #a5b4fc; display: flex; align-items: center; gap: 4px;">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Recupero Serie
+            </span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button class="stepper-btn" onclick="adjustRestTimer(-15)" title="Riduci 15s">-15s</button>
+                <button class="stepper-btn" onclick="adjustRestTimer(30)" title="Aggiungi 30s">+30s</button>
+                <button class="stepper-btn" onclick="closeRestTimer()" style="color: #ef4444;" title="Chiudi">✕</button>
+            </div>
+        </div>
+        <div class="rest-timer-display" id="restTimerDisplay">01:30</div>
+        <div class="rest-timer-bar-bg">
+            <div class="rest-timer-bar-fill" id="restTimerBarFill" style="width: 100%;"></div>
+        </div>
+        <div class="rest-timer-presets">
+            <button class="rest-preset-btn" onclick="startRestTimer(60)">60s</button>
+            <button class="rest-preset-btn active" id="preset90Btn" onclick="startRestTimer(90)">90s</button>
+            <button class="rest-preset-btn" onclick="startRestTimer(120)">120s</button>
+            <button class="rest-preset-btn" onclick="startRestTimer(180)">180s</button>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 2px;">
+            <button id="restTimerToggleBtn" class="btn" style="flex: 1; padding: 0.35rem 0.5rem; font-size: 0.75rem; justify-content: center;" onclick="toggleRestTimerPause()">Pausa</button>
+            <button class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.75rem; justify-content: center;" onclick="resetRestTimer()">Reset</button>
+        </div>
+    </div>
 
-    <!-- Spinner Loading Overlay -->
+    <!-- Barbell Plate Calculator Modal -->
+    <div class="loader-overlay" id="plateCalcModal" style="display: none; justify-content: center; align-items: center; z-index: 1004;">
+        <div style="background: rgba(22, 28, 45, 0.96); border: 1px solid var(--border-color); border-radius: 20px; padding: 1.75rem; width: 480px; max-width: 92%; backdrop-filter: blur(20px); box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 10px; padding: 6px; color: #818cf8;">
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                    </div>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; color: #ffffff;">Calcolatore Dischi Bilanciere</h3>
+                </div>
+                <button class="btn btn-secondary" style="padding: 0.25rem 0.6rem; font-size: 0.85rem;" onclick="closePlateCalculator()">✕</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label for="plateTotalWeightInput" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Carico Totale (kg):</label>
+                    <input type="number" id="plateTotalWeightInput" step="0.5" min="0" placeholder="es. 70" oninput="recalculatePlates()" inputmode="decimal" style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.65rem; width: 100%; color: white; font-family: inherit; font-size: 1.1rem; font-weight: 800; outline: none;" />
+                </div>
+                <div>
+                    <label for="plateBarbellSelect" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.35rem;">Tipo Bilanciere:</label>
+                    <select id="plateBarbellSelect" onchange="recalculatePlates()" style="background: #111827; border: 1px solid var(--border-color); border-radius: 10px; padding: 0.65rem; width: 100%; color: white; font-family: inherit; font-size: 0.9rem; outline: none;">
+                        <option value="20" selected>Olimpico (20 kg)</option>
+                        <option value="15">Training/Donna (15 kg)</option>
+                        <option value="10">EZ Sagomato (10 kg)</option>
+                        <option value="0">Zero / Manubrio (0 kg)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Visual Barbell Sleeve representation -->
+            <div class="barbell-visualizer" id="barbellVisualizer">
+                <div class="barbell-shaft"></div>
+                <div class="barbell-collar"></div>
+                <div class="barbell-sleeve" id="barbellSleeveDiscs">
+                    <!-- Discs rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Result breakdown description -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 0.85rem; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Carico per Lato (Manicotto):</div>
+                <div id="platePerSideText" style="font-size: 1.1rem; font-weight: 800; color: #38bdf8;">0 kg per lato</div>
+                <div id="plateBreakdownList" style="font-size: 0.82rem; color: #e2e8f0; margin-top: 2px;">Nessun disco necessario</div>
+            </div>
+
+            <button class="btn" onclick="applyPlateCalcToModal()" id="plateApplyBtn" style="width: 100%; justify-content: center; display: none;">Usa questo carico nel Set</button>
+        </div>
+    </div>
     <div class="loader-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <p id="loadingMessage">Contacting Garmin Proxy, please wait...</p>
@@ -4155,6 +4467,30 @@
             modal.style.display = "flex";
         }
 
+        function stepModalWeight(delta) {
+            triggerHaptic(15);
+            const input = document.getElementById("modalWeightInput");
+            if (!input) return;
+            let current = parseFloat(input.value) || 0;
+            let updated = Math.max(0, Math.round((current + delta) * 100) / 100);
+            input.value = updated;
+        }
+
+        function stepModalReps(delta) {
+            triggerHaptic(15);
+            const input = document.getElementById("modalRepsInput");
+            if (!input) return;
+            let current = parseInt(input.value, 10) || 0;
+            let updated = Math.max(0, current + delta);
+            input.value = updated;
+        }
+
+        function openPlateCalcFromModal() {
+            const input = document.getElementById("modalWeightInput");
+            const w = input ? parseFloat(input.value) || 0 : 0;
+            openPlateCalculator(w, true);
+        }
+
         function closeEditExerciseModal() {
             document.getElementById("editExerciseModal").style.display = "none";
         }
@@ -4165,11 +4501,16 @@
             const weightVal = parseFloat(document.getElementById("modalWeightInput").value);
             const repsVal = parseInt(document.getElementById("modalRepsInput").value, 10);
             const applyToAllSimilar = document.getElementById("modalApplyToSimilar") ? document.getElementById("modalApplyToSimilar").checked : false;
+            const autoRest = document.getElementById("modalAutoRestTimer") ? document.getElementById("modalAutoRestTimer").checked : false;
             
             const weightKg = isNaN(weightVal) ? 0 : Math.max(0, weightVal);
             const reps = isNaN(repsVal) ? 0 : Math.max(0, repsVal);
 
             closeEditExerciseModal();
+            
+            if (autoRest) {
+                startRestTimer(90);
+            }
             
             toggleLoader(true, "Salvataggio e ricalcolo volumi in corso...");
             
@@ -5460,6 +5801,339 @@
             const installBtn = document.getElementById('pwaInstallBtn');
             if (installBtn) installBtn.style.display = 'none';
         }
+
+        // ====================================================================
+        // Gym Mode & Screen Wake Lock API
+        // ====================================================================
+        let screenWakeLock = null;
+        let isGymModeActive = false;
+
+        async function toggleGymMode() {
+            triggerHaptic(25);
+            if (!isGymModeActive) {
+                await enableGymMode();
+            } else {
+                await disableGymMode();
+            }
+        }
+
+        async function enableGymMode() {
+            try {
+                if ('wakeLock' in navigator) {
+                    screenWakeLock = await navigator.wakeLock.request('screen');
+                    screenWakeLock.addEventListener('release', () => {
+                        console.log('[WakeLock] Screen wake lock released');
+                        if (isGymModeActive) {
+                            updateGymModeUI(false);
+                            isGymModeActive = false;
+                        }
+                    });
+                }
+                isGymModeActive = true;
+                updateGymModeUI(true);
+                showToast("⚡ Gym Mode ATTIVO: lo schermo rimarrà sempre acceso.", "success");
+            } catch (err) {
+                console.warn("[WakeLock] Wake Lock failed:", err);
+                isGymModeActive = true;
+                updateGymModeUI(true);
+                showToast("⚡ Gym Mode attivato.", "info");
+            }
+        }
+
+        async function disableGymMode() {
+            if (screenWakeLock !== null) {
+                try {
+                    await screenWakeLock.release();
+                } catch (e) {}
+                screenWakeLock = null;
+            }
+            isGymModeActive = false;
+            updateGymModeUI(false);
+            showToast("Gym Mode disattivato.", "info");
+        }
+
+        function updateGymModeUI(active) {
+            const headerBtn = document.getElementById("gymModeHeaderBtn");
+            const headerLabel = document.getElementById("gymModeHeaderLabel");
+            if (headerBtn) {
+                if (active) {
+                    headerBtn.classList.add("active");
+                    if (headerLabel) headerLabel.innerText = "Gym On ⚡";
+                } else {
+                    headerBtn.classList.remove("active");
+                    if (headerLabel) headerLabel.innerText = "Gym Mode";
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', async () => {
+            if (isGymModeActive && document.visibilityState === 'visible') {
+                if ('wakeLock' in navigator && screenWakeLock === null) {
+                    try {
+                        screenWakeLock = await navigator.wakeLock.request('screen');
+                    } catch (e) {}
+                }
+            }
+        });
+
+        // ====================================================================
+        // Floating Rest Timer
+        // ====================================================================
+        let restTimerInterval = null;
+        let restTimerTotalSeconds = 90;
+        let restTimerRemaining = 90;
+        let isRestTimerPaused = false;
+
+        function showRestTimer() {
+            const timerEl = document.getElementById("floatingRestTimer");
+            if (timerEl) timerEl.style.display = "flex";
+        }
+
+        function closeRestTimer() {
+            const timerEl = document.getElementById("floatingRestTimer");
+            if (timerEl) timerEl.style.display = "none";
+            clearInterval(restTimerInterval);
+            restTimerInterval = null;
+        }
+
+        function toggleRestTimerVisibility() {
+            triggerHaptic(20);
+            const timerEl = document.getElementById("floatingRestTimer");
+            if (!timerEl) return;
+            if (timerEl.style.display === "flex") {
+                closeRestTimer();
+            } else {
+                showRestTimer();
+                if (restTimerInterval === null) {
+                    startRestTimer(90);
+                }
+            }
+        }
+
+        function startRestTimer(seconds) {
+            triggerHaptic(25);
+            showRestTimer();
+            clearInterval(restTimerInterval);
+
+            restTimerTotalSeconds = seconds;
+            restTimerRemaining = seconds;
+            isRestTimerPaused = false;
+
+            const toggleBtn = document.getElementById("restTimerToggleBtn");
+            if (toggleBtn) toggleBtn.innerText = "Pausa";
+
+            // Update active preset button highlight
+            document.querySelectorAll(".rest-preset-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.innerText.trim() === seconds + "s");
+            });
+
+            updateRestTimerDisplay();
+
+            restTimerInterval = setInterval(() => {
+                if (!isRestTimerPaused) {
+                    restTimerRemaining--;
+                    updateRestTimerDisplay();
+
+                    if (restTimerRemaining <= 0) {
+                        clearInterval(restTimerInterval);
+                        restTimerInterval = null;
+                        onRestTimerComplete();
+                    }
+                }
+            }, 1000);
+        }
+
+        function toggleRestTimerPause() {
+            triggerHaptic(15);
+            isRestTimerPaused = !isRestTimerPaused;
+            const toggleBtn = document.getElementById("restTimerToggleBtn");
+            if (toggleBtn) {
+                toggleBtn.innerText = isRestTimerPaused ? "Riprendi" : "Pausa";
+            }
+        }
+
+        function resetRestTimer() {
+            triggerHaptic(20);
+            startRestTimer(restTimerTotalSeconds);
+        }
+
+        function adjustRestTimer(delta) {
+            triggerHaptic(15);
+            restTimerRemaining = Math.max(0, restTimerRemaining + delta);
+            restTimerTotalSeconds = Math.max(restTimerTotalSeconds, restTimerRemaining);
+            updateRestTimerDisplay();
+        }
+
+        function updateRestTimerDisplay() {
+            const displayEl = document.getElementById("restTimerDisplay");
+            const barFill = document.getElementById("restTimerBarFill");
+            if (displayEl) {
+                const mins = Math.floor(restTimerRemaining / 60);
+                const secs = restTimerRemaining % 60;
+                displayEl.innerText = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            if (barFill && restTimerTotalSeconds > 0) {
+                const percent = Math.max(0, Math.min(100, (restTimerRemaining / restTimerTotalSeconds) * 100));
+                barFill.style.width = percent + "%";
+            }
+        }
+
+        function playRestChime() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {}
+        }
+
+        function onRestTimerComplete() {
+            playRestChime();
+            triggerHaptic(150);
+            setTimeout(() => triggerHaptic(150), 250);
+            showToast("🔔 Recupero Completato! È ora di ripartire per la serie successiva.", "success");
+            const displayEl = document.getElementById("restTimerDisplay");
+            if (displayEl) {
+                displayEl.innerText = "00:00 🔔";
+            }
+        }
+
+        // ====================================================================
+        // Barbell Plate Calculator
+        // ====================================================================
+        let isPlateCalcFromModal = false;
+
+        function openPlateCalculator(initialWeight = null, fromModal = false) {
+            triggerHaptic(20);
+            isPlateCalcFromModal = fromModal;
+            const modal = document.getElementById("plateCalcModal");
+            const input = document.getElementById("plateTotalWeightInput");
+            const applyBtn = document.getElementById("plateApplyBtn");
+
+            if (applyBtn) {
+                applyBtn.style.display = fromModal ? "block" : "none";
+            }
+
+            if (initialWeight !== null && initialWeight > 0) {
+                if (input) input.value = initialWeight;
+            } else if (input && !input.value) {
+                input.value = 70;
+            }
+
+            if (modal) modal.style.display = "flex";
+            recalculatePlates();
+        }
+
+        function closePlateCalculator() {
+            const modal = document.getElementById("plateCalcModal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function recalculatePlates() {
+            const totalWeight = parseFloat(document.getElementById("plateTotalWeightInput").value) || 0;
+            const barbellWeight = parseFloat(document.getElementById("plateBarbellSelect").value) || 0;
+            const sleeveContainer = document.getElementById("barbellSleeveDiscs");
+            const perSideText = document.getElementById("platePerSideText");
+            const breakdownList = document.getElementById("plateBreakdownList");
+
+            if (totalWeight < barbellWeight) {
+                perSideText.innerText = "Carico inferiore al bilanciere";
+                breakdownList.innerText = `Il bilanciere da solo pesa già ${barbellWeight} kg.`;
+                if (sleeveContainer) sleeveContainer.innerHTML = "";
+                return;
+            }
+
+            let sideWeight = (totalWeight - barbellWeight) / 2;
+            perSideText.innerText = `${sideWeight.toFixed(2).replace(/\.00$/, '')} kg per lato (+ bilanciere ${barbellWeight}kg)`;
+
+            const availablePlates = [
+                { weight: 20, cssClass: "plate-20", label: "20" },
+                { weight: 15, cssClass: "plate-15", label: "15" },
+                { weight: 10, cssClass: "plate-10", label: "10" },
+                { weight: 5,  cssClass: "plate-5",  label: "5"  },
+                { weight: 2.5,cssClass: "plate-2_5",label: "2.5"},
+                { weight: 1.25,cssClass: "plate-1_25",label: "1.25"}
+            ];
+
+            let rem = sideWeight;
+            const usedPlates = [];
+            let htmlDiscs = "";
+
+            for (const plate of availablePlates) {
+                let count = 0;
+                while (rem >= plate.weight - 0.001) {
+                    count++;
+                    rem -= plate.weight;
+                    rem = Math.round(rem * 100) / 100;
+                    htmlDiscs += `<div class="plate-disc ${plate.cssClass}">${plate.label}</div>`;
+                }
+                if (count > 0) {
+                    usedPlates.push(`${count}x ${plate.weight}kg`);
+                }
+            }
+
+            if (sleeveContainer) {
+                sleeveContainer.innerHTML = htmlDiscs || '<span style="font-size: 0.72rem; color: #94a3b8; margin: auto;">Nessun disco</span>';
+            }
+
+            if (usedPlates.length > 0) {
+                breakdownList.innerText = "Dischi per lato: " + usedPlates.join("  |  ");
+            } else {
+                breakdownList.innerText = "Solo bilanciere, nessun disco da caricare.";
+            }
+        }
+
+        function applyPlateCalcToModal() {
+            triggerHaptic(20);
+            const val = parseFloat(document.getElementById("plateTotalWeightInput").value) || 0;
+            const modalWeightInput = document.getElementById("modalWeightInput");
+            if (modalWeightInput) {
+                modalWeightInput.value = val;
+            }
+            closePlateCalculator();
+        }
+
+        // ====================================================================
+        // Mobile Pull-to-Refresh Gesture
+        // ====================================================================
+        let touchStartY = 0;
+        let isPulling = false;
+
+        window.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0 && e.touches && e.touches.length > 0) {
+                touchStartY = e.touches[0].clientY;
+                isPulling = true;
+            } else {
+                isPulling = false;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isPulling || !e.touches || e.touches.length === 0) return;
+            const touchY = e.touches[0].clientY;
+            const pullDistance = touchY - touchStartY;
+            if (pullDistance > 85 && window.scrollY === 0) {
+                isPulling = false;
+                triggerHaptic(30);
+                showToast("🔄 Aggiornamento dati in corso...", "info");
+                const activeTabBtn = document.querySelector(".bottom-nav-item.active, .tab-btn.active");
+                if (activeTabBtn) {
+                    const id = activeTabBtn.id;
+                    if (id.includes("Workout") || id.includes("bNavWorkout")) fetchWorkoutData(true);
+                    else if (id.includes("Health") || id.includes("bNavHealth")) fetchHealthData();
+                    else if (id.includes("Renpho") || id.includes("bNavRenpho")) fetchRenphoData();
+                    else if (id.includes("Garmin") || id.includes("bNavGarmin")) fetchDatabaseData();
+                }
+            }
+        }, { passive: true });
 
         // Offline / Online network listeners
         function updateNetworkStatus() {

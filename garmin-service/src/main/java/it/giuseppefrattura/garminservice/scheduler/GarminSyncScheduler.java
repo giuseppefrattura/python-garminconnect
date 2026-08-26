@@ -1,16 +1,23 @@
 package it.giuseppefrattura.garminservice.scheduler;
 
+import it.giuseppefrattura.garminservice.model.SyncAuditLog;
+import it.giuseppefrattura.garminservice.repository.SyncAuditLogRepository;
+import it.giuseppefrattura.garminservice.service.GarminHealthSyncService;
 import it.giuseppefrattura.garminservice.service.RunHrZoneService;
+import it.giuseppefrattura.garminservice.service.StrengthWorkoutService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
- * Background scheduler to automatically synchronize Garmin data once a day.
+ * Background scheduler to automatically synchronize all Garmin and Renpho data at midnight (00:00:00).
  */
 @Component
 public class GarminSyncScheduler {
@@ -18,33 +25,116 @@ public class GarminSyncScheduler {
     private static final Logger log = LoggerFactory.getLogger(GarminSyncScheduler.class);
 
     private final RunHrZoneService hrZoneService;
-    private final int defaultDays;
+    private final StrengthWorkoutService strengthWorkoutService;
+    private final GarminHealthSyncService healthSyncService;
+    private final SyncAuditLogRepository auditLogRepository;
+    private final RestTemplate restTemplate;
+
+    @Value("${garmin.renpho.url:http://renpho-service:8082}")
+    private String renphoServiceUrl;
+
+    @Value("${garmin.hr-zones.default-days:14}")
+    private int defaultDays;
 
     public GarminSyncScheduler(
             RunHrZoneService hrZoneService,
-            @Value("${garmin.hr-zones.default-days:10}") int defaultDays) {
+            StrengthWorkoutService strengthWorkoutService,
+            GarminHealthSyncService healthSyncService,
+            SyncAuditLogRepository auditLogRepository) {
         this.hrZoneService = hrZoneService;
-        this.defaultDays = defaultDays;
-        log.info("GarminSyncScheduler initialized with default sync lookback: {} days", defaultDays);
+        this.strengthWorkoutService = strengthWorkoutService;
+        this.healthSyncService = healthSyncService;
+        this.auditLogRepository = auditLogRepository;
+        this.restTemplate = new RestTemplate();
+        log.info("GarminSyncScheduler initialized (midnight cron: '0 0 0 * * *')");
     }
 
     /**
-     * Daily sync scheduled for 3 AM.
-     * Cron expression: "second minute hour day-of-month month day-of-week"
-     * "0 0 3 * * *" -> at 03:00:00 every day.
+     * Automated midnight sync scheduled for 00:00:00 every night.
      */
-    @Scheduled(cron = "0 0 3 * * *")
-    public void performDailySync() {
-        log.info("Starting automated daily Garmin Connect data synchronization…");
+    @Scheduled(cron = "${garmin.sync.cron:0 0 0 * * *}")
+    public void scheduledMidnightSync() {
+        log.info("🌙 [MIDNIGHT SYNC] Triggering scheduled automated midnight synchronization for Garmin & Renpho...");
+        performMidnightSync("SCHEDULER", "MIDNIGHT_AUTOMATED");
+    }
+
+    /**
+     * Executes the complete unified sync pipeline across Garmin and Renpho.
+     */
+    public SyncAuditLog performMidnightSync(String triggeredBy, String syncType) {
+        OffsetDateTime startTime = OffsetDateTime.now();
+        SyncAuditLog auditLog = new SyncAuditLog(syncType, triggeredBy, startTime, "IN_PROGRESS");
+        auditLogRepository.save(auditLog);
+
+        int totalGarminWorkouts = 0;
+        int totalGarminHealthDays = 0;
+        int totalRenphoMeasurements = 0;
+        StringBuilder detailsBuilder = new StringBuilder();
+        boolean hasError = false;
+
+        // 1. Sync Garmin Strength Workouts
         try {
-            Map<String, Object> result = hrZoneService.persistRunHrZones(defaultDays);
-            log.info("Automated daily Garmin synchronization completed successfully: {}", result.get("status"));
-            if (result.get("data") instanceof Map<?, ?> data) {
-                log.info("Sync summary -> activitiesCount: {}, savedCount: {}",
-                        data.get("activitiesCount"), data.get("savedCount"));
+            log.info("[MIDNIGHT SYNC] 1/4 Syncing Garmin strength workouts...");
+            totalGarminWorkouts = strengthWorkoutService.syncStrengthWorkouts(20);
+            detailsBuilder.append("Garmin Workouts: ").append(totalGarminWorkouts).append(" synced. ");
+        } catch (Exception e) {
+            log.error("[MIDNIGHT SYNC] Error syncing Garmin strength workouts: {}", e.getMessage());
+            detailsBuilder.append("Garmin Workouts Error: ").append(e.getMessage()).append(". ");
+            hasError = true;
+        }
+
+        // 2. Sync Garmin Run & HR Zones
+        try {
+            log.info("[MIDNIGHT SYNC] 2/4 Syncing Garmin run HR zones...");
+            Map<String, Object> hrResult = hrZoneService.persistRunHrZones(defaultDays);
+            detailsBuilder.append("HR Zones: ").append(hrResult.get("status")).append(". ");
+        } catch (Exception e) {
+            log.error("[MIDNIGHT SYNC] Error syncing Garmin HR zones: {}", e.getMessage());
+            detailsBuilder.append("HR Zones Error: ").append(e.getMessage()).append(". ");
+            hasError = true;
+        }
+
+        // 3. Sync Garmin Daily Health Biometrics (Steps, Sleep, Stress, HRV, SPO2)
+        try {
+            log.info("[MIDNIGHT SYNC] 3/4 Syncing Garmin daily health metrics...");
+            Map<String, Object> healthResult = healthSyncService.syncRecentHealthMetrics(7);
+            if (healthResult.get("syncedDays") instanceof Number num) {
+                totalGarminHealthDays = num.intValue();
+            }
+            detailsBuilder.append("Garmin Health: ").append(totalGarminHealthDays).append(" days. ");
+        } catch (Exception e) {
+            log.error("[MIDNIGHT SYNC] Error syncing Garmin health metrics: {}", e.getMessage());
+            detailsBuilder.append("Garmin Health Error: ").append(e.getMessage()).append(". ");
+            hasError = true;
+        }
+
+        // 4. Sync Renpho Scale Weigh-ins via REST Call to renpho-service
+        try {
+            log.info("[MIDNIGHT SYNC] 4/4 Syncing Renpho scale data from {}...", renphoServiceUrl);
+            String renphoSyncEndpoint = renphoServiceUrl + "/api/renpho/sync";
+            ResponseEntity<Map> response = restTemplate.postForEntity(renphoSyncEndpoint, null, Map.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map body = response.getBody();
+                if (body.get("syncedCount") instanceof Number num) {
+                    totalRenphoMeasurements = num.intValue();
+                }
+                detailsBuilder.append("Renpho: ").append(totalRenphoMeasurements).append(" weigh-ins. ");
             }
         } catch (Exception e) {
-            log.error("Error occurred during automated daily Garmin synchronization: {}", e.getMessage(), e);
+            log.warn("[MIDNIGHT SYNC] Renpho service sync warning (service may be offline or locked): {}", e.getMessage());
+            detailsBuilder.append("Renpho Sync Note: ").append(e.getMessage()).append(". ");
         }
+
+        // Finalize Audit Log
+        auditLog.setCompletedAt(OffsetDateTime.now());
+        auditLog.setStatus(hasError ? "PARTIAL" : "SUCCESS");
+        auditLog.setGarminWorkoutsCount(totalGarminWorkouts);
+        auditLog.setGarminHealthDays(totalGarminHealthDays);
+        auditLog.setRenphoMeasurementsCount(totalRenphoMeasurements);
+        auditLog.setDetails(detailsBuilder.toString());
+        
+        SyncAuditLog savedLog = auditLogRepository.save(auditLog);
+        log.info("🌙 [MIDNIGHT SYNC] Unified sync completed. Status: {}, Details: {}", savedLog.getStatus(), savedLog.getDetails());
+        return savedLog;
     }
 }

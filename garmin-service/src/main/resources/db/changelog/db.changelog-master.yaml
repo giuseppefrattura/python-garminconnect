@@ -15,3 +15,6 @@ databaseChangeLog:
       file: db/changelog/migrations/007-create-daily-health-metrics.yaml
   - include:
       file: db/changelog/migrations/008-create-users-table.yaml
+  - include:
+      file: db/changelog/migrations/009-create-sync-audit-logs-table.yaml
+

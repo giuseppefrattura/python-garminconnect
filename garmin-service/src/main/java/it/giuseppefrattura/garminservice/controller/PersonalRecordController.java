@@ -1,5 +1,6 @@
 package it.giuseppefrattura.garminservice.controller;
 
+import it.giuseppefrattura.garminservice.dto.RecalculationResult;
 import it.giuseppefrattura.garminservice.model.ExercisePersonalRecord;
 import it.giuseppefrattura.garminservice.service.PersonalRecordService;
 import org.springframework.http.ResponseEntity;
@@ -52,7 +53,7 @@ public class PersonalRecordController {
      */
     @PostMapping("/recalculate")
     public ResponseEntity<Map<String, Object>> recalculateRecords() {
-        Map<String, Object> result = personalRecordService.recalculateAllRecords();
+        RecalculationResult result = personalRecordService.recalculateAllRecords();
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "message", "Personal records recalculated successfully",

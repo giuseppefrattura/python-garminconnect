@@ -3,9 +3,12 @@ package it.giuseppefrattura.garminservice.service;
 import it.giuseppefrattura.garminservice.client.GarminProxyClient;
 import it.giuseppefrattura.garminservice.dto.ActivityDto;
 import it.giuseppefrattura.garminservice.dto.ActivityDto.ActivityTypeDto;
+import it.giuseppefrattura.garminservice.dto.ApiResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
+import it.giuseppefrattura.garminservice.dto.LastStrengthWorkoutDto;
+import it.giuseppefrattura.garminservice.dto.ProgressionPointDto;
 import it.giuseppefrattura.garminservice.model.StrengthWorkout;
 import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
@@ -95,24 +98,36 @@ class StrengthWorkoutServiceTest {
 
         when(workoutRepository.findFirstByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(Optional.of(workout));
 
-        Map<String, Object> result = service.getLastStrengthWorkout(30);
+        ApiResponse<LastStrengthWorkoutDto> result = service.getLastStrengthWorkout();
 
-        assertEquals("success", result.get("status"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> data = (Map<String, Object>) result.get("data");
-        assertEquals("Workout Test", data.get("activityName"));
+        assertEquals("success", result.status());
+        LastStrengthWorkoutDto data = result.data();
+        assertEquals("Workout Test", data.activityName());
+        assertEquals("2026-05-27 10:26:04", data.startTimeLocal());
+        assertEquals("00:30:00", data.duration());
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> sets = (List<Map<String, Object>>) data.get("sets");
-        assertEquals(1, sets.size());
-        assertEquals(10L, sets.get(0).get("setId"));
-        assertEquals("Bench Press", sets.get(0).get("exercise"));
-        assertEquals(10, sets.get(0).get("reps"));
-        assertEquals(80.0, sets.get(0).get("weightKg"));
+        assertEquals(1, data.sets().size());
+        LastStrengthWorkoutDto.WorkoutSetDto setDto = data.sets().get(0);
+        assertEquals(10L, setDto.setId());
+        assertEquals("Bench Press", setDto.exercise());
+        assertEquals(10, setDto.reps());
+        assertEquals(80.0, setDto.weightKg());
+        assertFalse(setDto.isPr());
+        assertTrue(setDto.prTypes().isEmpty());
 
-        @SuppressWarnings("unchecked")
-        Map<String, Double> volume = (Map<String, Double>) data.get("volumeByMuscleGroup");
-        assertEquals(800.0, volume.get("Chest"));
+        assertEquals(800.0, data.volumeByMuscleGroup().get("Chest"));
+    }
+
+    @Test
+    @DisplayName("getLastStrengthWorkout returns typed error when database is empty")
+    void getLastStrengthWorkoutReturnsErrorWhenEmpty() {
+        when(workoutRepository.findFirstByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(Optional.empty());
+
+        ApiResponse<LastStrengthWorkoutDto> result = service.getLastStrengthWorkout();
+
+        assertTrue(result.isError());
+        assertNull(result.data());
+        assertNotNull(result.detail());
     }
 
     @Test
@@ -173,11 +188,10 @@ class StrengthWorkoutServiceTest {
 
         when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(workout));
 
-        Map<String, Object> result = service.getWorkoutHistory();
-        assertEquals("success", result.get("status"));
+        ApiResponse<Map<String, Map<String, Double>>> result = service.getWorkoutHistory();
+        assertEquals("success", result.status());
 
-        @SuppressWarnings("unchecked")
-        Map<String, Map<String, Double>> data = (Map<String, Map<String, Double>>) result.get("data");
+        Map<String, Map<String, Double>> data = result.data();
         assertTrue(data.containsKey("2026-06-01"));
         assertEquals(800.0, data.get("2026-06-01").get("Chest"));
     }
@@ -195,26 +209,34 @@ class StrengthWorkoutServiceTest {
         StrengthWorkout w2 = new StrengthWorkout();
         w2.setWorkoutDate(LocalDate.of(2026, 5, 27));
         w2.setWorkoutTime(LocalTime.of(10, 0));
-        // 5 reps @ 90kg -> 1RM = 90 * (1 + 5/30) = 105.0kg
+        // 5 reps @ 90kg -> 1RM via Brzycki = 90 / (1.0278 - 0.0278*5) = 90 / 0.8888 = ~101.3kg
         StrengthWorkoutSet set2 = new StrengthWorkoutSet(w2, 1, "Bench Press", "Panca Piana", 5, BigDecimal.valueOf(90.0));
         w2.addSet(set2);
 
         when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(w2, w1));
 
-        Map<String, Object> result = service.getExerciseProgression("Panca Piana"); // query by custom name
-        assertEquals("success", result.get("status"));
+        ApiResponse<List<ProgressionPointDto>> result = service.getExerciseProgression("Panca Piana"); // query by custom name
+        assertEquals("success", result.status());
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> data = (List<Map<String, Object>>) result.get("data");
+        List<ProgressionPointDto> data = result.data();
         assertEquals(1, data.size(), "Should only match the w2 session where the custom name was 'Panca Piana'");
-        assertEquals("2026-05-27", data.get(0).get("date"));
-        assertEquals(90.0, data.get(0).get("maxWeightKg"));
-        assertEquals(105.0, data.get(0).get("estimated1RM"));
+        assertEquals("2026-05-27", data.get(0).date());
+        assertEquals(90.0, data.get(0).maxWeightKg());
+        assertEquals(101.3, data.get(0).estimated1RM());
 
         // Match original name
-        Map<String, Object> result2 = service.getExerciseProgression("Bench Press");
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> data2 = (List<Map<String, Object>>) result2.get("data");
-        assertEquals(1, data2.size(), "Should only match the w1 session where the name was 'Bench Press'");
+        ApiResponse<List<ProgressionPointDto>> result2 = service.getExerciseProgression("Bench Press");
+        assertEquals(1, result2.data().size(), "Should only match the w1 session where the name was 'Bench Press'");
+    }
+
+    @Test
+    @DisplayName("getExerciseProgression returns typed error for blank exercise name")
+    void getExerciseProgressionReturnsErrorForBlankName() {
+        ApiResponse<List<ProgressionPointDto>> result = service.getExerciseProgression("   ");
+
+        assertTrue(result.isError());
+        assertNull(result.data());
+        assertNotNull(result.detail());
+        verifyNoInteractions(workoutRepository);
     }
 }

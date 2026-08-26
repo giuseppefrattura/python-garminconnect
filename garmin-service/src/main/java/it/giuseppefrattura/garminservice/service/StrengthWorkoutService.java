@@ -2,13 +2,17 @@ package it.giuseppefrattura.garminservice.service;
 
 import it.giuseppefrattura.garminservice.client.GarminProxyClient;
 import it.giuseppefrattura.garminservice.dto.ActivityDto;
+import it.giuseppefrattura.garminservice.dto.ApiResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseSetDto;
 import it.giuseppefrattura.garminservice.dto.ExerciseSetsResponse.ExerciseDto;
+import it.giuseppefrattura.garminservice.dto.LastStrengthWorkoutDto;
+import it.giuseppefrattura.garminservice.dto.ProgressionPointDto;
 import it.giuseppefrattura.garminservice.model.StrengthWorkout;
 import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutSetRepository;
+import it.giuseppefrattura.garminservice.util.OneRepMaxCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -279,71 +283,65 @@ public class StrengthWorkoutService {
     /**
      * Get the details of the most recent strength workout from the database.
      *
-     * @param limit ignored (loads the single latest session from DB)
-     * @return result map ready to be serialized as JSON
+     * @return typed response with the latest session or an error detail if none exists
      */
-    public Map<String, Object> getLastStrengthWorkout(int limit) {
+    public ApiResponse<LastStrengthWorkoutDto> getLastStrengthWorkout() {
         Optional<StrengthWorkout> latestOpt = workoutRepository.findFirstByOrderByWorkoutDateDescWorkoutTimeDesc();
         if (latestOpt.isEmpty()) {
-            return Map.of("status", "error",
-                    "detail", "No strength training activity found in the database. Sync Garmin first.");
+            return ApiResponse.error("No strength training activity found in the database. Sync Garmin first.");
         }
 
         StrengthWorkout workout = latestOpt.get();
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("activityId", workout.getActivityId());
-        result.put("activityName", workout.getActivityName());
-        
-        String startStr = workout.getWorkoutDate().toString() + " " + workout.getWorkoutTime().toString();
-        result.put("startTimeLocal", startStr);
-        result.put("duration", formatDuration(workout.getDurationSeconds() != null ? workout.getDurationSeconds().doubleValue() : 0.0));
-        result.put("durationSeconds", workout.getDurationSeconds());
-        result.put("calories", workout.getCalories());
-        result.put("averageHR", workout.getAverageHr());
-        result.put("maxHR", workout.getMaxHr());
-        result.put("aerobicTrainingEffect", workout.getAerobicTe());
-        result.put("anaerobicTrainingEffect", workout.getAnaerobicTe());
 
         Map<Long, List<String>> prFlags = (personalRecordService != null && workout.getActivityId() != null)
                 ? personalRecordService.getPrFlagsForActivity(workout.getActivityId())
                 : Map.of();
 
-        List<Map<String, Object>> setsList = new ArrayList<>();
+        List<LastStrengthWorkoutDto.WorkoutSetDto> setsList = new ArrayList<>();
         Map<String, Double> volumeByGroup = new LinkedHashMap<>();
 
         List<StrengthWorkoutSet> workoutSets = workout.getSets() != null ? workout.getSets() : List.of();
         for (StrengthWorkoutSet set : workoutSets) {
-            Map<String, Object> setEntry = new LinkedHashMap<>();
-            setEntry.put("setId", set.getId());
-            setEntry.put("setNumber", set.getSetNumber());
-            setEntry.put("exercise", set.getExerciseName());
-            setEntry.put("originalExercise", set.getOriginalExerciseName());
             String group = resolveMuscleGroup(set);
-            setEntry.put("muscleGroup", group);
-            setEntry.put("reps", set.getReps());
             double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
-            setEntry.put("weightKg", weight);
 
             List<String> prTypes = (set.getId() != null) ? prFlags.getOrDefault(set.getId(), List.of()) : List.of();
-            setEntry.put("isPr", !prTypes.isEmpty());
-            setEntry.put("prTypes", prTypes);
-
-            setsList.add(setEntry);
+            setsList.add(new LastStrengthWorkoutDto.WorkoutSetDto(
+                    set.getId(),
+                    set.getSetNumber(),
+                    set.getExerciseName(),
+                    set.getOriginalExerciseName(),
+                    group,
+                    set.getReps(),
+                    weight,
+                    !prTypes.isEmpty(),
+                    prTypes));
 
             if (weight > 0 && set.getReps() != null && set.getReps() > 0) {
                 volumeByGroup.merge(group, set.getReps() * weight, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
             }
         }
 
-        result.put("sets", setsList);
-
         Map<String, Double> sortedVolume = new LinkedHashMap<>();
         volumeByGroup.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                 .forEach(e -> sortedVolume.put(e.getKey(), Math.round(e.getValue() * 10.0) / 10.0));
-        result.put("volumeByMuscleGroup", sortedVolume);
 
-        return Map.of("status", "success", "data", result);
+        LastStrengthWorkoutDto data = new LastStrengthWorkoutDto(
+                workout.getActivityId(),
+                workout.getActivityName(),
+                workout.getWorkoutDate().toString() + " " + workout.getWorkoutTime().toString(),
+                formatDuration(workout.getDurationSeconds() != null ? workout.getDurationSeconds().doubleValue() : 0.0),
+                workout.getDurationSeconds(),
+                workout.getCalories(),
+                workout.getAverageHr(),
+                workout.getMaxHr(),
+                workout.getAerobicTe(),
+                workout.getAnaerobicTe(),
+                setsList,
+                sortedVolume);
+
+        return ApiResponse.success(data);
     }
 
     /**
@@ -427,7 +425,7 @@ public class StrengthWorkoutService {
     /**
      * Retrieve weekly training volume aggregated by muscle group.
      */
-    public Map<String, Object> getWorkoutHistory() {
+    public ApiResponse<Map<String, Map<String, Double>>> getWorkoutHistory() {
         List<StrengthWorkout> workouts = workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc();
         Map<String, Map<String, Double>> weeklyData = new TreeMap<>();
 
@@ -459,19 +457,19 @@ public class StrengthWorkoutService {
             roundedWeeklyData.put(entry.getKey(), groupMap);
         }
 
-        return Map.of("status", "success", "data", roundedWeeklyData);
+        return ApiResponse.success(roundedWeeklyData);
     }
 
     /**
      * Retrieve historical performance progression for a given exercise.
      */
-    public Map<String, Object> getExerciseProgression(String exerciseName) {
+    public ApiResponse<List<ProgressionPointDto>> getExerciseProgression(String exerciseName) {
         if (exerciseName == null || exerciseName.isBlank()) {
-            return Map.of("status", "error", "detail", "Exercise name parameter is required");
+            return ApiResponse.error("Exercise name parameter is required");
         }
 
         List<StrengthWorkout> workouts = workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc();
-        List<Map<String, Object>> progression = new ArrayList<>();
+        List<ProgressionPointDto> progression = new ArrayList<>();
 
         List<StrengthWorkout> chronologicalWorkouts = new ArrayList<>(workouts);
         Collections.reverse(chronologicalWorkouts);
@@ -493,7 +491,7 @@ public class StrengthWorkoutService {
                         maxWeight = weight;
                     }
                     
-                    double est1RM = calculate1RM(weight, reps);
+                    double est1RM = OneRepMaxCalculator.estimate1Rm(weight, reps);
                     if (est1RM > max1RM) {
                         max1RM = est1RM;
                     }
@@ -501,15 +499,14 @@ public class StrengthWorkoutService {
             }
 
             if (performed) {
-                Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("date", workout.getWorkoutDate().toString());
-                entry.put("maxWeightKg", Math.round(maxWeight * 10.0) / 10.0);
-                entry.put("estimated1RM", Math.round(max1RM * 10.0) / 10.0);
-                progression.add(entry);
+                progression.add(new ProgressionPointDto(
+                        workout.getWorkoutDate().toString(),
+                        Math.round(maxWeight * 10.0) / 10.0,
+                        Math.round(max1RM * 10.0) / 10.0));
             }
         }
 
-        return Map.of("status", "success", "data", progression);
+        return ApiResponse.success(progression);
     }
 
     /**
@@ -517,12 +514,6 @@ public class StrengthWorkoutService {
      */
     public List<String> getUniqueExercises() {
         return setRepository.findDistinctExerciseNames();
-    }
-
-    private double calculate1RM(double weight, int reps) {
-        if (reps <= 0) return 0.0;
-        if (reps == 1) return weight;
-        return weight * (1.0 + (double) reps / 30.0);
     }
 
     private static String formatDuration(Double seconds) {

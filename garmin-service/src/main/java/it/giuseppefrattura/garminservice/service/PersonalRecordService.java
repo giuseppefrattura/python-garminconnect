@@ -1,10 +1,12 @@
 package it.giuseppefrattura.garminservice.service;
 
+import it.giuseppefrattura.garminservice.dto.RecalculationResult;
 import it.giuseppefrattura.garminservice.model.ExercisePersonalRecord;
 import it.giuseppefrattura.garminservice.model.StrengthWorkout;
 import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
 import it.giuseppefrattura.garminservice.repository.ExercisePersonalRecordRepository;
 import it.giuseppefrattura.garminservice.repository.StrengthWorkoutRepository;
+import it.giuseppefrattura.garminservice.util.OneRepMaxCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -30,27 +32,10 @@ public class PersonalRecordService {
     }
 
     /**
-     * Calculate estimated 1RM using Brzycki (<=10 reps) or Epley (>10 reps).
-     */
-    public double calculateEstimated1Rm(double weightKg, int reps) {
-        if (weightKg <= 0 || reps <= 0) {
-            return 0.0;
-        }
-        if (reps == 1) {
-            return weightKg;
-        }
-        if (reps <= 10) {
-            double denom = 1.0278 - (0.0278 * reps);
-            return denom > 0 ? (weightKg / denom) : weightKg;
-        }
-        return weightKg * (1.0 + (reps / 30.0));
-    }
-
-    /**
      * Recalculates all Personal Records from the beginning of history.
      */
     @Transactional
-    public Map<String, Object> recalculateAllRecords() {
+    public RecalculationResult recalculateAllRecords() {
         log.info("Starting complete recalculation of personal records across all workouts");
         prRepository.deleteAll();
 
@@ -104,7 +89,7 @@ public class PersonalRecordService {
 
                 // 2. MAX ESTIMATED 1RM
                 if (weight > 0 && reps > 0) {
-                    double est1Rm = Math.round(calculateEstimated1Rm(weight, reps) * 10.0) / 10.0;
+                    double est1Rm = Math.round(OneRepMaxCalculator.estimate1Rm(weight, reps) * 10.0) / 10.0;
                     double currentMax1Rm = runningMax1Rm.getOrDefault(exerciseKey, 0.0);
                     if (est1Rm > currentMax1Rm) {
                         runningMax1Rm.put(exerciseKey, est1Rm);
@@ -134,10 +119,7 @@ public class PersonalRecordService {
         log.info("Finished recalculation: saved {} personal record events across {} exercises",
                 newRecords.size(), runningMax1Rm.size());
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("totalPrsSaved", newRecords.size());
-        result.put("distinctExercises", runningMax1Rm.size());
-        return result;
+        return new RecalculationResult(newRecords.size(), runningMax1Rm.size());
     }
 
     /**

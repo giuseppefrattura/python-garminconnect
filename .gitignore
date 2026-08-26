@@ -41,6 +41,7 @@ ignore/
 tokens/
 pdm.lock
 garth/
+.claude/
 
 # ==========================================
 # Python

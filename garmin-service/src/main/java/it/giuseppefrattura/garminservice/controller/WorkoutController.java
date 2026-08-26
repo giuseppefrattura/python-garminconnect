@@ -1,5 +1,8 @@
 package it.giuseppefrattura.garminservice.controller;
 
+import it.giuseppefrattura.garminservice.dto.ApiResponse;
+import it.giuseppefrattura.garminservice.dto.LastStrengthWorkoutDto;
+import it.giuseppefrattura.garminservice.dto.ProgressionPointDto;
 import it.giuseppefrattura.garminservice.service.StrengthWorkoutService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -34,11 +37,9 @@ public class WorkoutController {
      * set breakdown and volume by muscle group from database.
      */
     @GetMapping("/last-strength-workout")
-    public ResponseEntity<Map<String, Object>> lastStrengthWorkout(
-            @RequestParam(value = "limit", required = false) Integer limit) {
-        Map<String, Object> result = service.getLastStrengthWorkout(
-                limit != null ? limit : defaultLimit);
-        if ("error".equals(result.get("status"))) {
+    public ResponseEntity<ApiResponse<LastStrengthWorkoutDto>> lastStrengthWorkout() {
+        ApiResponse<LastStrengthWorkoutDto> result = service.getLastStrengthWorkout();
+        if (result.isError()) {
             return ResponseEntity.status(404).body(result);
         }
         return ResponseEntity.ok(result);
@@ -48,7 +49,7 @@ public class WorkoutController {
      * Returns the full history of strength workouts (weekly volume per muscle group).
      */
     @GetMapping("/strength-workouts-history")
-    public ResponseEntity<Map<String, Object>> strengthWorkoutsHistory() {
+    public ResponseEntity<ApiResponse<Map<String, Map<String, Double>>>> strengthWorkoutsHistory() {
         return ResponseEntity.ok(service.getWorkoutHistory());
     }
 
@@ -56,10 +57,10 @@ public class WorkoutController {
      * Returns performance progression metrics for a specific exercise over time.
      */
     @GetMapping("/exercise-progression")
-    public ResponseEntity<Map<String, Object>> exerciseProgression(
+    public ResponseEntity<ApiResponse<List<ProgressionPointDto>>> exerciseProgression(
             @RequestParam("exercise") String exercise) {
-        Map<String, Object> result = service.getExerciseProgression(exercise);
-        if ("error".equals(result.get("status"))) {
+        ApiResponse<List<ProgressionPointDto>> result = service.getExerciseProgression(exercise);
+        if (result.isError()) {
             return ResponseEntity.status(400).body(result);
         }
         return ResponseEntity.ok(result);

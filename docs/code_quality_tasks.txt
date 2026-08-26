@@ -1,0 +1,144 @@
+CODE QUALITY TASKS — Analisi architetturale e code smells
+Generato il 21/08/2026
+Progetto: python-garminconnect (garmin-proxy / garmin-service / renpho-service)
+
+=====================================================================
+PRIORITÀ ALTA
+=====================================================================
+
+[C1] Unificare calcolo 1RM
+     Eliminare la duplicazione tra StrengthWorkoutService.calculate1RM
+     (solo Epley) e PersonalRecordService.calculateEstimated1Rm
+     (Brzycki <=10 reps + Epley >10). Le due formule producono valori
+     incoerenti tra progressione esercizi e PR.
+     Riferimenti:
+       garmin-service/src/main/java/.../service/StrengthWorkoutService.java:522
+       garmin-service/src/main/java/.../service/PersonalRecordService.java:35
+
+[C2] Sostituire Map<String,Object> con DTO tipizzati nei service Java
+     Coinvolti: getLastStrengthWorkout, getWorkoutHistory,
+     getExerciseProgression, recalculateAllRecords.
+     Rimuovere o rispettare il parametro `limit` attualmente ignorato
+     in getLastStrengthWorkout(int limit).
+     Riferimento: StrengthWorkoutService.java:285
+
+[C3] Fix sicurezza frontend
+     - Generare QR TOTP localmente (rimuovere invio del secret a
+       api.qrserver.com)
+     - Fix escaping negli attributi onclick (escapeHtml inefficace
+       nel contesto JS -> XSS)
+     - Rimuovere API key da localStorage (doppio modello auth
+       ridondante col session cookie)
+     - Eliminare hardcoded http://localhost:8080/api/cache/clear
+     Riferimenti: index.html:5367, 4043, 4272, 4601, 3036, 3156
+
+[C4] Abilitare protezione CSRF
+     SecurityConfig.java:33 disabilita CSRF su un'app con form login
+     + session cookie -> login e mutazioni /api/** sono CSRF-able.
+     Alternativa: migrare /api/** a token-based auth.
+
+[C5] Rimuovere segreti di default dai docker-compose
+     - secret-garmin-key-123, admin/admin, postgres/postgres come
+       default in chiaro
+     - Non esporre garmin-proxy:8080 pubblicamente in prod
+       (docker-compose.prod.yml lo espone, quello dev no)
+
+=====================================================================
+PRIORITÀ MEDIA
+=====================================================================
+
+[C6] Consolidare script root duplicati
+     Unire runs_hr_zones.py e runs_hr_zones_postgres.py (~80% identico,
+     init_api() copiata verbatim). Valutare deprecazione di
+     last_strength_workout.py (logica già in garmin-service).
+
+[C7] Deduplicare docker-compose.yml e docker-compose.prod.yml
+     ~60 righe di definizione servizi duplicate quasi verbatim
+     (cambia solo build vs image). Usare override file o YAML anchors.
+
+[C8] Estrarre configurazione retry comune in GarminProxyClient
+     @Retryable(...) identico ripetuto 5 volte (righe 53, 70, 88,
+     104, 121). Usare meta-annotation o RetryTemplate.
+
+[C9] Refactor garmin-proxy: pattern cache ripetuto
+     Check cache hit + set ripetuto in 9 endpoint (es. main.py:232-241,
+     257-268, 282-291). Creare un decoratore/helper cached().
+
+[C10] Unificare mapping esercizio -> gruppo muscolare
+      Due meccanismi sovrapposti nello stesso service:
+      MUSCLE_GROUP_MAP (StrengthWorkoutService.java:46) e
+      inferMuscleGroupFromName (:237, keyword IT/EN hardcodate).
+      Renderlo data-driven e unico.
+
+[C11] Refactor syncStrengthWorkouts (god method ~100 righe)
+      Spezzare in metodi più piccoli (filtro attività, parsing date,
+      mapping set, persist). Aggiungere @Transactional per evitare
+      salvataggi parziali. Riferimento: StrengthWorkoutService.java:94
+
+[C12] Ottimizzare query N+1 / full-scan
+      - getWorkoutHistory e getExerciseProgression caricano TUTTI i
+        workout con tutti i set e aggregano in Java (righe 430, 468):
+        spostare l'aggregazione su query DB
+      - recalculateAllRecords fa deleteAll() + full rescan ad ogni
+        rename di un set: rendere incrementale
+
+[C13] Rimuovere null-check su personalRecordService
+      Dipendenza constructor-injected non può essere null
+      (StrengthWorkoutService.java:190, 307, 414).
+
+[C14] Scomporre index.html monolite (5506 righe, ~250 KB)
+      - Separare CSS e JS in file dedicati
+      - Eliminare meal-plan HTML copy-paste tra giorni (~450 righe),
+        renderlo data-driven
+      - Creare helper apiFetch() comune con gestione 401 uniforme
+        (boilerplate fetch+auth+toast ripetuto ~15 volte)
+      - Uniformare messaggi UI (oggi misto IT/EN)
+
+[C15] Fix RateLimitingFilter
+      - Il commento dichiara "sliding-window" ma implementa finestra
+        fissa (RateLimitingFilter.java:20 vs :61)
+      - trackerMap mai svuotata -> memory leak lento
+      - Non fidarsi di X-Forwarded-For senza proxy fidato (riga 87)
+
+[C16] Comparazioni constant-time
+      Usare MessageDigest.isEqual al posto di String.equals:
+        ApiKeyFilter.java:61 (requestApiKey.equals(apiKey))
+        TotpService.java:71 (expectedCode.equals(cleanedCode))
+
+[C17] Fix renpho-service/main.py
+      - CORS allow_origins=["*"] + allow_credentials=True (righe
+        250-256): combinazione insicura, restringere origins
+      - Bug conteggio: cur.rowcount > 0 conta anche gli UPDATE
+        dell'upsert come nuovi record (riga 187)
+      - Rimuovere email utente dai log (riga 140, PII)
+      - Aggiungere LIMIT/paginazione a SELECT * su
+        /api/renpho/measurements (riga 270)
+
+[C18] Fix garmin-proxy thread-safety e cache
+      - _garmin_api globale riscritto da _authenticate(force=True)
+        senza lock -> race tra request concorrenti durante re-auth
+        (main.py:102-134)
+      - Cache eviction solo quando len>200 e solo entry scadute:
+        introdurre LRU
+
+=====================================================================
+PRIORITÀ BASSA
+=====================================================================
+
+[C19] Fix sw.js / manifest.webmanifest
+      - Precache del font Inter ma l'app usa Outfit
+      - Precache icone inesistenti (/icons/* assenti da static/)
+      - Versioni cache "-v1" fisse: legarle ai release per invalidare
+        la UI dopo deploy
+
+[C20] Allineare versioni Python e pulizia root
+      - Proxy su Python 3.13, renpho-service su 3.12, test docker su
+        3.12-slim: uniformare
+      - demo.py (4084 righe, demo libreria upstream) nella root dei
+        microservizi: spostare o documentare come asset della libreria
+
+[C21] Hardening minori
+      - Aggiungere attributo integrity (SRI) a Chart.js da CDN
+        (index.html:23)
+      - Limitare management.endpoint.health.show-details: always
+        (application.yml:65)

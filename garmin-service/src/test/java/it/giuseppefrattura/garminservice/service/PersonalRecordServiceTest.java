@@ -1,5 +1,6 @@
 package it.giuseppefrattura.garminservice.service;
 
+import it.giuseppefrattura.garminservice.dto.RecalculationResult;
 import it.giuseppefrattura.garminservice.model.ExercisePersonalRecord;
 import it.giuseppefrattura.garminservice.model.StrengthWorkout;
 import it.giuseppefrattura.garminservice.model.StrengthWorkoutSet;
@@ -37,28 +38,6 @@ class PersonalRecordServiceTest {
     private PersonalRecordService service;
 
     @Test
-    @DisplayName("calculateEstimated1Rm returns accurate Brzycki / Epley estimations")
-    void testCalculateEstimated1Rm() {
-        assertEquals(0.0, service.calculateEstimated1Rm(0, 10));
-        assertEquals(0.0, service.calculateEstimated1Rm(100, 0));
-        
-        // 1 rep should equal exact weight
-        assertEquals(100.0, service.calculateEstimated1Rm(100.0, 1));
-
-        // 6 reps at 70 kg via Brzycki: 70 / (1.0278 - 0.0278 * 6) = 70 / 0.861 = ~81.3 kg
-        double est6reps = service.calculateEstimated1Rm(70.0, 6);
-        assertTrue(est6reps > 81.0 && est6reps < 82.0, "Expected ~81.3 kg, got: " + est6reps);
-
-        // 10 reps at 60 kg via Brzycki: 60 / (1.0278 - 0.278) = 60 / 0.7498 = ~80.02 kg
-        double est10reps = service.calculateEstimated1Rm(60.0, 10);
-        assertTrue(est10reps > 79.5 && est10reps < 80.5, "Expected ~80.0 kg, got: " + est10reps);
-
-        // 15 reps at 50 kg via Epley: 50 * (1 + 15/30) = 75.0 kg
-        double est15reps = service.calculateEstimated1Rm(50.0, 15);
-        assertEquals(75.0, est15reps, 0.01);
-    }
-
-    @Test
     @DisplayName("recalculateAllRecords properly evaluates progressive PRs across workouts")
     void testRecalculateAllRecords() {
         StrengthWorkout w1 = new StrengthWorkout();
@@ -82,9 +61,9 @@ class PersonalRecordServiceTest {
 
         when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of(w2, w1));
 
-        Map<String, Object> res = service.recalculateAllRecords();
-        assertEquals(1, res.get("distinctExercises"));
-        assertTrue((int) res.get("totalPrsSaved") >= 2);
+        RecalculationResult res = service.recalculateAllRecords();
+        assertEquals(1, res.distinctExercises());
+        assertTrue(res.totalPrsSaved() >= 2);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ExercisePersonalRecord>> captor = ArgumentCaptor.forClass(List.class);
@@ -97,6 +76,19 @@ class PersonalRecordServiceTest {
         boolean has70kg = saved.stream().anyMatch(r -> "MAX_WEIGHT".equals(r.getRecordType()) && r.getWeightKg() == 70.0);
         assertTrue(has50kg);
         assertTrue(has70kg);
+    }
+
+    @Test
+    @DisplayName("recalculateAllRecords returns zero counters on empty history")
+    void testRecalculateAllRecordsEmptyHistory() {
+        when(workoutRepository.findAllByOrderByWorkoutDateDescWorkoutTimeDesc()).thenReturn(List.of());
+
+        RecalculationResult res = service.recalculateAllRecords();
+
+        assertEquals(0, res.totalPrsSaved());
+        assertEquals(0, res.distinctExercises());
+        verify(prRepository).deleteAll();
+        verify(prRepository).saveAll(List.of());
     }
 
     @Test

@@ -17,14 +17,21 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import it.giuseppefrattura.garminservice.service.CustomMetricsService;
+
 /**
- * In-memory sliding-window Rate Limiter to protect against Brute-Force login attacks
- * and resource exhaustion (DoS) on synchronization endpoints.
+ * Filter that applies tiered IP-based rate limiting to protect the application against DoS and brute-force attacks.
+ * <p>
+ * Limits:
+ * - /login: 20 req/min
+ * - /sync: 6 req/min
+ * - General endpoints: 180 req/min
  */
 @Component
 public class RateLimitingFilter extends OncePerRequestFilter {
@@ -39,9 +46,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private final Set<String> trustedProxies;
     private final Map<String, RequestTracker> trackerMap = new ConcurrentHashMap<>();
+    private final CustomMetricsService customMetricsService;
 
     public RateLimitingFilter(
-            @Value("${security.trusted-proxies:127.0.0.1,::1}") String trustedProxiesCsv) {
+            @Value("${security.trusted-proxies:127.0.0.1,::1}") String trustedProxiesCsv,
+            Optional<CustomMetricsService> customMetricsServiceOpt) {
         Set<String> proxies = new HashSet<>();
         if (trustedProxiesCsv != null && !trustedProxiesCsv.isBlank()) {
             for (String part : trustedProxiesCsv.split(",")) {
@@ -52,6 +61,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             }
         }
         this.trustedProxies = Collections.unmodifiableSet(proxies);
+        this.customMetricsService = (customMetricsServiceOpt != null && customMetricsServiceOpt.isPresent())
+                ? customMetricsServiceOpt.get() : null;
+    }
+
+    public RateLimitingFilter(String trustedProxiesCsv) {
+        this(trustedProxiesCsv, Optional.empty());
     }
 
     private static class RequestTracker {
@@ -103,6 +118,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (tracker.count.get() > limit) {
             log.warn("Rate limit exceeded for IP: {} on category: {} (count: {} / limit: {})",
                     ip, category, tracker.count.get(), limit);
+            if (customMetricsService != null) {
+                customMetricsService.incrementRateLimitHits(category);
+            }
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.getWriter().write(

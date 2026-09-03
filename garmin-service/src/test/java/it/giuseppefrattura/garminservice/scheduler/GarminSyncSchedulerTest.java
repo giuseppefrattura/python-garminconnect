@@ -41,6 +41,9 @@ class GarminSyncSchedulerTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private it.giuseppefrattura.garminservice.service.CustomMetricsService customMetricsService;
+
     private GarminSyncScheduler scheduler;
 
     @BeforeEach
@@ -50,7 +53,8 @@ class GarminSyncSchedulerTest {
                 strengthWorkoutService,
                 healthSyncService,
                 auditLogRepository,
-                restTemplate
+                restTemplate,
+                customMetricsService
         );
         when(auditLogRepository.save(any(SyncAuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -79,6 +83,7 @@ class GarminSyncSchedulerTest {
         assertEquals(2, log.getRenphoMeasurementsCount());
         assertTrue(log.getDetails().contains("Renpho: 2 weigh-ins"));
         verify(auditLogRepository, atLeastOnce()).save(any(SyncAuditLog.class));
+        verify(customMetricsService).recordSyncResult(eq("SUCCESS"), anyDouble(), eq(3), eq(7), eq(2));
     }
 
     @Test

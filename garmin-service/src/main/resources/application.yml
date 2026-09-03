@@ -64,6 +64,10 @@ management:
     health:
       show-details: always
 
+# Metrics scraping security
+monitoring:
+  metrics-token: ${METRICS_BEARER_TOKEN:}
+
 # Custom config
 garmin:
   proxy:

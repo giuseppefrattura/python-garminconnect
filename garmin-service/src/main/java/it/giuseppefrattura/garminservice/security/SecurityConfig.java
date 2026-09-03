@@ -1,5 +1,6 @@
 package it.giuseppefrattura.garminservice.security;
 
+import it.giuseppefrattura.garminservice.service.CustomMetricsService;
 import it.giuseppefrattura.garminservice.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
+
+import java.util.Optional;
 
 /**
  * Spring Security configuration class with Defense-in-Depth hardening.
@@ -32,14 +35,21 @@ public class SecurityConfig {
 
     private final ApiKeyFilter apiKeyFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final MetricsAuthFilter metricsAuthFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final CustomMetricsService customMetricsService;
 
     public SecurityConfig(ApiKeyFilter apiKeyFilter,
                           RateLimitingFilter rateLimitingFilter,
-                          CustomUserDetailsService userDetailsService) {
+                          MetricsAuthFilter metricsAuthFilter,
+                          CustomUserDetailsService userDetailsService,
+                          Optional<CustomMetricsService> customMetricsServiceOpt) {
         this.apiKeyFilter = apiKeyFilter;
         this.rateLimitingFilter = rateLimitingFilter;
+        this.metricsAuthFilter = metricsAuthFilter;
         this.userDetailsService = userDetailsService;
+        this.customMetricsService = (customMetricsServiceOpt != null && customMetricsServiceOpt.isPresent())
+                ? customMetricsServiceOpt.get() : null;
     }
 
     @Bean
@@ -78,7 +88,8 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/login", "/login.html", "/favicon.png", "/favicon.ico",
                     "/manifest.webmanifest", "/sw.js", "/icons/**",
-                    "/css/**", "/js/**", "/actuator/health", "/actuator/health/**", "/actuator/info"
+                    "/css/**", "/js/**", "/actuator/health", "/actuator/health/**", "/actuator/info",
+                    "/actuator/prometheus"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -94,6 +105,9 @@ public class SecurityConfig {
                     String username = request.getParameter("username");
                     if (username != null) {
                         userDetailsService.handleFailedLogin(username);
+                    }
+                    if (customMetricsService != null) {
+                        customMetricsService.incrementLoginFailure();
                     }
                     response.sendRedirect("/login?error=true");
                 })
@@ -112,9 +126,10 @@ public class SecurityConfig {
                 .permitAll()
             );
 
-        // Add rate limiting filter and API key filter before UsernamePasswordAuthenticationFilter
+        // Add rate limiting filter, API key filter, and metrics auth filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(metricsAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

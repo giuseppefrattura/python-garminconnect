@@ -9,6 +9,7 @@ import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 import psycopg2  # type: ignore
 from psycopg2 import pool  # type: ignore
 from psycopg2.extras import RealDictCursor  # type: ignore
@@ -245,6 +246,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+Instrumentator().instrument(app).expose(app)
 
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv("RENPHO_ALLOWED_ORIGINS", "http://localhost:8081").split(",")

@@ -34,6 +34,7 @@ public class GarminSyncScheduler {
     private final GarminHealthSyncService healthSyncService;
     private final SyncAuditLogRepository auditLogRepository;
     private final RestTemplate restTemplate;
+    private final it.giuseppefrattura.garminservice.service.CustomMetricsService customMetricsService;
 
     @Value("${garmin.renpho.url:http://renpho-service:8082}")
     private String renphoServiceUrl = "http://renpho-service:8082";
@@ -45,11 +46,13 @@ public class GarminSyncScheduler {
             RunHrZoneService hrZoneService,
             StrengthWorkoutService strengthWorkoutService,
             GarminHealthSyncService healthSyncService,
-            SyncAuditLogRepository auditLogRepository) {
+            SyncAuditLogRepository auditLogRepository,
+            it.giuseppefrattura.garminservice.service.CustomMetricsService customMetricsService) {
         this.hrZoneService = hrZoneService;
         this.strengthWorkoutService = strengthWorkoutService;
         this.healthSyncService = healthSyncService;
         this.auditLogRepository = auditLogRepository;
+        this.customMetricsService = customMetricsService;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
         factory.setReadTimeout(15000);
@@ -63,11 +66,22 @@ public class GarminSyncScheduler {
             GarminHealthSyncService healthSyncService,
             SyncAuditLogRepository auditLogRepository,
             RestTemplate restTemplate) {
+        this(hrZoneService, strengthWorkoutService, healthSyncService, auditLogRepository, restTemplate, null);
+    }
+
+    GarminSyncScheduler(
+            RunHrZoneService hrZoneService,
+            StrengthWorkoutService strengthWorkoutService,
+            GarminHealthSyncService healthSyncService,
+            SyncAuditLogRepository auditLogRepository,
+            RestTemplate restTemplate,
+            it.giuseppefrattura.garminservice.service.CustomMetricsService customMetricsService) {
         this.hrZoneService = hrZoneService;
         this.strengthWorkoutService = strengthWorkoutService;
         this.healthSyncService = healthSyncService;
         this.auditLogRepository = auditLogRepository;
         this.restTemplate = restTemplate;
+        this.customMetricsService = customMetricsService;
     }
 
     /**
@@ -158,6 +172,18 @@ public class GarminSyncScheduler {
         
         SyncAuditLog savedLog = auditLogRepository.save(auditLog);
         log.info("🌙 [MIDNIGHT SYNC] Unified sync completed. Status: {}, Details: {}", savedLog.getStatus(), savedLog.getDetails());
+
+        if (customMetricsService != null) {
+            double durationSec = java.time.Duration.between(startTime, OffsetDateTime.now()).toMillis() / 1000.0;
+            customMetricsService.recordSyncResult(
+                    savedLog.getStatus(),
+                    durationSec,
+                    totalGarminWorkouts,
+                    totalGarminHealthDays,
+                    totalRenphoMeasurements
+            );
+        }
+
         return savedLog;
     }
 }

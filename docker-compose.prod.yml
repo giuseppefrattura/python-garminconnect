@@ -50,6 +50,7 @@ services:
       - APPLE_CLIENT_ID=${APPLE_CLIENT_ID:-}
       - APPLE_CLIENT_SECRET=${APPLE_CLIENT_SECRET:-}
       - RENPHO_SERVICE_URL=http://renpho-service:8082
+      - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:-}
     depends_on:
       garmin-proxy:
         condition: service_healthy
@@ -72,3 +73,28 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD must be set}
     restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.3.1
+    container_name: alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL:?GRAFANA_CLOUD_PROMETHEUS_URL must be set}
+      - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER:?GRAFANA_CLOUD_PROMETHEUS_USER must be set}
+      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL:?GRAFANA_CLOUD_LOKI_URL must be set}
+      - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER:?GRAFANA_CLOUD_LOKI_USER must be set}
+      - GRAFANA_CLOUD_TOKEN=${GRAFANA_CLOUD_TOKEN:?GRAFANA_CLOUD_TOKEN must be set}
+      - METRICS_BEARER_TOKEN=${METRICS_BEARER_TOKEN:-}
+    depends_on:
+      - garmin-service
+      - garmin-proxy
+      - renpho-service
+

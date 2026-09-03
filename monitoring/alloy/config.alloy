@@ -1,0 +1,124 @@
+// ==============================================================================
+// Grafana Alloy Configuration for Garmin & Renpho Ecosystem
+// Telemetry shipped directly to Grafana Cloud:
+// - Prometheus remote_write for application & JVM metrics
+// - Loki log streaming from Docker containers via docker.sock
+// ==============================================================================
+
+// ------------------------------------------------------------------------------
+// 1. Prometheus Remote Write (Grafana Cloud Metrics)
+// ------------------------------------------------------------------------------
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+
+    queue_config {
+      capacity = 2500
+      max_shards = 5
+      max_samples_per_send = 500
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 2. Metrics Scraping Targets
+// ------------------------------------------------------------------------------
+
+// garmin-service (Spring Boot 3 + Micrometer + Actuator Prometheus)
+prometheus.scrape "garmin_service" {
+  targets = [{
+    __address__      = "garmin-service:8081",
+    __metrics_path__ = "/actuator/prometheus",
+    app              = "garmin-service",
+    env              = "production",
+    service_name     = "garmin-service",
+  }]
+
+  bearer_token    = sys.env("METRICS_BEARER_TOKEN")
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+}
+
+// garmin-proxy (FastAPI + Prometheus FastApi Instrumentator)
+prometheus.scrape "garmin_proxy" {
+  targets = [{
+    __address__      = "garmin-proxy:8080",
+    __metrics_path__ = "/metrics",
+    app              = "garmin-proxy",
+    env              = "production",
+    service_name     = "garmin-proxy",
+  }]
+
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+}
+
+// renpho-service (FastAPI + Prometheus FastApi Instrumentator)
+prometheus.scrape "renpho_service" {
+  targets = [{
+    __address__      = "renpho-service:8082",
+    __metrics_path__ = "/metrics",
+    app              = "renpho-service",
+    env              = "production",
+    service_name     = "renpho-service",
+  }]
+
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+}
+
+// ------------------------------------------------------------------------------
+// 3. Loki Log Shipping (Grafana Cloud Logs)
+// ------------------------------------------------------------------------------
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 4. Docker Container Logs Source
+// ------------------------------------------------------------------------------
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["container"]
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["container"]
+    target_label  = "job"
+  }
+}
+
+loki.source.docker "docker_logs" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.docker_logs.output
+  forward_to    = [loki.write.grafana_cloud.receiver]
+  relabel_rules = discovery.relabel.docker_logs.rules
+}

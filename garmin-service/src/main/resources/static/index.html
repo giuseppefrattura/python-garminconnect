@@ -386,6 +386,206 @@
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
         }
 
+        /* Garmin Anatomical Muscle Heatmap & Volume Card Styles */
+        .muscle-map-card-body {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 1.75rem;
+            width: 100%;
+            align-items: start;
+        }
+
+        @media (max-width: 960px) {
+            .muscle-map-card-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .muscle-svg-stage {
+            background: #090d16;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 18px;
+            padding: 1.25rem 0.75rem 1rem 0.75rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .garmin-silhouette-svg {
+            width: 100%;
+            max-height: 410px;
+            overflow: visible;
+        }
+
+        .body-outline {
+            fill: #141722;
+            stroke: #64748b;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .muscle-cutout {
+            cursor: pointer;
+            transition: fill 0.3s ease, filter 0.3s ease, stroke 0.2s ease, transform 0.2s ease;
+            stroke: #090d16;
+            stroke-width: 1.3;
+            stroke-linejoin: round;
+        }
+
+        .muscle-cutout.inactive {
+            fill: #262c3b;
+        }
+
+        .muscle-cutout.primary {
+            fill: #ef4444;
+            filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.55));
+        }
+
+        .muscle-cutout.secondary {
+            fill: #f59e0b;
+            filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.45));
+        }
+
+        .muscle-cutout:hover, .muscle-cutout.highlighted {
+            stroke: #ffffff !important;
+            stroke-width: 2.2 !important;
+            filter: brightness(1.35) drop-shadow(0 0 12px rgba(255, 255, 255, 0.7)) !important;
+        }
+
+        .garmin-muscle-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            font-weight: 500;
+            flex-wrap: wrap;
+        }
+
+        .garmin-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .legend-dot {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .legend-dot.primary {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+        }
+
+        .legend-dot.secondary {
+            background: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+        }
+
+        .legend-dot.inactive {
+            background: #262c3b;
+            border: 1px solid #64748b;
+        }
+
+        .muscle-map-tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            z-index: 25;
+            white-space: nowrap;
+        }
+
+        .muscle-volume-summary-box {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(245, 158, 11, 0.06));
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 16px;
+            padding: 1.1rem 1.35rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .muscle-breakdown-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            max-height: 380px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .muscle-breakdown-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .muscle-breakdown-item:hover, .muscle-breakdown-item.highlighted {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateX(4px);
+        }
+
+        .muscle-breakdown-item.primary {
+            border-left: 4px solid #ef4444;
+        }
+
+        .muscle-breakdown-item.secondary {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .muscle-breakdown-item.inactive {
+            border-left: 4px solid #334155;
+            opacity: 0.65;
+        }
+
+        .muscle-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .muscle-badge.primary {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .muscle-badge.secondary {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
+
+        .muscle-badge.inactive {
+            background: rgba(100, 116, 139, 0.2);
+            color: #94a3b8;
+        }
+
         /* Database Table Card */
         .table-card {
             background: var(--card-bg);
@@ -2733,28 +2933,273 @@
 
             <!-- Workout Analytics Row (Charts) -->
             <div class="charts-row" style="margin-bottom: 2.5rem;">
-                <!-- Weekly Volume Bar Chart with Muscle Filter -->
-                <div class="chart-card">
-                    <div class="chart-header" style="flex-wrap: wrap; gap: 0.5rem; justify-content: space-between; align-items: center; width: 100%;">
+                <!-- Anatomical Muscle Heatmap & Volume Card -->
+                <div class="chart-card" id="muscleMapCard" style="grid-column: 1 / -1;">
+                    <div class="chart-header" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center; width: 100%;">
                         <div class="chart-title">
-                            <span style="color: var(--primary);">●</span> Volume Settimanale (<span id="weeklyVolumeFilterLabel">Volume Totale</span>)
+                            <span style="color: #ef4444;">●</span> Mappa Muscolare & Volume Allenamento <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">— <span id="muscleMapPeriodLabel">Ultimo Allenamento</span></span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <label for="weeklyVolumeWeeksSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Periodo:</label>
-                            <select id="weeklyVolumeWeeksSelect" onchange="onWeeklyVolumeTimeframeChange(this.value)" style="background: rgba(255, 255, 255, 0.07); color: #f3f4f6; border: 1px solid rgba(255, 255, 255, 0.15); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; outline: none; cursor: pointer;">
-                                <option value="8" selected>Ultime 8 Settimane</option>
-                                <option value="12">Ultime 12 Settimane</option>
-                                <option value="24">Ultime 24 Settimane</option>
-                                <option value="all">Tutte le Settimane</option>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <label for="muscleMapPeriodSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Visualizza:</label>
+                            <select id="muscleMapPeriodSelect" onchange="onMuscleMapPeriodChange(this.value)" style="background: rgba(255, 255, 255, 0.07); color: #f3f4f6; border: 1px solid rgba(255, 255, 255, 0.15); padding: 5px 12px; border-radius: 8px; font-size: 0.82rem; outline: none; cursor: pointer; min-width: 210px;">
+                                <option value="last" selected>🏋️ Ultimo Allenamento</option>
+                                <option value="current_week">📅 Settimana Corrente</option>
                             </select>
+                            <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 0.8rem; border-radius: 8px;" onclick="toggleWeeklyTrendChart()" title="Mostra o nascondi il grafico dell'andamento storico a barre">
+                                📊 Grafico Trend
+                            </button>
                         </div>
                     </div>
-                    <!-- Muscle group filter chips -->
-                    <div id="muscleGroupChipsContainer" class="muscle-chips-container">
-                        <!-- Generated dynamically -->
+
+                    <!-- Card Body: SVG Silhouette + Clean Data Breakdown -->
+                    <div class="muscle-map-card-body">
+                        <!-- Left: SVG Silhouettes (Front & Back) -->
+                        <div class="muscle-svg-stage">
+                            <div id="muscleMapTooltip" class="muscle-map-tooltip"></div>
+                            
+                            <svg class="garmin-silhouette-svg" viewBox="0 0 460 395" xmlns="http://www.w3.org/2000/svg">
+                                <!-- ================= FRONT VIEW (Center X = 115) ================= -->
+                                <g id="svg-front-view">
+                                    <text x="115" y="24" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700" letter-spacing="1">ANTERIORE</text>
+                                    
+                                    <!-- Body Silhouette Base Contour -->
+                                    <ellipse cx="115" cy="54" rx="15" ry="19" class="body-outline" />
+                                    <path d="M 107 71 L 123 71 L 127 82 L 103 82 Z" class="body-outline" />
+                                    <path d="
+                                        M 103 82 
+                                        C 92 85, 82 92, 80 106 
+                                        C 78 120, 72 152, 68 185 
+                                        C 64 210, 60 230, 65 233 
+                                        C 70 234, 76 226, 82 205 
+                                        C 88 180, 92 152, 94 135 
+                                        L 94 175 
+                                        C 92 195, 88 230, 86 265 
+                                        C 84 295, 86 330, 92 355 
+                                        C 96 358, 102 356, 105 345 
+                                        C 110 320, 112 280, 112 260 
+                                        L 114 200 
+                                        L 116 200 
+                                        L 118 260 
+                                        C 118 280, 120 320, 125 345 
+                                        C 128 356, 134 358, 138 355 
+                                        C 144 330, 146 295, 144 265 
+                                        C 142 230, 138 195, 136 175 
+                                        L 136 135 
+                                        C 138 152, 142 180, 148 205 
+                                        C 154 226, 160 234, 165 233 
+                                        C 170 230, 166 210, 162 185 
+                                        C 158 152, 152 120, 150 106 
+                                        C 148 92, 138 85, 127 82 
+                                        Z" class="body-outline" />
+
+                                    <!-- Front Muscles -->
+                                    <!-- Shoulders / Deltoids -->
+                                    <path d="M 98 86 C 85 91, 81 104, 82 115 C 83 123, 89 124, 93 118 C 96 110, 98 98, 100 88 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Shoulders" />
+                                    <path d="M 132 86 C 145 91, 149 104, 148 115 C 147 123, 141 124, 137 118 C 134 110, 132 98, 130 88 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Shoulders" />
+
+                                    <!-- Chest / Pectorals -->
+                                    <path d="M 114 89 L 102 91 C 94 104, 94 118, 100 124 C 110 127, 114 122, 114 115 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Chest" />
+                                    <path d="M 116 89 L 128 91 C 136 104, 136 118, 130 124 C 120 127, 116 122, 116 115 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Chest" />
+
+                                    <!-- Biceps -->
+                                    <path d="M 86 125 C 80 135, 79 148, 83 154 C 88 154, 91 146, 92 135 C 92 128, 89 124, 86 125 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Biceps" />
+                                    <path d="M 144 125 C 150 135, 151 148, 147 154 C 142 154, 139 146, 138 135 C 138 128, 141 124, 144 125 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Biceps" />
+
+                                    <!-- Forearms -->
+                                    <path d="M 80 159 C 74 176, 70 196, 68 214 C 73 216, 78 206, 81 192 C 84 178, 86 166, 86 158 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Forearms" />
+                                    <path d="M 150 159 C 156 176, 160 196, 162 214 C 157 216, 152 206, 149 192 C 146 178, 144 166, 144 158 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Forearms" />
+
+                                    <!-- Core / Abs (6 pack + obliques) -->
+                                    <rect x="107" y="126" width="7" height="11" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <rect x="116" y="126" width="7" height="11" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <rect x="107" y="139" width="7" height="11" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <rect x="116" y="139" width="7" height="11" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <rect x="108" y="152" width="6" height="12" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <rect x="116" y="152" width="6" height="12" rx="1.5" class="muscle-cutout inactive" data-muscle="Core" />
+                                    <path d="M 99 127 L 105 127 L 105 158 C 100 159, 97 148, 97 135 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Core" />
+                                    <path d="M 131 127 L 125 127 L 125 158 C 130 159, 133 148, 133 135 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Core" />
+
+                                    <!-- Hip flexors / Adduttori -->
+                                    <path d="M 106 170 L 114 176 L 114 192 C 109 188, 105 180, 105 170 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+                                    <path d="M 124 170 L 116 176 L 116 192 C 121 188, 125 180, 125 170 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+
+                                    <!-- Quads / Quadricipiti -->
+                                    <path d="M 95 182 C 104 185, 105 204, 106 225 C 106 242, 104 254, 101 256 C 96 256, 92 238, 91 216 C 90 200, 92 188, 95 182 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+                                    <path d="M 135 182 C 126 185, 125 204, 124 225 C 124 242, 126 254, 129 256 C 134 256, 138 238, 139 216 C 140 200, 138 188, 135 182 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+
+                                    <!-- Calves / Polpacci Front -->
+                                    <path d="M 91 267 C 98 268, 101 292, 100 324 C 97 338, 93 338, 91 322 C 89 306, 88 285, 91 267 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Calves" />
+                                    <path d="M 139 267 C 132 268, 129 292, 130 324 C 133 338, 137 338, 139 322 C 141 306, 142 285, 139 267 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Calves" />
+                                </g>
+
+                                <!-- ================= BACK VIEW (Center X = 345) ================= -->
+                                <g id="svg-back-view">
+                                    <text x="345" y="24" text-anchor="middle" fill="#64748b" font-size="11" font-weight="700" letter-spacing="1">POSTERIORE</text>
+                                    
+                                    <!-- Body Silhouette Base Contour -->
+                                    <ellipse cx="345" cy="54" rx="15" ry="19" class="body-outline" />
+                                    <path d="M 337 71 L 353 71 L 357 82 L 333 82 Z" class="body-outline" />
+                                    <path d="
+                                        M 333 82 
+                                        C 322 85, 312 92, 310 106 
+                                        C 308 120, 302 152, 298 185 
+                                        C 294 210, 290 230, 295 233 
+                                        C 300 234, 306 226, 312 205 
+                                        C 318 180, 322 152, 324 135 
+                                        L 324 175 
+                                        C 322 195, 318 230, 316 265 
+                                        C 314 295, 316 330, 322 355 
+                                        C 326 358, 332 356, 335 345 
+                                        C 340 320, 342 280, 342 260 
+                                        L 344 200 
+                                        L 346 200 
+                                        L 348 260 
+                                        C 348 280, 350 320, 355 345 
+                                        C 358 356, 364 358, 368 355 
+                                        C 374 330, 376 295, 374 265 
+                                        C 372 230, 368 195, 366 175 
+                                        L 366 135 
+                                        C 368 152, 372 180, 378 205 
+                                        C 384 226, 390 234, 395 233 
+                                        C 400 230, 396 210, 392 185 
+                                        C 388 152, 382 120, 380 106 
+                                        C 378 92, 368 85, 357 82 
+                                        Z" class="body-outline" />
+
+                                    <!-- Back Muscles -->
+                                    <!-- Trapezius -->
+                                    <path d="M 337 73 L 353 73 L 362 88 L 345 120 L 328 88 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Back" />
+
+                                    <!-- Rear Deltoids -->
+                                    <path d="M 328 86 C 315 91, 311 104, 312 115 C 313 123, 319 124, 323 118 C 326 110, 328 98, 330 88 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Shoulders" />
+                                    <path d="M 362 86 C 375 91, 379 104, 378 115 C 377 123, 371 124, 367 118 C 364 110, 362 98, 360 88 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Shoulders" />
+
+                                    <!-- Triceps -->
+                                    <path d="M 316 125 C 310 135, 309 148, 313 154 C 318 154, 321 146, 322 135 C 322 128, 319 124, 316 125 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Triceps" />
+                                    <path d="M 374 125 C 380 135, 381 148, 377 154 C 372 154, 369 146, 368 135 C 368 128, 371 124, 374 125 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Triceps" />
+
+                                    <!-- Forearms Back -->
+                                    <path d="M 310 159 C 304 176, 300 196, 298 214 C 303 216, 308 206, 311 192 C 314 178, 316 166, 316 158 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Forearms" />
+                                    <path d="M 380 159 C 386 176, 390 196, 392 214 C 387 216, 382 206, 379 192 C 376 178, 374 166, 374 158 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Forearms" />
+
+                                    <!-- Lats / Dorsali -->
+                                    <path d="M 344 122 L 327 94 C 322 118, 323 142, 327 150 C 335 152, 342 144, 344 135 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Back" />
+                                    <path d="M 346 122 L 363 94 C 368 118, 367 142, 363 150 C 355 152, 348 144, 346 135 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Back" />
+
+                                    <!-- Lower Back / Lombari -->
+                                    <path d="M 336 152 L 354 152 L 350 172 L 340 172 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Back" />
+
+                                    <!-- Glutes / Glutei -->
+                                    <path d="M 324 175 C 344 174, 344 196, 344 214 C 344 220, 332 222, 326 218 C 319 208, 320 188, 324 175 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+                                    <path d="M 366 175 C 346 174, 346 196, 346 214 C 346 220, 358 222, 364 218 C 371 208, 370 188, 366 175 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+
+                                    <!-- Hamstrings / Femorali -->
+                                    <path d="M 324 222 C 341 222, 341 242, 339 256 C 334 257, 325 257, 322 248 C 320 238, 321 228, 324 222 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+                                    <path d="M 366 222 C 349 222, 349 242, 351 256 C 356 257, 365 257, 368 248 C 370 238, 369 228, 366 222 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Legs" />
+
+                                    <!-- Calves / Polpacci Back -->
+                                    <path d="M 320 267 C 330 267, 332 292, 330 324 C 326 338, 322 338, 320 322 C 317 306, 316 285, 320 267 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Calves" />
+                                    <path d="M 370 267 C 360 267, 358 292, 360 324 C 364 338, 368 338, 370 322 C 373 306, 374 285, 370 267 Z" 
+                                          class="muscle-cutout inactive" data-muscle="Calves" />
+                                </g>
+                            </svg>
+
+                            <!-- Garmin Legend -->
+                            <div class="garmin-muscle-legend">
+                                <div class="garmin-legend-item">
+                                    <span class="legend-dot primary"></span>
+                                    <span>Muscoli primari</span>
+                                </div>
+                                <div class="garmin-legend-item">
+                                    <span class="legend-dot secondary"></span>
+                                    <span>Muscoli secondari</span>
+                                </div>
+                                <div class="garmin-legend-item">
+                                    <span class="legend-dot inactive"></span>
+                                    <span>Muscoli non interessati</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Clean Data Breakdown -->
+                        <div>
+                            <div class="muscle-volume-summary-box">
+                                <div>
+                                    <div style="font-size: 0.76rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px;" id="muscleVolumeBoxTitle">
+                                        Volume Sessione
+                                    </div>
+                                    <div style="font-size: 1.85rem; font-weight: 800; color: #ffffff; margin-top: 2px;" id="muscleVolumeBoxTotal">
+                                        0 <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">kg</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 500;">Gruppi Attivi</div>
+                                    <div style="font-size: 1.35rem; font-weight: 700; color: #ffffff;" id="muscleVolumeActiveCount">0</div>
+                                </div>
+                            </div>
+
+                            <!-- List of muscles ranked by volume -->
+                            <div id="muscleVolumeBreakdownList" class="muscle-breakdown-list">
+                                <div class="empty-state" style="padding: 1.5rem 0;">
+                                    <p>Caricamento dati volume...</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="workoutWeeklyVolumeChart"></canvas>
+
+                    <!-- Collapsible Historical Bar Chart (Slide down on demand) -->
+                    <div id="weeklyTrendChartCollapsible" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="font-size: 0.95rem; font-weight: 600; color: white;">
+                                📈 Andamento Storico del Volume Settimanale (<span id="weeklyVolumeFilterLabel">Volume Totale</span>)
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label for="weeklyVolumeWeeksSelect" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">Periodo:</label>
+                                <select id="weeklyVolumeWeeksSelect" onchange="onWeeklyVolumeTimeframeChange(this.value)" style="background: rgba(255, 255, 255, 0.07); color: #f3f4f6; border: 1px solid rgba(255, 255, 255, 0.15); padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; outline: none; cursor: pointer;">
+                                    <option value="8" selected>Ultime 8 Settimane</option>
+                                    <option value="12">Ultime 12 Settimane</option>
+                                    <option value="24">Ultime 24 Settimane</option>
+                                    <option value="all">Tutte le Settimane</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="muscleGroupChipsContainer" class="muscle-chips-container">
+                            <!-- Generated dynamically -->
+                        </div>
+                        <div class="chart-container" style="height: 260px;">
+                            <canvas id="workoutWeeklyVolumeChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
@@ -4402,6 +4847,9 @@
                     volumeContainer.appendChild(item);
                 });
             }
+
+            lastLoadedWorkoutData = data;
+            updateMuscleHeatmapAndBreakdown();
         }
 
         function renderEmptyWorkoutTable(message) {
@@ -4418,6 +4866,8 @@
                     <p>Nessun volume muscolare disponibile.</p>
                 </div>
             `;
+            lastLoadedWorkoutData = null;
+            updateMuscleHeatmapAndBreakdown();
         }
 
         function autoDetectMuscleGroup(name) {
@@ -4552,6 +5002,9 @@
         let cachedWeeklyVolumeData = {};
         let selectedMuscleGroup = 'ALL';
         let selectedVolumeWeeks = 8;
+        let lastLoadedWorkoutData = null;
+        let selectedMusclePeriod = 'last';
+        let muscleMapInteractivityInitialized = false;
 
         const muscleGroupLabels = {
             "Chest": "🏋️ Petto",
@@ -4562,6 +5015,7 @@
             "Triceps": "💪 Tricipiti",
             "Core": "🧘 Core",
             "Calves": "🦵 Polpacci",
+            "Forearms": "💪 Avambracci",
             "Back/Legs (Posterior Chain)": "⚡ Catena Posteriore"
         };
 
@@ -4574,8 +5028,294 @@
             "Triceps": "#ec4899",
             "Core": "#8b5cf6",
             "Calves": "#14b8a6",
+            "Forearms": "#6366f1",
             "Back/Legs (Posterior Chain)": "#06b6d4"
         };
+
+        function toggleWeeklyTrendChart() {
+            const el = document.getElementById("weeklyTrendChartCollapsible");
+            if (!el) return;
+            const isHidden = el.style.display === "none" || !el.style.display;
+            el.style.display = isHidden ? "block" : "none";
+            if (isHidden) {
+                renderWeeklyVolumeChart();
+            }
+        }
+
+        function onMuscleMapPeriodChange(val) {
+            selectedMusclePeriod = val;
+            updateMuscleHeatmapAndBreakdown();
+        }
+
+        function updateMuscleMapPeriodOptions() {
+            const selectEl = document.getElementById("muscleMapPeriodSelect");
+            if (!selectEl) return;
+            const currentVal = selectEl.value;
+
+            let html = `
+                <option value="last">🏋️ Ultimo Allenamento</option>
+                <option value="current_week">📅 Settimana Corrente</option>
+            `;
+
+            const allWeeks = Object.keys(cachedWeeklyVolumeData || {}).sort().reverse();
+            if (allWeeks.length > 0) {
+                html += `<optgroup label="Storico Settimane">`;
+                allWeeks.forEach(w => {
+                    const groupMap = cachedWeeklyVolumeData[w] || {};
+                    const totalKg = Object.values(groupMap).reduce((a, b) => a + Number(b || 0), 0);
+                    const label = formatWeekDateLabel(w);
+                    html += `<option value="week:${w}">Sett. ${label} (${Math.round(totalKg).toLocaleString('it-IT')} kg)</option>`;
+                });
+                html += `</optgroup>`;
+            }
+
+            selectEl.innerHTML = html;
+            if (currentVal && Array.from(selectEl.options).some(o => o.value === currentVal)) {
+                selectEl.value = currentVal;
+            } else {
+                selectEl.value = selectedMusclePeriod || 'last';
+            }
+        }
+
+        function updateMuscleHeatmapAndBreakdown() {
+            let volMap = {};
+            let periodLabel = "Ultimo Allenamento";
+            let subLabel = "Volume Sessione";
+
+            if (selectedMusclePeriod === 'last') {
+                volMap = (lastLoadedWorkoutData && lastLoadedWorkoutData.volumeByMuscleGroup) || {};
+                const actName = (lastLoadedWorkoutData && lastLoadedWorkoutData.activityName) || "";
+                periodLabel = actName ? `Ultimo Allenamento: ${actName}` : "Ultimo Allenamento";
+                subLabel = "Volume Sessione";
+            } else if (selectedMusclePeriod === 'current_week') {
+                const allWeeks = Object.keys(cachedWeeklyVolumeData || {}).sort();
+                const latestWeek = allWeeks.length > 0 ? allWeeks[allWeeks.length - 1] : null;
+                if (latestWeek && cachedWeeklyVolumeData[latestWeek]) {
+                    volMap = cachedWeeklyVolumeData[latestWeek];
+                    periodLabel = `Settimana Corrente (${formatWeekDateLabel(latestWeek)})`;
+                    subLabel = "Volume Settimanale";
+                } else {
+                    periodLabel = "Settimana Corrente";
+                }
+            } else if (selectedMusclePeriod.startsWith("week:")) {
+                const weekKey = selectedMusclePeriod.replace("week:", "");
+                if (cachedWeeklyVolumeData && cachedWeeklyVolumeData[weekKey]) {
+                    volMap = cachedWeeklyVolumeData[weekKey];
+                    periodLabel = `Settimana ${formatWeekDateLabel(weekKey)}`;
+                    subLabel = "Volume Settimanale";
+                }
+            }
+
+            // Update Labels
+            const headerLabel = document.getElementById("muscleMapPeriodLabel");
+            if (headerLabel) headerLabel.innerText = periodLabel;
+
+            const boxTitle = document.getElementById("muscleVolumeBoxTitle");
+            if (boxTitle) boxTitle.innerText = subLabel;
+
+            // Total volume & max muscle volume
+            const totalVol = Object.values(volMap).reduce((a, b) => a + Number(b || 0), 0);
+            const maxVol = Math.max(...Object.values(volMap).map(Number), 0);
+
+            const totalDisplay = document.getElementById("muscleVolumeBoxTotal");
+            if (totalDisplay) {
+                totalDisplay.innerHTML = `${totalVol.toLocaleString('it-IT', { maximumFractionDigits: 1 })} <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">kg</span>`;
+            }
+
+            // Classify muscle groups
+            const standardGroups = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Core", "Legs", "Calves"];
+            const muscleStatus = {};
+            const muscleVolumeNormalized = {};
+
+            standardGroups.forEach(g => {
+                let v = Number(volMap[g] || 0);
+                if (g === "Back" && volMap["Back/Legs (Posterior Chain)"]) {
+                    v += Number(volMap["Back/Legs (Posterior Chain)"]) * 0.5;
+                }
+                if (g === "Legs" && volMap["Back/Legs (Posterior Chain)"]) {
+                    v += Number(volMap["Back/Legs (Posterior Chain)"]) * 0.5;
+                }
+                muscleVolumeNormalized[g] = v;
+            });
+
+            // Forearms: either direct or secondary if Back/Biceps/Chest trained
+            let forearmVol = Number(volMap["Forearms"] || 0);
+            if (forearmVol === 0 && (muscleVolumeNormalized["Back"] > 0 || muscleVolumeNormalized["Biceps"] > 0 || muscleVolumeNormalized["Chest"] > 0)) {
+                forearmVol = Math.max(muscleVolumeNormalized["Back"], muscleVolumeNormalized["Biceps"]) * 0.25;
+            }
+            muscleVolumeNormalized["Forearms"] = forearmVol;
+
+            // Threshold: primary if >= 45% of max muscle volume, else secondary if > 0
+            const primaryThreshold = maxVol > 0 ? maxVol * 0.45 : 0;
+
+            Object.keys(muscleVolumeNormalized).forEach(g => {
+                const v = muscleVolumeNormalized[g];
+                if (v <= 0) {
+                    muscleStatus[g] = "inactive";
+                } else if (v >= primaryThreshold && maxVol > 0) {
+                    muscleStatus[g] = "primary";
+                } else {
+                    muscleStatus[g] = "secondary";
+                }
+            });
+
+            // Update SVG cutouts
+            const cutouts = document.querySelectorAll(".garmin-silhouette-svg .muscle-cutout");
+            cutouts.forEach(cutout => {
+                const group = cutout.getAttribute("data-muscle");
+                const status = muscleStatus[group] || "inactive";
+                cutout.classList.remove("primary", "secondary", "inactive");
+                cutout.classList.add(status);
+            });
+
+            // Update Active Count
+            let activeCount = 0;
+            standardGroups.forEach(g => {
+                if (muscleStatus[g] && muscleStatus[g] !== "inactive") activeCount++;
+            });
+            const activeDisplay = document.getElementById("muscleVolumeActiveCount");
+            if (activeDisplay) activeDisplay.innerText = activeCount;
+
+            // Render Breakdown List
+            renderMuscleBreakdownList(muscleVolumeNormalized, muscleStatus, totalVol, maxVol);
+
+            // Initialize hover & tooltip if not done
+            setupMuscleMapInteractivity();
+        }
+
+        function renderMuscleBreakdownList(volumes, statuses, totalVol, maxVol) {
+            const listEl = document.getElementById("muscleVolumeBreakdownList");
+            if (!listEl) return;
+
+            const groups = ["Chest", "Back", "Legs", "Shoulders", "Biceps", "Triceps", "Core", "Calves"];
+            
+            // Sort by volume descending
+            groups.sort((a, b) => (volumes[b] || 0) - (volumes[a] || 0));
+
+            let html = "";
+            groups.forEach(g => {
+                const vol = volumes[g] || 0;
+                const status = statuses[g] || "inactive";
+                const label = muscleGroupLabels[g] || g;
+                const pctOfTotal = totalVol > 0 ? Math.round((vol / totalVol) * 100) : 0;
+                const pctOfMax = maxVol > 0 ? Math.min(100, Math.round((vol / maxVol) * 100)) : 0;
+
+                let badgeText = "NON INTERESSATO";
+                let badgeClass = "inactive";
+                let barColor = "#334155";
+
+                if (status === "primary") {
+                    badgeText = "PRIMARIO";
+                    badgeClass = "primary";
+                    barColor = "#ef4444";
+                } else if (status === "secondary") {
+                    badgeText = "SECONDARIO";
+                    badgeClass = "secondary";
+                    barColor = "#f59e0b";
+                }
+
+                html += `
+                    <div class="muscle-breakdown-item ${status}" data-muscle="${g}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 600; font-size: 0.92rem; color: #ffffff;">${label}</span>
+                                <span class="muscle-badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-weight: 700; font-size: 0.95rem; color: ${status === 'primary' ? '#f87171' : status === 'secondary' ? '#fbbf24' : '#94a3b8'};">
+                                    ${vol > 0 ? vol.toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' kg' : '0 kg (Riposo)'}
+                                </span>
+                                ${vol > 0 ? `<span style="font-size: 0.72rem; color: var(--text-muted); margin-left: 4px;">(${pctOfTotal}%)</span>` : ''}
+                            </div>
+                        </div>
+                        <div style="background: rgba(0, 0, 0, 0.35); height: 6px; border-radius: 3px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
+                            <div style="background: ${barColor}; width: ${vol > 0 ? pctOfMax : 0}%; height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+
+            // Attach hover listeners to breakdown items
+            listEl.querySelectorAll(".muscle-breakdown-item").forEach(item => {
+                const m = item.getAttribute("data-muscle");
+                item.addEventListener("mouseenter", () => {
+                    highlightMuscle(m, true);
+                });
+                item.addEventListener("mouseleave", () => {
+                    highlightMuscle(m, false);
+                });
+            });
+        }
+
+        function highlightMuscle(muscleName, isHighlight) {
+            // Highlight SVG cutouts
+            const cutouts = document.querySelectorAll(`.garmin-silhouette-svg .muscle-cutout[data-muscle="${muscleName}"]`);
+            cutouts.forEach(c => {
+                if (isHighlight) {
+                    c.classList.add("highlighted");
+                } else {
+                    c.classList.remove("highlighted");
+                }
+            });
+
+            // Highlight breakdown item
+            const item = document.querySelector(`.muscle-breakdown-item[data-muscle="${muscleName}"]`);
+            if (item) {
+                if (isHighlight) {
+                    item.classList.add("highlighted");
+                } else {
+                    item.classList.remove("highlighted");
+                }
+            }
+        }
+
+        function setupMuscleMapInteractivity() {
+            if (muscleMapInteractivityInitialized) return;
+            muscleMapInteractivityInitialized = true;
+
+            const stage = document.querySelector(".muscle-svg-stage");
+            const tooltip = document.getElementById("muscleMapTooltip");
+            const cutouts = document.querySelectorAll(".garmin-silhouette-svg .muscle-cutout");
+
+            if (!stage || !tooltip) return;
+
+            cutouts.forEach(cutout => {
+                const muscle = cutout.getAttribute("data-muscle");
+                const friendly = muscleGroupLabels[muscle] || muscle;
+
+                cutout.addEventListener("mouseenter", () => {
+                    highlightMuscle(muscle, true);
+                    const item = document.querySelector(`.muscle-breakdown-item[data-muscle="${muscle}"]`);
+                    let statusText = "Non interessato";
+                    let kgText = "0 kg";
+                    if (cutout.classList.contains("primary")) statusText = "Muscolo Primario";
+                    else if (cutout.classList.contains("secondary")) statusText = "Muscolo Secondario";
+
+                    if (item) {
+                        const kgSpan = item.querySelector("span[style*='font-weight: 700']");
+                        if (kgSpan) kgText = kgSpan.innerText;
+                    }
+
+                    tooltip.innerHTML = `<strong>${friendly}</strong>: ${kgText} • ${statusText}`;
+                    tooltip.style.opacity = "1";
+                });
+
+                cutout.addEventListener("mousemove", (e) => {
+                    const rect = stage.getBoundingClientRect();
+                    const x = e.clientX - rect.left + 12;
+                    const y = e.clientY - rect.top - 28;
+                    tooltip.style.left = `${Math.max(10, Math.min(x, rect.width - 220))}px`;
+                    tooltip.style.top = `${Math.max(10, y)}px`;
+                });
+
+                cutout.addEventListener("mouseleave", () => {
+                    highlightMuscle(muscle, false);
+                    tooltip.style.opacity = "0";
+                });
+            });
+        }
 
         async function fetchWeeklyVolumeData() {
             try {
@@ -4586,6 +5326,8 @@
                     const result = await response.json();
                     if (result.status === "success" && result.data) {
                         cachedWeeklyVolumeData = result.data;
+                        updateMuscleMapPeriodOptions();
+                        updateMuscleHeatmapAndBreakdown();
                         renderWeeklyVolumeChips(result.data);
                         renderWeeklyVolumeChart();
                     }

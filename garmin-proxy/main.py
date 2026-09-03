@@ -17,6 +17,7 @@ import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security, status
@@ -346,7 +347,7 @@ async def get_daily_health_summary(
             return cached_val
 
     def _fetch_all(api: Garmin):
-        summary = {"date": date, "sleep": None, "body_battery": None, "hrv": None, "stress": None}
+        summary: dict[str, Any] = {"date": date, "sleep": None, "body_battery": None, "hrv": None, "stress": None}
         try:
             summary["sleep"] = api.get_sleep_data(date)
         except Exception as e:

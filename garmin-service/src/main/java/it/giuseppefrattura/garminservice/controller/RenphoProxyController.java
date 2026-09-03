@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,9 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Controller that proxies Renpho requests to the internal FastAPI service.
- * This secures the Renpho service endpoints under Spring Security session.
- * <p>
+ * Forwarding proxy for all calls directed to renpho-service (/api/renpho/**).
  * Only a small allow-list of headers is forwarded upstream. Internal cookies,
  * Authorization from outside the gateway, and host metadata are stripped.
  */
@@ -47,8 +47,16 @@ public class RenphoProxyController {
 
     public RenphoProxyController(
             @Value("${garmin.renpho.url:http://renpho-service:8082}") String renphoServiceUrl) {
-        this.restTemplate = new RestTemplate();
         this.renphoServiceUrl = renphoServiceUrl;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(10000);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
+    RenphoProxyController(String renphoServiceUrl, RestTemplate restTemplate) {
+        this.renphoServiceUrl = renphoServiceUrl;
+        this.restTemplate = restTemplate;
     }
 
     @RequestMapping(value = "/**", method = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE})
@@ -79,8 +87,12 @@ public class RenphoProxyController {
                     targetUrl, method, httpEntity, byte[].class);
             HttpHeaders filtered = new HttpHeaders();
             upstream.getHeaders().forEach((name, values) -> {
-                if (ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase())) {
-                    filtered.addAll(name, values);
+                if (name != null && ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase()) && values != null) {
+                    for (String val : values) {
+                        if (val != null) {
+                            filtered.add(name, val);
+                        }
+                    }
                 }
             });
             return ResponseEntity.status(upstream.getStatusCode())
@@ -91,8 +103,12 @@ public class RenphoProxyController {
             HttpHeaders filtered = new HttpHeaders();
             if (responseHeaders != null) {
                 responseHeaders.forEach((name, values) -> {
-                    if (ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase())) {
-                        filtered.addAll(name, values);
+                    if (name != null && ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase()) && values != null) {
+                        for (String val : values) {
+                            if (val != null) {
+                                filtered.add(name, val);
+                            }
+                        }
                     }
                 });
             }
@@ -111,7 +127,7 @@ public class RenphoProxyController {
         } catch (Exception e) {
             log.warn("Renpho proxy failure: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .body(writeErrorJson("Renpho service is unavailable"));
         }
     }

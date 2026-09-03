@@ -66,7 +66,7 @@ public class SecurityConfig {
                 .contentSecurityPolicy(csp -> csp.policyDirectives(CSP_POLICY))
                 .referrerPolicy(referrer -> referrer.policy(
                         ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                .permissionsPolicy(permissions -> permissions.policy(
+                .permissionsPolicyHeader(permissions -> permissions.policy(
                         "geolocation=(), microphone=(), camera=(), payment=()"))
             )
             .sessionManagement(session -> session

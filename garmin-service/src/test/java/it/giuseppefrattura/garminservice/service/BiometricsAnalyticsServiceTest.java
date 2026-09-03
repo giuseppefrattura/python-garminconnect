@@ -6,15 +6,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings({"unchecked", "null"})
 class BiometricsAnalyticsServiceTest {
 
     @Mock
@@ -23,6 +28,9 @@ class BiometricsAnalyticsServiceTest {
     @Mock
     private StrengthWorkoutRepository workoutRepository;
 
+    @Mock
+    private RestTemplate restTemplate;
+
     private BiometricsAnalyticsService biometricsService;
 
     @BeforeEach
@@ -30,8 +38,11 @@ class BiometricsAnalyticsServiceTest {
         biometricsService = new BiometricsAnalyticsService(
                 "http://mock-renpho:8082",
                 personalRecordService,
-                workoutRepository
+                workoutRepository,
+                restTemplate
         );
+        when(restTemplate.exchange(anyString(), any(), any(), any(ParameterizedTypeReference.class)))
+                .thenReturn(ResponseEntity.ok(Collections.emptyList()));
     }
 
     @Test

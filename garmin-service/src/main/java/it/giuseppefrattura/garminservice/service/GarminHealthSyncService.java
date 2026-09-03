@@ -10,7 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class GarminHealthSyncService {
@@ -31,33 +32,34 @@ public class GarminHealthSyncService {
     }
 
     /**
-     * Sync health metrics for the past N days.
+     * Synchronize metrics for the last N days.
      */
-    @Transactional
     public Map<String, Object> syncRecentHealthMetrics(int days) {
-        int count = Math.max(1, Math.min(days, 60));
         LocalDate today = LocalDate.now();
-        int syncedDays = 0;
+        int synced = 0;
+        int errors = 0;
 
-        for (int i = 0; i < count; i++) {
-            LocalDate date = today.minusDays(i);
+        for (int i = 0; i < days; i++) {
+            LocalDate targetDate = today.minusDays(i);
             try {
-                syncHealthMetricForDate(date);
-                syncedDays++;
+                syncHealthMetricForDate(targetDate);
+                synced++;
             } catch (Exception e) {
-                log.warn("Failed to sync health metrics for date {}: {}", date, e.getMessage());
+                log.warn("Failed to sync health metrics for {}: {}", targetDate, e.getMessage());
+                errors++;
             }
         }
 
         return Map.of(
                 "status", "success",
-                "syncedDays", syncedDays,
-                "requestedDays", count
+                "syncedDays", synced,
+                "errorDays", errors,
+                "requestedDays", days
         );
     }
 
     /**
-     * Sync health metrics for a specific date.
+     * Synchronize a specific date by fetching from garmin-proxy and persisting.
      */
     @Transactional
     public DailyHealthMetric syncHealthMetricForDate(LocalDate date) {
@@ -65,15 +67,20 @@ public class GarminHealthSyncService {
         log.info("Syncing health metrics from Garmin for date: {}", dateStr);
 
         Map<String, Object> summary = proxyClient.getDailyHealthSummary(dateStr);
+
         DailyHealthMetric metric = healthRepository.findByMetricDate(date)
-                .orElse(new DailyHealthMetric(date));
+                .orElseGet(() -> {
+                    DailyHealthMetric m = new DailyHealthMetric();
+                    m.setMetricDate(date);
+                    return m;
+                });
 
         parseSleepData(metric, summary.get("sleep"));
         parseBodyBatteryData(metric, summary.get("body_battery"));
         parseHrvData(metric, summary.get("hrv"));
         parseStressData(metric, summary.get("stress"));
 
-        // Calculate and attach readiness score
+        // Calculate and attach Training Readiness
         ReadinessCalculationService.ReadinessResult readiness = readinessService.calculateReadiness(metric);
         metric.setReadinessScore(readiness.getScore());
         metric.setReadinessLevel(readiness.getLevel());
@@ -82,7 +89,6 @@ public class GarminHealthSyncService {
         return healthRepository.save(metric);
     }
 
-    @SuppressWarnings("unchecked")
     private void parseSleepData(DailyHealthMetric metric, Object sleepObj) {
         if (!(sleepObj instanceof Map<?, ?> sleepMap)) return;
 
@@ -112,7 +118,6 @@ public class GarminHealthSyncService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void parseBodyBatteryData(DailyHealthMetric metric, Object bbObj) {
         if (bbObj instanceof List<?> bbList && !bbList.isEmpty()) {
             Object first = bbList.get(0);
@@ -145,7 +150,6 @@ public class GarminHealthSyncService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void parseHrvData(DailyHealthMetric metric, Object hrvObj) {
         if (!(hrvObj instanceof Map<?, ?> hrvMap)) return;
 
@@ -164,7 +168,6 @@ public class GarminHealthSyncService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private void parseStressData(DailyHealthMetric metric, Object stressObj) {
         if (!(stressObj instanceof Map<?, ?> stressMap)) return;
 

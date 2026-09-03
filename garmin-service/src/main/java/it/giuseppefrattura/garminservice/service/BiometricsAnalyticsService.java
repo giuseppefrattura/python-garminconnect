@@ -8,13 +8,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class BiometricsAnalyticsService {
@@ -30,10 +34,24 @@ public class BiometricsAnalyticsService {
             @Value("${garmin.renpho.url:http://renpho-service:8082}") String renphoServiceUrl,
             PersonalRecordService personalRecordService,
             StrengthWorkoutRepository workoutRepository) {
-        this.restTemplate = new RestTemplate();
         this.renphoServiceUrl = renphoServiceUrl;
         this.personalRecordService = personalRecordService;
         this.workoutRepository = workoutRepository;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(10000);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
+    BiometricsAnalyticsService(
+            String renphoServiceUrl,
+            PersonalRecordService personalRecordService,
+            StrengthWorkoutRepository workoutRepository,
+            RestTemplate restTemplate) {
+        this.renphoServiceUrl = renphoServiceUrl;
+        this.personalRecordService = personalRecordService;
+        this.workoutRepository = workoutRepository;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -44,7 +62,7 @@ public class BiometricsAnalyticsService {
             String url = renphoServiceUrl + "/api/renpho/measurements";
             ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
                     url,
-                    HttpMethod.GET,
+                    Objects.requireNonNull(HttpMethod.GET),
                     null,
                     new ParameterizedTypeReference<>() {}
             );
@@ -121,7 +139,7 @@ public class BiometricsAnalyticsService {
             if (w.getWorkoutDate() != null) {
                 String d = w.getWorkoutDate().format(dtf);
                 double vol = calculateWorkoutVolume(w);
-                volumeByDate.merge(d, vol, Double::sum);
+                volumeByDate.put(d, volumeByDate.getOrDefault(d, 0.0) + vol);
             }
         }
 

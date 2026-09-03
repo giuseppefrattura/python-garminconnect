@@ -9,11 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -31,7 +31,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(RateLimitingFilter.class);
 
-    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = 10;
+    private static final int MAX_LOGIN_REQUESTS_PER_MINUTE = 20;
     private static final int MAX_SYNC_REQUESTS_PER_MINUTE = 6;
     private static final int MAX_GENERAL_REQUESTS_PER_MINUTE = 180;
     private static final int MAX_TRACKER_ENTRIES = 10_000;
@@ -44,10 +44,12 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             @Value("${security.trusted-proxies:127.0.0.1,::1}") String trustedProxiesCsv) {
         Set<String> proxies = new HashSet<>();
         if (trustedProxiesCsv != null && !trustedProxiesCsv.isBlank()) {
-            Arrays.stream(trustedProxiesCsv.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .forEach(proxies::add);
+            for (String part : trustedProxiesCsv.split(",")) {
+                String trimmed = part.trim();
+                if (!trimmed.isEmpty()) {
+                    proxies.add(trimmed);
+                }
+            }
         }
         this.trustedProxies = Collections.unmodifiableSet(proxies);
     }
@@ -60,7 +62,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final AtomicLong lastEvictionTimestamp = new AtomicLong(0);
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
         String ip = getClientIp(request);

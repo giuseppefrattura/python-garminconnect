@@ -14,7 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -162,7 +168,7 @@ public class PersonalRecordService {
 
             String exerciseName = records.get(0).getExerciseName();
             String muscleGroup = records.stream()
-                    .map(ExercisePersonalRecord::getMuscleGroup)
+                    .map(r -> r.getMuscleGroup())
                     .filter(Objects::nonNull)
                     .findFirst().orElse("Altro");
 
@@ -171,7 +177,7 @@ public class PersonalRecordService {
             // Find current best for each type
             records.stream()
                     .filter(r -> "MAX_WEIGHT".equals(r.getRecordType()))
-                    .max(Comparator.comparingDouble(ExercisePersonalRecord::getRecordValue))
+                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
                     .ifPresent(r -> {
                         card.setMaxWeightKg(r.getWeightKg());
                         card.setMaxWeightReps(r.getReps());
@@ -180,7 +186,7 @@ public class PersonalRecordService {
 
             records.stream()
                     .filter(r -> "MAX_1RM".equals(r.getRecordType()))
-                    .max(Comparator.comparingDouble(ExercisePersonalRecord::getRecordValue))
+                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
                     .ifPresent(r -> {
                         card.setEstimated1RmKg(r.getRecordValue());
                         card.setEst1RmWeightKg(r.getWeightKg());
@@ -190,7 +196,7 @@ public class PersonalRecordService {
 
             records.stream()
                     .filter(r -> "MAX_VOLUME_SET".equals(r.getRecordType()))
-                    .max(Comparator.comparingDouble(ExercisePersonalRecord::getRecordValue))
+                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
                     .ifPresent(r -> {
                         card.setMaxVolumeKg(r.getRecordValue());
                         card.setMaxVolumeWeightKg(r.getWeightKg());

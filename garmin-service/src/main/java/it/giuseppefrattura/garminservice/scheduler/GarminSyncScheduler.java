@@ -8,13 +8,18 @@ import it.giuseppefrattura.garminservice.service.StrengthWorkoutService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Background scheduler to automatically synchronize all Garmin and Renpho data at midnight (00:00:00).
@@ -31,7 +36,7 @@ public class GarminSyncScheduler {
     private final RestTemplate restTemplate;
 
     @Value("${garmin.renpho.url:http://renpho-service:8082}")
-    private String renphoServiceUrl;
+    private String renphoServiceUrl = "http://renpho-service:8082";
 
     @Value("${garmin.hr-zones.default-days:14}")
     private int defaultDays;
@@ -45,8 +50,24 @@ public class GarminSyncScheduler {
         this.strengthWorkoutService = strengthWorkoutService;
         this.healthSyncService = healthSyncService;
         this.auditLogRepository = auditLogRepository;
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(15000);
+        this.restTemplate = new RestTemplate(factory);
         log.info("GarminSyncScheduler initialized (midnight cron: '0 0 0 * * *')");
+    }
+
+    GarminSyncScheduler(
+            RunHrZoneService hrZoneService,
+            StrengthWorkoutService strengthWorkoutService,
+            GarminHealthSyncService healthSyncService,
+            SyncAuditLogRepository auditLogRepository,
+            RestTemplate restTemplate) {
+        this.hrZoneService = hrZoneService;
+        this.strengthWorkoutService = strengthWorkoutService;
+        this.healthSyncService = healthSyncService;
+        this.auditLogRepository = auditLogRepository;
+        this.restTemplate = restTemplate;
     }
 
     /**
@@ -112,9 +133,11 @@ public class GarminSyncScheduler {
         try {
             log.info("[MIDNIGHT SYNC] 4/4 Syncing Renpho scale data from {}...", renphoServiceUrl);
             String renphoSyncEndpoint = renphoServiceUrl + "/api/renpho/sync";
-            ResponseEntity<Map> response = restTemplate.postForEntity(renphoSyncEndpoint, null, Map.class);
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map body = response.getBody();
+            ParameterizedTypeReference<Map<String, Object>> typeRef = new ParameterizedTypeReference<>() {};
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    renphoSyncEndpoint, Objects.requireNonNull(HttpMethod.POST), HttpEntity.EMPTY, typeRef);
+            Map<String, Object> body = response.getBody();
+            if (response.getStatusCode().is2xxSuccessful() && body != null) {
                 if (body.get("syncedCount") instanceof Number num) {
                     totalRenphoMeasurements = num.intValue();
                 }

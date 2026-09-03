@@ -1,11 +1,13 @@
 package it.giuseppefrattura.garminservice.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,20 +17,33 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Controller that proxies Renpho requests to the internal FastAPI service.
  * This secures the Renpho service endpoints under Spring Security session.
+ * <p>
+ * Only a small allow-list of headers is forwarded upstream. Internal cookies,
+ * Authorization from outside the gateway, and host metadata are stripped.
  */
 @RestController
 @RequestMapping("/api/renpho")
 public class RenphoProxyController {
 
+    private static final Set<String> ALLOWED_REQUEST_HEADERS = Set.of(
+            "accept", "accept-language", "content-type", "if-match", "if-none-match"
+    );
+    private static final Set<String> ALLOWED_RESPONSE_HEADERS = Set.of(
+            "content-type", "cache-control", "etag", "last-modified", "vary"
+    );
+
     private final RestTemplate restTemplate;
     private final String renphoServiceUrl;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RenphoProxyController(
             @Value("${garmin.renpho.url:http://renpho-service:8082}") String renphoServiceUrl) {
@@ -43,41 +58,75 @@ public class RenphoProxyController {
             HttpServletRequest request) {
 
         String path = request.getRequestURI();
-        // Construct target URL (e.g. http://renpho-service:8082/api/renpho/measurements)
         String targetUrl = renphoServiceUrl + (path != null ? path : "");
-        
-        // Append query parameters if present
         String queryString = request.getQueryString();
         if (queryString != null && !queryString.isBlank()) {
             targetUrl += "?" + queryString;
         }
 
-        // Copy request headers
         HttpHeaders headers = new HttpHeaders();
-        Collections.list(request.getHeaderNames()).forEach(headerName -> {
-            // Avoid copying host and content-length headers since they are set by RestTemplate
-            if (!headerName.equalsIgnoreCase("host") && !headerName.equalsIgnoreCase("content-length")) {
+        List<String> headerNames = Collections.list(request.getHeaderNames());
+        for (String headerName : headerNames) {
+            if (ALLOWED_REQUEST_HEADERS.contains(headerName.toLowerCase())) {
                 headers.add(headerName, request.getHeader(headerName));
             }
-        });
+        }
 
         HttpEntity<byte[]> httpEntity = new HttpEntity<>(body, headers);
 
         try {
-            return restTemplate.exchange(targetUrl, Objects.requireNonNull(method, "HttpMethod must not be null"), httpEntity, byte[].class);
+            ResponseEntity<byte[]> upstream = restTemplate.exchange(
+                    targetUrl, method, httpEntity, byte[].class);
+            HttpHeaders filtered = new HttpHeaders();
+            upstream.getHeaders().forEach((name, values) -> {
+                if (ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase())) {
+                    filtered.addAll(name, values);
+                }
+            });
+            return ResponseEntity.status(upstream.getStatusCode())
+                    .headers(filtered)
+                    .body(upstream.getBody());
         } catch (HttpStatusCodeException e) {
             HttpHeaders responseHeaders = e.getResponseHeaders();
+            HttpHeaders filtered = new HttpHeaders();
+            if (responseHeaders != null) {
+                responseHeaders.forEach((name, values) -> {
+                    if (ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase())) {
+                        filtered.addAll(name, values);
+                    }
+                });
+            }
+            byte[] body0 = e.getResponseBodyAsByteArray();
+            if (body0 != null && body0.length > 0) {
+                return ResponseEntity.status(e.getStatusCode())
+                        .headers(filtered)
+                        .body(body0);
+            }
+            if (filtered.getContentType() == null) {
+                filtered.setContentType(MediaType.APPLICATION_JSON);
+            }
             return ResponseEntity.status(e.getStatusCode())
-                    .headers(responseHeaders != null ? responseHeaders : new HttpHeaders())
-                    .body(e.getResponseBodyAsByteArray());
+                    .headers(filtered)
+                    .body(writeErrorJson("Upstream Renpho error"));
         } catch (Exception e) {
-            String detail = e.getMessage() != null ? e.getMessage().replace("\"", "\\\"") : "Connection failed";
-            String errorJson = "{\"status\":\"error\",\"detail\":\"Renpho service is unavailable: " + detail + "\"}";
-            HttpHeaders errorHeaders = new HttpHeaders();
-            errorHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            log.warn("Renpho proxy failure: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                    .headers(errorHeaders)
-                    .body(errorJson.getBytes(StandardCharsets.UTF_8));
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(writeErrorJson("Renpho service is unavailable"));
         }
     }
+
+    private byte[] writeErrorJson(String detail) {
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("status", "error");
+        payload.put("detail", detail);
+        try {
+            return objectMapper.writeValueAsBytes(payload);
+        } catch (Exception ex) {
+            return "{\"status\":\"error\",\"detail\":\"proxy failure\"}".getBytes();
+        }
+    }
+
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(RenphoProxyController.class);
 }

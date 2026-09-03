@@ -13,6 +13,7 @@ OpenAPI JSON: GET /openapi.json
 import hashlib
 import logging
 import os
+import secrets
 import threading
 import time
 from contextlib import asynccontextmanager
@@ -84,12 +85,24 @@ api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
 def verify_api_key(api_key: str = Security(api_key_header)):
-    """Verify X-API-Key header against GARMIN_API_KEY env var if set."""
+    """Verify X-API-Key header against GARMIN_API_KEY env var.
+
+    API key auth is mandatory outside of explicit development mode.
+    Set GARMIN_ALLOW_INSECURE_DEV=1 to bypass in local dev only.
+    """
     expected_key = os.getenv("GARMIN_API_KEY")
+    allow_insecure_dev = os.getenv("GARMIN_ALLOW_INSECURE_DEV", "").lower() in ("1", "true", "yes")
+
     if not expected_key or not expected_key.strip():
-        # Security is bypassed if no API key is configured
-        return
-    if api_key != expected_key:
+        if allow_insecure_dev:
+            log.warning("GARMIN_API_KEY unset and GARMIN_ALLOW_INSECURE_DEV=1: API auth BYPASSED (dev only).")
+            return
+        log.error("GARMIN_API_KEY is not configured. Refusing to start in production mode.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server is not configured for API authentication. Set GARMIN_API_KEY.",
+        )
+    if not secrets.compare_digest(api_key or "", expected_key):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",

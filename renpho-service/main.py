@@ -246,13 +246,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for direct cross-port access from front-end
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("RENPHO_ALLOWED_ORIGINS", "http://localhost:8081").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 

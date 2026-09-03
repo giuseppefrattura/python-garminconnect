@@ -7,8 +7,8 @@ spring:
 
   security:
     user:
-      name: ${DASHBOARD_USER:admin}
-      password: ${DASHBOARD_PASSWORD:admin}
+      name: ${DASHBOARD_USER:}
+      password: ${DASHBOARD_PASSWORD:}
     oauth2:
       client:
         registration:

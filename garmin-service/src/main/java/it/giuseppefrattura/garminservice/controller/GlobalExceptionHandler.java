@@ -16,15 +16,15 @@ import java.util.Map;
  * <p>
  * Returns a uniform JSON error envelope:
  * {@code {"status": "error", "detail": "..."}}
+ * <p>
+ * Internal exception messages are NEVER echoed to clients: that risks leaking
+ * proxy URLs, header values, or stack details. They are logged server-side only.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /**
-     * Garmin proxy is unreachable (after retry exhaustion).
-     */
     @ExceptionHandler(ResourceAccessException.class)
     public ResponseEntity<Map<String, Object>> handleProxyUnreachable(ResourceAccessException ex) {
         log.error("Garmin proxy unreachable: {}", ex.getMessage());
@@ -36,9 +36,6 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    /**
-     * Other HTTP errors from the proxy (4xx/5xx responses).
-     */
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<Map<String, Object>> handleRestClientError(RestClientException ex) {
         log.error("Garmin proxy request failed: {}", ex.getMessage());
@@ -46,13 +43,10 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(Map.of(
                         "status", "error",
-                        "detail", "Garmin proxy request failed: " + ex.getMessage()
+                        "detail", "Upstream Garmin proxy request failed. Please try again later."
                 ));
     }
 
-    /**
-     * Catch-all for any unhandled exception.
-     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericError(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);

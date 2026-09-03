@@ -29,10 +29,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${DASHBOARD_USER:admin}")
+    @Value("${DASHBOARD_USER:}")
     private String defaultUsername;
 
-    @Value("${DASHBOARD_PASSWORD:Cidiverte1}")
+    @Value("${DASHBOARD_PASSWORD:}")
     private String defaultPassword;
 
     public CustomUserDetailsService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
@@ -42,6 +42,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @PostConstruct
     public void initDefaultUser() {
+        if (defaultUsername == null || defaultUsername.isBlank()
+                || defaultPassword == null || defaultPassword.isBlank()) {
+            log.warn("DASHBOARD_USER/DASHBOARD_PASSWORD not set; skipping default admin bootstrap. "
+                    + "Create a user manually or set both env vars before first boot.");
+            return;
+        }
         try {
             if (!userRepository.existsByUsername(defaultUsername)) {
                 log.info("Creating default database administrator user: {}", defaultUsername);

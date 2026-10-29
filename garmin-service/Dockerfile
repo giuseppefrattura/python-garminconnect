@@ -1,5 +1,5 @@
 # ---------- build stage ----------
-FROM maven:3.9-eclipse-temurin-21 AS builder
+FROM maven:3.10-eclipse-temurin-27 AS builder
 
 WORKDIR /build
 COPY pom.xml .
@@ -10,13 +10,13 @@ COPY src ./src
 RUN mvn package -DskipTests -B
 
 # ---------- runtime stage ----------
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:27-jre
 
 WORKDIR /app
 
 COPY --from=builder /build/target/*.jar app.jar
 
-RUN adduser --disabled-password --no-create-home appuser
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin appuser
 USER appuser
 
 EXPOSE 8081

@@ -3,7 +3,7 @@
 // Version: 1.0.0
 // ============================================================================
 
-const STATIC_CACHE_NAME = 'garminfit-static-v1';
+const STATIC_CACHE_NAME = 'garminfit-static-v2';
 const API_CACHE_NAME = 'garminfit-api-v1';
 
 const STATIC_ASSETS = [
@@ -57,6 +57,9 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET') {
         return;
     }
+
+    // Personal wellness is sensitive and should never be stored in the shared API cache.
+    if (url.pathname.startsWith('/api/personal-wellness')) return;
 
     // 1. API Endpoints: Network-First with Cache Fallback
     if (url.pathname.startsWith('/api/')) {

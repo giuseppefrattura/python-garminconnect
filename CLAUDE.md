@@ -10,7 +10,7 @@ This project is a **microservice stack** that exposes Garmin Connect and Renpho 
 docker-compose.yml
 ├── garmin-proxy    (Python 3.13 / FastAPI, port 8080)
 │     └── main.py          thin HTTP proxy to Garmin Connect API
-├── garmin-service  (Java 21 / Spring Boot, port 8081)
+├── garmin-service  (Java 27 / Spring Boot, port 8081)
 │     ├── controller/      REST endpoints + static PWA dashboard
 │     ├── service/         business logic (HR zones, strength, biometrics, PRs)
 │     ├── client/          GarminProxyClient (RestClient + @Retryable)
@@ -62,21 +62,21 @@ docker compose up --build renpho-service
 docker run --rm \
   -v $(pwd)/garmin-service:/build \
   -w /build \
-  maven:3.9-eclipse-temurin-21 \
+  maven:3.10-eclipse-temurin-27 \
   mvn test -B
 
 # Run a single test class
 docker run --rm \
   -v $(pwd)/garmin-service:/build \
   -w /build \
-  maven:3.9-eclipse-temurin-21 \
+  maven:3.10-eclipse-temurin-27 \
   mvn test -B -Dtest=RunHrZoneServiceTest
 
 # Run a single test method
 docker run --rm \
   -v $(pwd)/garmin-service:/build \
   -w /build \
-  maven:3.9-eclipse-temurin-21 \
+  maven:3.10-eclipse-temurin-27 \
   mvn test -B -Dtest="RunHrZoneServiceTest#createsNewEntity"
 ```
 

@@ -21,6 +21,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      - GARMIN_APY_KEY=${GARMIN_APY_KEY:-}
       - GARMIN_PROXY_URL=http://garmin-proxy:8080
       - GARMIN_API_KEY=${GARMIN_API_KEY:-secret-garmin-key-123}
       - DB_HOST=${DB_HOST:-localhost}

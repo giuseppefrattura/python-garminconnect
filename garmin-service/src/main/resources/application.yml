@@ -70,6 +70,8 @@ monitoring:
 
 # Custom config
 garmin:
+  personal:
+    api-key: ${GARMIN_APY_KEY:}
   proxy:
     base-url: ${GARMIN_PROXY_URL:http://localhost:8080}
     api-key: ${GARMIN_API_KEY:}

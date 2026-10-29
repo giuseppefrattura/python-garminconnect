@@ -67,7 +67,7 @@ flowchart TD
 
     subgraph Docker Stack
         GP["garmin-proxy:8080<br/>(FastAPI / Python 3.13)"]
-        GS["garmin-service:8081<br/>(Spring Boot 3 / Java 21)"]
+        GS["garmin-service:8081<br/>(Spring Boot 3 / Java 27)"]
         RS["renpho-service:8082<br/>(FastAPI / Python 3.12)"]
     end
 
@@ -95,7 +95,7 @@ flowchart TD
   - Protezione con `X-API-KEY`.
 
 ### 2. `garmin-service` (Porta `8081`)
-- **Linguaggio & Framework**: Java 21 / Spring Boot 3 / Spring Security / Spring Data JPA.
+- **Linguaggio & Framework**: Java 27 / Spring Boot 3 / Spring Security / Spring Data JPA.
 - **Scopo**: Core applicativo, logica di business e server web della Dashboard.
 - **Funzionalità**:
   - Serve la Web UI e le API REST.
@@ -282,3 +282,18 @@ Le tabelle del database PostgreSQL vengono create e aggiornate automaticamente a
 ## 📄 Licenza
 
 Distribuito sotto licenza **MIT**. Consulta il file [`LICENSE`](file:///LICENSE) per ulteriori dettagli.
+
+### Dashboard Benessere Garmin
+
+La scheda **Benessere Garmin** legge dalla Garmin Connect Personal API passi,
+riepiloghi giornalieri, frequenza cardiaca, SpO₂ ed età fitness. Mostra gli ultimi
+7 o 30 giorni, incluso oggi; le medie escludono i giorni privi di misurazioni.
+La distanza è in chilometri, le calorie sono quelle totali consumate secondo il
+riepilogo Garmin e l'età fitness è l'ultimo valore disponibile nel periodo.
+Le richieste non riuscite sono segnalate nella scheda. L'endpoint è
+`GET /api/personal-wellness?days=7` (oppure `days=30`).
+
+Creare una chiave personale su Garmin Connect Web e impostare `GARMIN_APY_KEY`
+nel file `.env`, quindi riavviare `garmin-service`. Questa variabile è diversa
+da `GARMIN_API_KEY`, usata per la comunicazione interna fra i servizi. La scheda
+richiede una connessione a Garmin e non salva le risposte nella cache offline.

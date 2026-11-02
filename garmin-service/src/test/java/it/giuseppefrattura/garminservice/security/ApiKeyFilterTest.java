@@ -41,6 +41,15 @@ class ApiKeyFilterTest {
     }
 
     @Test
+    void resolvedSessionRequiresCsrfWithoutRelyingOnUntrustedSessionId() {
+        ApiKeyFilter filter = new ApiKeyFilter("secret-api-key", false);
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/health/sync");
+        req.addHeader("X-API-Key", "secret-api-key");
+        req.getSession(true);
+        assertTrue(filter.requiresCsrfProtection(req));
+    }
+
+    @Test
     void mutatingRequestWithoutValidApiKeyRequiresCsrf() {
         ApiKeyFilter filter = new ApiKeyFilter("secret-api-key", false);
 

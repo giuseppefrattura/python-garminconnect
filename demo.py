@@ -3981,6 +3981,15 @@ def _handle_category_menu_choice(
     return current_category
 
 
+def _choose_main_category(option: str) -> str | None:
+    if option in menu_categories:
+        return option
+    print(
+        f"❌ Invalid selection. Use {', '.join(menu_categories.keys())} for categories or 'q' to quit"
+    )
+    return None
+
+
 def main():
     """Main program loop with funny health status in menu prompt."""
     print(f"📁 Exported data will be saved to the directory: '{config.export_dir}'")
@@ -4003,12 +4012,7 @@ def main():
                         "Be active, generate some data to play with next time ;-) Bye!"
                     )
                     break
-                if option in menu_categories:
-                    current_category = option
-                else:
-                    print(
-                        f"❌ Invalid selection. Use {', '.join(menu_categories.keys())} for categories or 'q' to quit"
-                    )
+                current_category = _choose_main_category(option)
             else:
                 print_category_menu(current_category)
                 option = safe_readkey()

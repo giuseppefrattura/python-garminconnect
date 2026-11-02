@@ -68,7 +68,7 @@ public class ApiKeyFilter extends OncePerRequestFilter {
     }
 
     private boolean hasSessionCookie(HttpServletRequest request) {
-        if (request.getRequestedSessionId() != null || request.getSession(false) != null) {
+        if (request.getSession(false) != null) {
             return true;
         }
         Cookie[] cookies = request.getCookies();

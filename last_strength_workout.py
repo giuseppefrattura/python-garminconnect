@@ -18,6 +18,7 @@ from garth.exc import GarthHTTPError
 
 # Set logging level to reduce noise
 logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
+UNKNOWN_EXERCISE = "Unknown Exercise"
 
 def format_duration(seconds: float) -> str:
     """Format duration in seconds to HH:MM:SS."""
@@ -82,11 +83,11 @@ def _find_strength_activity(activities: list[dict]) -> dict | None:
 
 def _extract_exercise_info(exercises: list) -> tuple[str, str]:
     if not exercises or not isinstance(exercises, list):
-        return "Unknown Exercise", "Unknown Exercise"
+        return UNKNOWN_EXERCISE, UNKNOWN_EXERCISE
     first_ex = exercises[0]
     cat = first_ex.get("category") or ""
     name = first_ex.get("name") or ""
-    ex_name = (name or cat).replace("_", " ").title() if (name or cat) else "Unknown Exercise"
+    ex_name = (name or cat).replace("_", " ").title() if (name or cat) else UNKNOWN_EXERCISE
     muscular_group = MUSCLE_GROUP_MAP.get(cat, cat.replace("_", " ").title()) if cat else ex_name
     return ex_name, muscular_group
 
@@ -105,7 +106,7 @@ def _process_exercise_sets(exercise_sets: list[dict]) -> dict[str, float]:
         weight = ex_set.get("weight", 0.0)
         weight_kg = weight / 1000.0 if (weight and weight > 0) else 0.0
 
-        if reps > 0 or weight_kg > 0 or ex_name != "Unknown Exercise":
+        if reps > 0 or weight_kg > 0 or ex_name != UNKNOWN_EXERCISE:
             print(f"#{set_num:<4} | {ex_name[:28]:<30} | {reps:<5} | {weight_kg:<10.1f}")
             set_num += 1
             if weight_kg > 0 and reps > 0:

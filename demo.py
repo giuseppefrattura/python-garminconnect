@@ -44,6 +44,25 @@ logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
 
 api: Garmin | None = None
 
+HTML_GRID_SECTION_END = "            </div>\n        </div>\n"
+ERR_BAD_REQUEST = "Bad Request"
+RESPONSE_JSON_FILENAME = "response.json"
+API_GET_DEVICE_LAST_USED = "api.get_device_last_used()"
+MSG_WAIT_BEFORE_RETRY = "💡 Please wait a few minutes before trying again"
+MSG_ENTER_VALID_NUMBER = "❌ Please enter a valid number"
+MSG_INFO_NO_ACTIVITIES = "ℹ️ No activities found"
+MSG_INSTALL_PYDANTIC = (
+    "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
+)
+UNKNOWN_TIME_LABEL = "Unknown time"
+MSG_DELETE_CANCELLED = "❌ Delete cancelled"
+MSG_NO_USER_PROFILE_NUMBER = "❌ Could not get user profile number"
+MSG_INFO_NO_GEAR = "ℹ️ No gear found"
+MSG_ERR_NO_GEAR_UUID = "❌ No gear UUID found"
+MSG_ERR_NO_ACTIVITIES = "❌ No activities found"
+MSG_ERR_INVALID_INDEX = "❌ Invalid index"
+MSG_ERR_INVALID_INPUT = "❌ Invalid input"
+
 
 def safe_readkey() -> str:
     """Safe wrapper around readchar.readkey() that handles non-TTY environments.
@@ -645,16 +664,242 @@ class DataExporter:
         return html_filepath
 
     @staticmethod
+    def _build_today_summary_html(today_summary: dict) -> str:
+        if not today_summary:
+            return """
+        <div class="section">
+            <h2>📈 Today's Activity Summary</h2>
+            <div class="no-data">No activity data available for today</div>
+        </div>
+"""
+        steps = today_summary.get("totalSteps", 0)
+        calories = today_summary.get("totalKilocalories", 0)
+        raw_dist = today_summary.get("totalDistanceMeters", 0)
+        distance = round(raw_dist / 1000, 2) if raw_dist else 0
+        active_calories = today_summary.get("activeKilocalories", 0)
+        return f"""
+        <div class="section">
+            <h2>📈 Today's Activity Summary</h2>
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <h4>👟 Steps</h4>
+                    <div class="metric-value">{steps:,} <span class="metric-unit">steps</span></div>
+                </div>
+                <div class="metric-card">
+                    <h4>🔥 Calories</h4>
+                    <div class="metric-value">{calories:,} <span class="metric-unit">total</span></div>
+                    <div style="margin-top: 10px;">{active_calories:,} active</div>
+                </div>
+                <div class="metric-card">
+                    <h4>📏 Distance</h4>
+                    <div class="metric-value">{distance} <span class="metric-unit">km</span></div>
+                </div>
+            </div>
+        </div>
+"""
+
+    @staticmethod
+    def _build_sleep_card_html(sleep_data: Any) -> str:
+        if not (sleep_data and isinstance(sleep_data, dict) and "dailySleepDTO" in sleep_data):
+            return ""
+        dto = sleep_data["dailySleepDTO"]
+        sleep_seconds = dto.get("sleepTimeSeconds", 0)
+        sleep_hours = round(sleep_seconds / 3600, 1) if sleep_seconds else 0
+        deep_sleep = dto.get("deepSleepSeconds", 0)
+        deep_hours = round(deep_sleep / 3600, 1) if deep_sleep else 0
+        return f"""
+                <div class="metric-card">
+                    <h4>😴 Sleep</h4>
+                    <div class="metric-value">{sleep_hours} <span class="metric-unit">hours</span></div>
+                    <div style="margin-top: 10px;">Deep Sleep: {deep_hours} hours</div>
+                </div>
+"""
+
+    @staticmethod
+    def _build_health_metrics_html(health_metrics: dict) -> str:
+        if not health_metrics or not any(health_metrics.values()):
+            return """
+        <div class="section">
+            <h2>❤️ Health Metrics</h2>
+            <div class="no-data">No health metrics data available</div>
+        </div>
+"""
+        parts = [
+            """
+        <div class="section">
+            <h2>❤️ Health Metrics</h2>
+            <div class="metric-grid">
+"""
+        ]
+        heart_rate = health_metrics.get("heart_rate", {})
+        if heart_rate and isinstance(heart_rate, dict):
+            resting_hr = heart_rate.get("restingHeartRate", "N/A")
+            max_hr = heart_rate.get("maxHeartRate", "N/A")
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>💓 Heart Rate</h4>
+                    <div class="metric-value">{resting_hr} <span class="metric-unit">bpm (resting)</span></div>
+                    <div style="margin-top: 10px;">Max: {max_hr} bpm</div>
+                </div>
+"""
+            )
+        parts.append(DataExporter._build_sleep_card_html(health_metrics.get("sleep", {})))
+        steps_data = health_metrics.get("steps", {})
+        if steps_data and isinstance(steps_data, dict):
+            total_steps = steps_data.get("totalSteps", 0)
+            goal = steps_data.get("dailyStepGoal", 10000)
+            goal_pct = round((total_steps / goal) * 100) if goal else 0
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>🎯 Step Goal</h4>
+                    <div class="metric-value">{total_steps:,} <span class="metric-unit">of {goal:,}</span></div>
+                    <div style="margin-top: 10px;">Goal: {goal_pct}%</div>
+                </div>
+"""
+            )
+        stress_data = health_metrics.get("stress", {})
+        if stress_data and isinstance(stress_data, dict):
+            avg_stress = stress_data.get("avgStressLevel", "N/A")
+            max_stress = stress_data.get("maxStressLevel", "N/A")
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>😰 Stress Level</h4>
+                    <div class="metric-value">{avg_stress} <span class="metric-unit">avg</span></div>
+                    <div style="margin-top: 10px;">Max: {max_stress}</div>
+                </div>
+"""
+            )
+        body_battery = health_metrics.get("body_battery", [])
+        if body_battery and isinstance(body_battery, list):
+            latest_bb = body_battery[-1]
+            charged = latest_bb.get("charged", "N/A")
+            drained = latest_bb.get("drained", "N/A")
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>🔋 Body Battery</h4>
+                    <div class="metric-value">+{charged} <span class="metric-unit">charged</span></div>
+                    <div style="margin-top: 10px;">-{drained} drained</div>
+                </div>
+"""
+            )
+        parts.append(HTML_GRID_SECTION_END)
+        return "".join(parts)
+
+    @staticmethod
+    def _build_weekly_trends_html(weekly_data: list) -> str:
+        if not weekly_data:
+            return ""
+        parts = [
+            """
+        <div class="section">
+            <h2>📊 Weekly Trends (Last 7 Days)</h2>
+            <div class="metric-grid">
+"""
+        ]
+        for daily in weekly_data[:7]:
+            date_val = daily.get("date", "Unknown")
+            steps = daily.get("totalSteps", 0)
+            calories = daily.get("totalKilocalories", 0)
+            raw_dist = daily.get("totalDistanceMeters", 0)
+            distance = round(raw_dist / 1000, 2) if raw_dist else 0
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>📅 {date_val}</h4>
+                    <div class="metric-value">{steps:,} <span class="metric-unit">steps</span></div>
+                    <div style="margin-top: 10px;">
+                        <div>{calories:,} kcal</div>
+                        <div>{distance} km</div>
+                    </div>
+                </div>
+"""
+            )
+        parts.append(HTML_GRID_SECTION_END)
+        return "".join(parts)
+
+    @staticmethod
+    def _build_recent_activities_html(activities: list) -> str:
+        if not activities:
+            return """
+        <div class="section">
+            <h2>🏃 Recent Activities</h2>
+            <div class="no-data">No recent activities found</div>
+        </div>
+"""
+        parts = [
+            """
+        <div class="section">
+            <h2>🏃 Recent Activities</h2>
+"""
+        ]
+        for activity in activities[:5]:
+            name = activity.get("activityName", "Unknown Activity")
+            activity_type = activity.get("activityType", {}).get("typeKey", "Unknown")
+            start_local = activity.get("startTimeLocal", "")
+            date_val = start_local.split("T")[0] if start_local else "Unknown"
+            duration = activity.get("duration", 0)
+            duration_min = round(duration / 60, 1) if duration else 0
+            raw_dist = activity.get("distance", 0)
+            distance = round(raw_dist / 1000, 2) if raw_dist else 0
+            calories = activity.get("calories", 0)
+            avg_hr = activity.get("avgHR", 0)
+            parts.append(
+                f"""
+                <div class="activity-item">
+                    <h4>{name} ({activity_type})</h4>
+                    <div class="activity-details">
+                        <div><strong>Date:</strong> {date_val}</div>
+                        <div><strong>Duration:</strong> {duration_min} min</div>
+                        <div><strong>Distance:</strong> {distance} km</div>
+                        <div><strong>Calories:</strong> {calories}</div>
+                        <div><strong>Avg HR:</strong> {avg_hr} bpm</div>
+                    </div>
+                </div>
+"""
+            )
+        parts.append("        </div>\n")
+        return "".join(parts)
+
+    @staticmethod
+    def _build_device_info_html(device_info: list) -> str:
+        if not device_info:
+            return ""
+        parts = [
+            """
+        <div class="section">
+            <h2>⌚ Device Information</h2>
+            <div class="metric-grid">
+"""
+        ]
+        for device in device_info:
+            device_name = device.get("displayName", "Unknown Device")
+            model = device.get("productDisplayName", "Unknown Model")
+            version = device.get("softwareVersion", "Unknown")
+            parts.append(
+                f"""
+                <div class="metric-card">
+                    <h4>{device_name}</h4>
+                    <div><strong>Model:</strong> {model}</div>
+                    <div><strong>Software:</strong> {version}</div>
+                </div>
+"""
+            )
+        parts.append(HTML_GRID_SECTION_END)
+        return "".join(parts)
+
+    @staticmethod
     def create_readable_health_report(report_data: dict) -> str:
         """Create a readable HTML report from comprehensive health data."""
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         html_filename = f"health_report_{timestamp}.html"
 
-        # Extract key information
         user_name = report_data.get("user_info", {}).get("full_name", "Unknown User")
         generated_at = report_data.get("generated_at", "Unknown")
 
-        # Create HTML content with complete styling
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -781,239 +1026,22 @@ class DataExporter:
             <p><strong>Date:</strong> {config.today.isoformat()}</p>
         </div>
 """
+        html_content += DataExporter._build_today_summary_html(
+            report_data.get("today_summary", {})
+        )
+        html_content += DataExporter._build_health_metrics_html(
+            report_data.get("health_metrics", {})
+        )
+        html_content += DataExporter._build_weekly_trends_html(
+            report_data.get("weekly_data", [])
+        )
+        html_content += DataExporter._build_recent_activities_html(
+            report_data.get("recent_activities", [])
+        )
+        html_content += DataExporter._build_device_info_html(
+            report_data.get("device_info", [])
+        )
 
-        # Today's Summary Section
-        today_summary = report_data.get("today_summary", {})
-        if today_summary:
-            steps = today_summary.get("totalSteps", 0)
-            calories = today_summary.get("totalKilocalories", 0)
-            distance = (
-                round(today_summary.get("totalDistanceMeters", 0) / 1000, 2)
-                if today_summary.get("totalDistanceMeters")
-                else 0
-            )
-            active_calories = today_summary.get("activeKilocalories", 0)
-
-            html_content += f"""
-        <div class="section">
-            <h2>📈 Today's Activity Summary</h2>
-            <div class="metric-grid">
-                <div class="metric-card">
-                    <h4>👟 Steps</h4>
-                    <div class="metric-value">{steps:,} <span class="metric-unit">steps</span></div>
-                </div>
-                <div class="metric-card">
-                    <h4>🔥 Calories</h4>
-                    <div class="metric-value">{calories:,} <span class="metric-unit">total</span></div>
-                    <div style="margin-top: 10px;">{active_calories:,} active</div>
-                </div>
-                <div class="metric-card">
-                    <h4>📏 Distance</h4>
-                    <div class="metric-value">{distance} <span class="metric-unit">km</span></div>
-                </div>
-            </div>
-        </div>
-"""
-        else:
-            html_content += """
-        <div class="section">
-            <h2>📈 Today's Activity Summary</h2>
-            <div class="no-data">No activity data available for today</div>
-        </div>
-"""
-
-        # Health Metrics Section
-        health_metrics = report_data.get("health_metrics", {})
-        if health_metrics and any(health_metrics.values()):
-            html_content += """
-        <div class="section">
-            <h2>❤️ Health Metrics</h2>
-            <div class="metric-grid">
-"""
-
-            # Heart Rate
-            heart_rate = health_metrics.get("heart_rate", {})
-            if heart_rate and isinstance(heart_rate, dict):
-                resting_hr = heart_rate.get("restingHeartRate", "N/A")
-                max_hr = heart_rate.get("maxHeartRate", "N/A")
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>💓 Heart Rate</h4>
-                    <div class="metric-value">{resting_hr} <span class="metric-unit">bpm (resting)</span></div>
-                    <div style="margin-top: 10px;">Max: {max_hr} bpm</div>
-                </div>
-"""
-
-            # Sleep Data
-            sleep_data = health_metrics.get("sleep", {})
-            if (
-                sleep_data
-                and isinstance(sleep_data, dict)
-                and "dailySleepDTO" in sleep_data
-            ):
-                sleep_seconds = sleep_data["dailySleepDTO"].get("sleepTimeSeconds", 0)
-                sleep_hours = round(sleep_seconds / 3600, 1) if sleep_seconds else 0
-                deep_sleep = sleep_data["dailySleepDTO"].get("deepSleepSeconds", 0)
-                deep_hours = round(deep_sleep / 3600, 1) if deep_sleep else 0
-
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>😴 Sleep</h4>
-                    <div class="metric-value">{sleep_hours} <span class="metric-unit">hours</span></div>
-                    <div style="margin-top: 10px;">Deep Sleep: {deep_hours} hours</div>
-                </div>
-"""
-
-            # Steps
-            steps_data = health_metrics.get("steps", {})
-            if steps_data and isinstance(steps_data, dict):
-                total_steps = steps_data.get("totalSteps", 0)
-                goal = steps_data.get("dailyStepGoal", 10000)
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>🎯 Step Goal</h4>
-                    <div class="metric-value">{total_steps:,} <span class="metric-unit">of {goal:,}</span></div>
-                    <div style="margin-top: 10px;">Goal: {round((total_steps / goal) * 100) if goal else 0}%</div>
-                </div>
-"""
-
-            # Stress Data
-            stress_data = health_metrics.get("stress", {})
-            if stress_data and isinstance(stress_data, dict):
-                avg_stress = stress_data.get("avgStressLevel", "N/A")
-                max_stress = stress_data.get("maxStressLevel", "N/A")
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>😰 Stress Level</h4>
-                    <div class="metric-value">{avg_stress} <span class="metric-unit">avg</span></div>
-                    <div style="margin-top: 10px;">Max: {max_stress}</div>
-                </div>
-"""
-
-            # Body Battery
-            body_battery = health_metrics.get("body_battery", [])
-            if body_battery and isinstance(body_battery, list) and body_battery:
-                latest_bb = body_battery[-1] if body_battery else {}
-                charged = latest_bb.get("charged", "N/A")
-                drained = latest_bb.get("drained", "N/A")
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>🔋 Body Battery</h4>
-                    <div class="metric-value">+{charged} <span class="metric-unit">charged</span></div>
-                    <div style="margin-top: 10px;">-{drained} drained</div>
-                </div>
-"""
-
-            html_content += "            </div>\n        </div>\n"
-        else:
-            html_content += """
-        <div class="section">
-            <h2>❤️ Health Metrics</h2>
-            <div class="no-data">No health metrics data available</div>
-        </div>
-"""
-
-        # Weekly Trends Section
-        weekly_data = report_data.get("weekly_data", [])
-        if weekly_data:
-            html_content += """
-        <div class="section">
-            <h2>📊 Weekly Trends (Last 7 Days)</h2>
-            <div class="metric-grid">
-"""
-            for daily in weekly_data[:7]:  # Show last 7 days
-                date = daily.get("date", "Unknown")
-                steps = daily.get("totalSteps", 0)
-                calories = daily.get("totalKilocalories", 0)
-                distance = (
-                    round(daily.get("totalDistanceMeters", 0) / 1000, 2)
-                    if daily.get("totalDistanceMeters")
-                    else 0
-                )
-
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>📅 {date}</h4>
-                    <div class="metric-value">{steps:,} <span class="metric-unit">steps</span></div>
-                    <div style="margin-top: 10px;">
-                        <div>{calories:,} kcal</div>
-                        <div>{distance} km</div>
-                    </div>
-                </div>
-"""
-            html_content += "            </div>\n        </div>\n"
-
-        # Recent Activities Section
-        activities = report_data.get("recent_activities", [])
-        if activities:
-            html_content += """
-        <div class="section">
-            <h2>🏃 Recent Activities</h2>
-"""
-            for activity in activities[:5]:  # Show last 5 activities
-                name = activity.get("activityName", "Unknown Activity")
-                activity_type = activity.get("activityType", {}).get(
-                    "typeKey", "Unknown"
-                )
-                date = (
-                    activity.get("startTimeLocal", "").split("T")[0]
-                    if activity.get("startTimeLocal")
-                    else "Unknown"
-                )
-                duration = activity.get("duration", 0)
-                duration_min = round(duration / 60, 1) if duration else 0
-                distance = (
-                    round(activity.get("distance", 0) / 1000, 2)
-                    if activity.get("distance")
-                    else 0
-                )
-                calories = activity.get("calories", 0)
-                avg_hr = activity.get("avgHR", 0)
-
-                html_content += f"""
-                <div class="activity-item">
-                    <h4>{name} ({activity_type})</h4>
-                    <div class="activity-details">
-                        <div><strong>Date:</strong> {date}</div>
-                        <div><strong>Duration:</strong> {duration_min} min</div>
-                        <div><strong>Distance:</strong> {distance} km</div>
-                        <div><strong>Calories:</strong> {calories}</div>
-                        <div><strong>Avg HR:</strong> {avg_hr} bpm</div>
-                    </div>
-                </div>
-"""
-            html_content += "        </div>\n"
-        else:
-            html_content += """
-        <div class="section">
-            <h2>🏃 Recent Activities</h2>
-            <div class="no-data">No recent activities found</div>
-        </div>
-"""
-
-        # Device Information
-        device_info = report_data.get("device_info", [])
-        if device_info:
-            html_content += """
-        <div class="section">
-            <h2>⌚ Device Information</h2>
-            <div class="metric-grid">
-"""
-            for device in device_info:
-                device_name = device.get("displayName", "Unknown Device")
-                model = device.get("productDisplayName", "Unknown Model")
-                version = device.get("softwareVersion", "Unknown")
-
-                html_content += f"""
-                <div class="metric-card">
-                    <h4>{device_name}</h4>
-                    <div><strong>Model:</strong> {model}</div>
-                    <div><strong>Software:</strong> {version}</div>
-                </div>
-"""
-            html_content += "            </div>\n        </div>\n"
-
-        # Footer
         html_content += f"""
         <div class="footer">
             <p>Generated by Garmin Connect API Demo on {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
@@ -1024,12 +1052,40 @@ class DataExporter:
 </html>
 """
 
-        # Save HTML file
         html_filepath = config.export_dir / html_filename
         with open(html_filepath, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         return str(html_filepath)
+
+
+_DEMO_GARTH_HTTP_ERRORS = (
+    (401, "Authentication required (401 Unauthorized) - Please re-authenticate"),
+    (403, "Access denied (403 Forbidden) - Your account may not have permission for this feature"),
+    (404, "Endpoint not found (404) - This feature may have been moved or removed"),
+    (429, "Rate limit exceeded (429) - Please wait before making more requests"),
+    (500, "Server error (500) - Garmin's servers are experiencing issues"),
+    (503, "Service unavailable (503) - Garmin's servers are temporarily unavailable"),
+)
+
+
+def _resolve_demo_garth_http_error(method_name: str, e: GarthHTTPError) -> str:
+    error_str = str(e)
+    status_code = getattr(getattr(e, "response", None), "status_code", None)
+    if status_code == 400 or ("400" in error_str and ERR_BAD_REQUEST in error_str):
+        error_msg = "Endpoint not available (400 Bad Request) - This feature may not be enabled for your account or region"
+        print(f"⚠️ {method_name} failed: {error_msg}")
+        return error_msg
+
+    for code, message in _DEMO_GARTH_HTTP_ERRORS:
+        if status_code == code or str(code) in error_str:
+            print(f"⚠️ {method_name} failed: {message}")
+            print(f"⚠️ {method_name} failed: {message}")
+            return message
+
+    error_msg = f"HTTP error: {e}"
+    print(f"⚠️ {method_name} failed: {error_msg}")
+    return error_msg
 
 
 def safe_api_call(api_method, *args, method_name: str | None = None, **kwargs):
@@ -1060,47 +1116,7 @@ def safe_api_call(api_method, *args, method_name: str | None = None, **kwargs):
         return True, result, None
 
     except GarthHTTPError as e:
-        # Handle specific HTTP errors more gracefully
-        error_str = str(e)
-
-        # Extract status code more reliably
-        status_code = None
-        if hasattr(e, "response") and hasattr(e.response, "status_code"):
-            status_code = e.response.status_code
-
-        # Handle specific status codes
-        if status_code == 400 or ("400" in error_str and "Bad Request" in error_str):
-            error_msg = "Endpoint not available (400 Bad Request) - This feature may not be enabled for your account or region"
-            # Don't print for 400 errors as they're often expected for unavailable features
-        elif status_code == 401 or "401" in error_str:
-            error_msg = (
-                "Authentication required (401 Unauthorized) - Please re-authenticate"
-            )
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        elif status_code == 403 or "403" in error_str:
-            error_msg = "Access denied (403 Forbidden) - Your account may not have permission for this feature"
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        elif status_code == 404 or "404" in error_str:
-            error_msg = (
-                "Endpoint not found (404) - This feature may have been moved or removed"
-            )
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        elif status_code == 429 or "429" in error_str:
-            error_msg = (
-                "Rate limit exceeded (429) - Please wait before making more requests"
-            )
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        elif status_code == 500 or "500" in error_str:
-            error_msg = "Server error (500) - Garmin's servers are experiencing issues"
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        elif status_code == 503 or "503" in error_str:
-            error_msg = "Service unavailable (503) - Garmin's servers are temporarily unavailable"
-            print(f"⚠️ {method_name} failed: {error_msg}")
-        else:
-            error_msg = f"HTTP error: {e}"
-
-        print(f"⚠️ {method_name} failed: {error_msg}")
-        return False, None, error_msg
+        return False, None, _resolve_demo_garth_http_error(method_name, e)
 
     except GarminConnectAuthenticationError as e:
         error_msg = f"Authentication issue: {e}"
@@ -1190,7 +1206,7 @@ def _display_single(api_call: str, output: Any):
     if output is None:
         print("No data returned")
         # Save empty JSON to response.json in the export directory
-        response_file = config.export_dir / "response.json"
+        response_file = config.export_dir / RESPONSE_JSON_FILENAME
         with open(response_file, "w", encoding="utf-8") as f:
             f.write(f"{'-' * 20} {api_call} {'-' * 20}\n{{}}\n{'-' * 77}\n")
         return
@@ -1207,7 +1223,7 @@ def _display_single(api_call: str, output: Any):
             f"{'-' * 20} {api_call} {'-' * 20}\n{formatted_output}\n{'-' * 77}\n"
         )
 
-        response_file = config.export_dir / "response.json"
+        response_file = config.export_dir / RESPONSE_JSON_FILENAME
         with open(response_file, "w", encoding="utf-8") as f:
             f.write(response_content)
 
@@ -1255,7 +1271,7 @@ def _display_group(group_name: str, api_responses: list[tuple[str, Any]]):
 
     # Save grouped responses to file
     try:
-        response_file = config.export_dir / "response.json"
+        response_file = config.export_dir / RESPONSE_JSON_FILENAME
         header = "=" * 20 + f" {group_name} " + "=" * 20
         footer = "=" * 77
         content_lines = [header, *response_content_parts, footer, ""]
@@ -1267,7 +1283,7 @@ def _display_group(group_name: str, api_responses: list[tuple[str, Any]]):
         print("=" * 77)
 
     except Exception as e:
-        print(f"Error saving grouped responses: {e}")
+        print(f"Error formatting grouped responses: {e}")
 
 
 def format_timedelta(td):
@@ -1336,7 +1352,7 @@ def get_solar_data(api: Garmin) -> None:
         safe_call_for_group(
             api.get_device_last_used,
             method_name="get_device_last_used",
-            api_call_desc="api.get_device_last_used()",
+            api_call_desc=API_GET_DEVICE_LAST_USED,
         )
     )
 
@@ -1372,32 +1388,91 @@ def get_solar_data(api: Garmin) -> None:
     call_and_display(group_name="Solar Data Collection", api_responses=api_responses)
 
 
+_UPLOAD_ACTIVITY_HTTP_MESSAGES: dict[int, tuple[str, ...]] = {
+    409: (
+        "⚠️ Activity already exists: This activity has already been uploaded to Garmin Connect",
+        "ℹ️ Garmin Connect prevents duplicate activities from being uploaded",
+        "💡 Try modifying the activity timestamps or creating a new activity file",
+    ),
+    413: (
+        "❌ File too large: The activity file exceeds Garmin Connect's size limit",
+        "💡 Try compressing the file or reducing the number of data points",
+    ),
+    422: (
+        "❌ Invalid file format: The activity file format is not supported or corrupted",
+        "ℹ️ Supported formats: FIT, GPX, TCX",
+        "💡 Try converting to a different format or check file integrity",
+    ),
+    400: (
+        "❌ Bad request: Invalid activity data or malformed file",
+        "💡 Check if the activity file contains valid GPS coordinates and timestamps",
+    ),
+    401: (
+        "❌ Authentication failed: Please login again",
+        "💡 Your session may have expired",
+    ),
+    429: (
+        "❌ Rate limit exceeded: Too many upload requests",
+        MSG_WAIT_BEFORE_RETRY,
+    ),
+}
+
+
+def _select_gpx_file(gpx_files: list[str]) -> str:
+    print("Select a GPX file to upload:")
+    for idx, fname in enumerate(gpx_files, 1):
+        print(f"  {idx}. {fname}")
+
+    while True:
+        try:
+            choice = int(input(f"Enter number (1-{len(gpx_files)}): "))
+            if 1 <= choice <= len(gpx_files):
+                return gpx_files[choice - 1]
+            print("Invalid selection. Try again.")
+        except ValueError:
+            print("Please enter a valid number.")
+
+
+def _print_upload_http_status_error(status_code: int, e: Exception) -> None:
+    lines = _UPLOAD_ACTIVITY_HTTP_MESSAGES.get(status_code)
+    if lines:
+        for line in lines:
+            print(line)
+    else:
+        print(f"❌ HTTP Error {status_code}: {e}")
+
+
+def _handle_upload_generic_error(e: Exception) -> None:
+    error_str = str(e)
+    checks = (
+        ("409 Client Error: Conflict" in error_str, 409),
+        ("413" in error_str and "Request Entity Too Large" in error_str, 413),
+        ("422" in error_str and "Unprocessable Entity" in error_str, 422),
+        ("400" in error_str and ERR_BAD_REQUEST in error_str, 400),
+        ("401" in error_str and "Unauthorized" in error_str, 401),
+        ("429" in error_str and "Too Many Requests" in error_str, 429),
+    )
+    for matched, status_code in checks:
+        if matched:
+            _print_upload_http_status_error(status_code, e)
+            return
+    print(f"❌ Unexpected error uploading activity: {e}")
+    print("💡 Please check the file format and try again")
+
+
 def upload_activity_file(api: Garmin) -> None:
     """Upload activity data from file."""
     import glob
 
+    selected_file = ""
     try:
-        # List all .gpx files in test_data
         gpx_files = glob.glob(config.activityfile)
         if not gpx_files:
             print("❌ No .gpx files found in test_data directory.")
             print("ℹ️ Please add GPX files to test_data before uploading.")
             return
 
-        print("Select a GPX file to upload:")
-        for idx, fname in enumerate(gpx_files, 1):
-            print(f"  {idx}. {fname}")
-
-        while True:
-            try:
-                choice = int(input(f"Enter number (1-{len(gpx_files)}): "))
-                if 1 <= choice <= len(gpx_files):
-                    selected_file = gpx_files[choice - 1]
-                    break
-                print("Invalid selection. Try again.")
-            except ValueError:
-                print("Please enter a valid number.")
-
+        selected_file = _select_gpx_file(gpx_files)
         print(f"📤 Uploading activity from file: {selected_file}")
 
         call_and_display(
@@ -1411,38 +1486,7 @@ def upload_activity_file(api: Garmin) -> None:
         print(f"❌ File not found: {selected_file}")
         print("ℹ️ Please ensure the activity file exists in the current directory")
     except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 409:
-            print(
-                "⚠️ Activity already exists: This activity has already been uploaded to Garmin Connect"
-            )
-            print("ℹ️ Garmin Connect prevents duplicate activities from being uploaded")
-            print(
-                "💡 Try modifying the activity timestamps or creating a new activity file"
-            )
-        elif e.response.status_code == 413:
-            print(
-                "❌ File too large: The activity file exceeds Garmin Connect's size limit"
-            )
-            print("💡 Try compressing the file or reducing the number of data points")
-        elif e.response.status_code == 422:
-            print(
-                "❌ Invalid file format: The activity file format is not supported or corrupted"
-            )
-            print("ℹ️ Supported formats: FIT, GPX, TCX")
-            print("💡 Try converting to a different format or check file integrity")
-        elif e.response.status_code == 400:
-            print("❌ Bad request: Invalid activity data or malformed file")
-            print(
-                "💡 Check if the activity file contains valid GPS coordinates and timestamps"
-            )
-        elif e.response.status_code == 401:
-            print("❌ Authentication failed: Please login again")
-            print("💡 Your session may have expired")
-        elif e.response.status_code == 429:
-            print("❌ Rate limit exceeded: Too many upload requests")
-            print("💡 Please wait a few minutes before trying again")
-        else:
-            print(f"❌ HTTP Error {e.response.status_code}: {e}")
+        _print_upload_http_status_error(e.response.status_code, e)
     except GarminConnectAuthenticationError as e:
         print(f"❌ Authentication error: {e}")
         print("💡 Please check your login credentials and try again")
@@ -1451,42 +1495,40 @@ def upload_activity_file(api: Garmin) -> None:
         print("💡 Please check your internet connection and try again")
     except GarminConnectTooManyRequestsError as e:
         print(f"❌ Too many requests: {e}")
-        print("💡 Please wait a few minutes before trying again")
+        print(MSG_WAIT_BEFORE_RETRY)
     except Exception as e:
-        error_str = str(e)
-        if "409 Client Error: Conflict" in error_str:
-            print(
-                "⚠️ Activity already exists: This activity has already been uploaded to Garmin Connect"
-            )
-            print("ℹ️ Garmin Connect prevents duplicate activities from being uploaded")
-            print(
-                "💡 Try modifying the activity timestamps or creating a new activity file"
-            )
-        elif "413" in error_str and "Request Entity Too Large" in error_str:
-            print(
-                "❌ File too large: The activity file exceeds Garmin Connect's size limit"
-            )
-            print("💡 Try compressing the file or reducing the number of data points")
-        elif "422" in error_str and "Unprocessable Entity" in error_str:
-            print(
-                "❌ Invalid file format: The activity file format is not supported or corrupted"
-            )
-            print("ℹ️ Supported formats: FIT, GPX, TCX")
-            print("💡 Try converting to a different format or check file integrity")
-        elif "400" in error_str and "Bad Request" in error_str:
-            print("❌ Bad request: Invalid activity data or malformed file")
-            print(
-                "💡 Check if the activity file contains valid GPS coordinates and timestamps"
-            )
-        elif "401" in error_str and "Unauthorized" in error_str:
-            print("❌ Authentication failed: Please login again")
-            print("💡 Your session may have expired")
-        elif "429" in error_str and "Too Many Requests" in error_str:
-            print("❌ Rate limit exceeded: Too many upload requests")
-            print("💡 Please wait a few minutes before trying again")
+        _handle_upload_generic_error(e)
+
+
+def _download_single_activity_format(
+    api: Garmin, activity_id: int | str, start_time: str, fmt: str
+) -> None:
+    try:
+        ext = "zip" if fmt == "ORIGINAL" else fmt.lower()
+        filename = f"{start_time}_{activity_id}_ACTIVITY.{ext}"
+        filepath = config.export_dir / filename
+
+        if fmt == "CSV":
+            activity_details = api.get_activity_details(activity_id)
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(activity_details, f, indent=2, ensure_ascii=False)
+            print(f"  ✅ {fmt}: {filename}")
+            return
+
+        format_mapping = {
+            "GPX": api.ActivityDownloadFormat.GPX,
+            "TCX": api.ActivityDownloadFormat.TCX,
+            "ORIGINAL": api.ActivityDownloadFormat.ORIGINAL,
+        }
+        content = api.download_activity(activity_id, dl_fmt=format_mapping[fmt])
+        if content:
+            with open(filepath, "wb") as f:
+                f.write(content)
+            print(f"  ✅ {fmt}: {filename}")
         else:
-            print(f"❌ Unexpected error uploading activity: {e}")
-            print("💡 Please check the file format and try again")
+            print(f"  ❌ {fmt}: No content available")
+    except Exception as e:
+        print(f"  ❌ {fmt}: Error downloading - {e}")
 
 
 def download_activities_by_date(api: Garmin) -> None:
@@ -1496,7 +1538,6 @@ def download_activities_by_date(api: Garmin) -> None:
             f"📥 Downloading activities by date range ({config.week_start.isoformat()} to {config.today.isoformat()})..."
         )
 
-        # Get activities for the date range (last 7 days as default)
         activities = api.get_activities_by_date(
             config.week_start.isoformat(), config.today.isoformat()
         )
@@ -1506,57 +1547,17 @@ def download_activities_by_date(api: Garmin) -> None:
             return
 
         print(f"📊 Found {len(activities)} activities to download")
+        formats = ("GPX", "TCX", "ORIGINAL", "CSV")
 
-        # Download each activity in multiple formats
         for activity in activities:
             activity_id = activity.get("activityId")
-            activity_name = activity.get("activityName", "Unknown")
-            start_time = activity.get("startTimeLocal", "").replace(":", "-")
-
             if not activity_id:
                 continue
-
+            activity_name = activity.get("activityName", "Unknown")
+            start_time = activity.get("startTimeLocal", "").replace(":", "-")
             print(f"📥 Downloading: {activity_name} (ID: {activity_id})")
-
-            # Download formats: GPX, TCX, ORIGINAL, CSV
-            formats = ["GPX", "TCX", "ORIGINAL", "CSV"]
-
             for fmt in formats:
-                try:
-                    filename = f"{start_time}_{activity_id}_ACTIVITY.{fmt.lower()}"
-                    if fmt == "ORIGINAL":
-                        filename = f"{start_time}_{activity_id}_ACTIVITY.zip"
-
-                    filepath = config.export_dir / filename
-
-                    if fmt == "CSV":
-                        # Get activity details for CSV export
-                        activity_details = api.get_activity_details(activity_id)
-                        with open(filepath, "w", encoding="utf-8") as f:
-                            import json
-
-                            json.dump(activity_details, f, indent=2, ensure_ascii=False)
-                        print(f"  ✅ {fmt}: {filename}")
-                    else:
-                        # Download the file from Garmin using proper enum values
-                        format_mapping = {
-                            "GPX": api.ActivityDownloadFormat.GPX,
-                            "TCX": api.ActivityDownloadFormat.TCX,
-                            "ORIGINAL": api.ActivityDownloadFormat.ORIGINAL,
-                        }
-
-                        dl_fmt = format_mapping[fmt]
-                        content = api.download_activity(activity_id, dl_fmt=dl_fmt)
-
-                        if content:
-                            with open(filepath, "wb") as f:
-                                f.write(content)
-                            print(f"  ✅ {fmt}: {filename}")
-                        else:
-                            print(f"  ❌ {fmt}: No content available")
-
-                except Exception as e:
-                    print(f"  ❌ {fmt}: Error downloading - {e}")
+                _download_single_activity_format(api, activity_id, start_time, fmt)
 
         print(f"✅ Activity downloads completed! Files saved to: {config.export_dir}")
 
@@ -1583,7 +1584,7 @@ def add_weigh_in_data(api: Garmin) -> None:
                     break
                 print("❌ Weight must be between 30 and 300")
             except ValueError:
-                print("❌ Please enter a valid number")
+                print(MSG_ENTER_VALID_NUMBER)
 
         # Unit selection
         while True:
@@ -1688,7 +1689,7 @@ def get_activity_splits_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_splits({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity splits: {e}")
 
@@ -1706,7 +1707,7 @@ def get_activity_typed_splits_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_typed_splits({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity typed splits: {e}")
 
@@ -1724,7 +1725,7 @@ def get_activity_split_summaries_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_split_summaries({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity split summaries: {e}")
 
@@ -1742,7 +1743,7 @@ def get_activity_weather_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_weather({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity weather: {e}")
 
@@ -1760,7 +1761,7 @@ def get_activity_hr_timezones_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_hr_in_timezones({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity HR timezones: {e}")
 
@@ -1778,7 +1779,7 @@ def get_activity_power_timezones_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_power_in_timezones({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity power timezones: {e}")
 
@@ -1805,7 +1806,7 @@ def get_activity_details_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_details({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity details: {e}")
 
@@ -1823,7 +1824,7 @@ def get_activity_gear_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity_gear({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting activity gear: {e}")
 
@@ -1841,7 +1842,7 @@ def get_single_activity_data(api: Garmin) -> None:
                 api_call_desc=f"api.get_activity({activity_id})",
             )
         else:
-            print("ℹ️ No activities found")
+            print(MSG_INFO_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error getting single activity: {e}")
 
@@ -1983,12 +1984,43 @@ def download_workout_data(api: Garmin) -> None:
         print(f"❌ Error downloading workout: {e}")
 
 
+def _clean_workout_step_ids(workout_segments: Any) -> None:
+    """Recursively remove step IDs from workout structure."""
+    if isinstance(workout_segments, list):
+        for segment in workout_segments:
+            _clean_workout_step_ids(segment)
+        return
+    if not isinstance(workout_segments, dict):
+        return
+    workout_segments.pop("stepId", None)
+    if "workoutSteps" in workout_segments:
+        _clean_workout_step_ids(workout_segments["workoutSteps"])
+    for value in workout_segments.values():
+        if isinstance(value, list | dict):
+            _clean_workout_step_ids(value)
+
+
+_WORKOUT_UPLOAD_ERROR_HINTS = (
+    ("400", "💡 The workout data may be invalid or malformed"),
+    ("401", "💡 Authentication failed - please login again"),
+    ("403", "💡 Permission denied - check account permissions"),
+    ("409", "💡 Workout may already exist"),
+    ("422", "💡 Workout data validation failed"),
+)
+
+
+def _print_workout_upload_error_hint(error_str: str) -> None:
+    for code, hint in _WORKOUT_UPLOAD_ERROR_HINTS:
+        if code in error_str:
+            print(hint)
+            return
+
+
 def upload_workout_data(api: Garmin) -> None:
     """Upload workout from JSON file."""
     try:
         print(f"📤 Uploading workout from file: {config.workoutfile}")
 
-        # Check if file exists
         if not os.path.exists(config.workoutfile):
             print(f"❌ File not found: {config.workoutfile}")
             print(
@@ -1996,51 +2028,21 @@ def upload_workout_data(api: Garmin) -> None:
             )
             return
 
-        # Load the workout JSON data
-        import json
-
         with open(config.workoutfile, encoding="utf-8") as f:
             workout_data = json.load(f)
 
-        # Get current timestamp in Garmin format
         current_time = datetime.datetime.now()
         garmin_timestamp = current_time.strftime("%Y-%m-%dT%H:%M:%S.0")
 
-        # Remove IDs that shouldn't be included when uploading a new workout
-        fields_to_remove = ["workoutId", "ownerId", "updatedDate", "createdDate"]
-        for field in fields_to_remove:
-            if field in workout_data:
-                del workout_data[field]
+        for field in ("workoutId", "ownerId", "updatedDate", "createdDate"):
+            workout_data.pop(field, None)
 
-        # Add current timestamps
         workout_data["createdDate"] = garmin_timestamp
         workout_data["updatedDate"] = garmin_timestamp
 
-        # Remove step IDs to ensure new ones are generated
-        def clean_step_ids(workout_segments):
-            """Recursively remove step IDs from workout structure."""
-            if isinstance(workout_segments, list):
-                for segment in workout_segments:
-                    clean_step_ids(segment)
-            elif isinstance(workout_segments, dict):
-                # Remove stepId if present
-                if "stepId" in workout_segments:
-                    del workout_segments["stepId"]
-
-                # Recursively clean nested structures
-                if "workoutSteps" in workout_segments:
-                    clean_step_ids(workout_segments["workoutSteps"])
-
-                # Handle any other nested lists or dicts
-                for value in workout_segments.values():
-                    if isinstance(value, list | dict):
-                        clean_step_ids(value)
-
-        # Clean step IDs from workout segments
         if "workoutSegments" in workout_data:
-            clean_step_ids(workout_data["workoutSegments"])
+            _clean_workout_step_ids(workout_data["workoutSegments"])
 
-        # Update workout name to indicate it's uploaded with current timestamp
         original_name = workout_data.get("workoutName", "Workout")
         workout_data["workoutName"] = (
             f"Uploaded {original_name} - {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
@@ -2048,13 +2050,11 @@ def upload_workout_data(api: Garmin) -> None:
 
         print(f"📤 Uploading workout: {workout_data['workoutName']}")
 
-        # Upload the workout
         result = api.upload_workout(workout_data)
-
         if result:
             print("✅ Workout uploaded successfully!")
             call_and_display(
-                lambda: result,  # Use a lambda to pass the result
+                lambda: result,
                 method_name="upload_workout",
                 api_call_desc="api.upload_workout(workout_data)",
             )
@@ -2069,18 +2069,7 @@ def upload_workout_data(api: Garmin) -> None:
         print("ℹ️ Please check the JSON file format")
     except Exception as e:
         print(f"❌ Error uploading workout: {e}")
-        # Check for common upload errors
-        error_str = str(e)
-        if "400" in error_str:
-            print("💡 The workout data may be invalid or malformed")
-        elif "401" in error_str:
-            print("💡 Authentication failed - please login again")
-        elif "403" in error_str:
-            print("💡 Permission denied - check account permissions")
-        elif "409" in error_str:
-            print("💡 Workout may already exist")
-        elif "422" in error_str:
-            print("💡 Workout data validation failed")
+        _print_workout_upload_error_hint(str(e))
 
 
 def upload_running_workout_data(api: Garmin) -> None:
@@ -2113,9 +2102,7 @@ def upload_running_workout_data(api: Garmin) -> None:
             print("❌ Failed to upload running workout")
     except ImportError as e:
         print(f"❌ Error: {e}")
-        print(
-            "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
-        )
+        print(MSG_INSTALL_PYDANTIC)
     except Exception as e:
         print(f"❌ Error uploading running workout: {e}")
 
@@ -2150,9 +2137,7 @@ def upload_cycling_workout_data(api: Garmin) -> None:
             print("❌ Failed to upload cycling workout")
     except ImportError as e:
         print(f"❌ Error: {e}")
-        print(
-            "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
-        )
+        print(MSG_INSTALL_PYDANTIC)
     except Exception as e:
         print(f"❌ Error uploading cycling workout: {e}")
 
@@ -2187,9 +2172,7 @@ def upload_swimming_workout_data(api: Garmin) -> None:
             print("❌ Failed to upload swimming workout")
     except ImportError as e:
         print(f"❌ Error: {e}")
-        print(
-            "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
-        )
+        print(MSG_INSTALL_PYDANTIC)
     except Exception as e:
         print(f"❌ Error uploading swimming workout: {e}")
 
@@ -2224,9 +2207,7 @@ def upload_walking_workout_data(api: Garmin) -> None:
             print("❌ Failed to upload walking workout")
     except ImportError as e:
         print(f"❌ Error: {e}")
-        print(
-            "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
-        )
+        print(MSG_INSTALL_PYDANTIC)
     except Exception as e:
         print(f"❌ Error uploading walking workout: {e}")
 
@@ -2261,9 +2242,7 @@ def upload_hiking_workout_data(api: Garmin) -> None:
             print("❌ Failed to upload hiking workout")
     except ImportError as e:
         print(f"❌ Error: {e}")
-        print(
-            "💡 Install pydantic with: pip install pydantic or pip install garminconnect[workout]"
-        )
+        print(MSG_INSTALL_PYDANTIC)
     except Exception as e:
         print(f"❌ Error uploading hiking workout: {e}")
 
@@ -2307,7 +2286,7 @@ def set_body_composition_data(api: Garmin) -> None:
                     break
                 print("❌ Weight must be between 30 and 300 kg")
             except ValueError:
-                print("❌ Please enter a valid number")
+                print(MSG_ENTER_VALID_NUMBER)
 
         call_and_display(
             api.set_body_composition,
@@ -2345,7 +2324,7 @@ def add_body_composition_data(api: Garmin) -> None:
                     break
                 print("❌ Weight must be between 30 and 300 kg")
             except ValueError:
-                print("❌ Please enter a valid number")
+                print(MSG_ENTER_VALID_NUMBER)
 
         call_and_display(
             api.add_body_composition,
@@ -2385,27 +2364,88 @@ def delete_weigh_ins_data(api: Garmin) -> None:
         print(f"❌ Error deleting weigh-ins: {e}")
 
 
+def _fetch_today_weigh_ins(api: Garmin) -> list[dict]:
+    all_weigh_ins: list[dict] = []
+    print(f"🔍 Checking daily weigh-ins for today ({config.today.isoformat()})...")
+    try:
+        daily_weigh_ins = api.get_daily_weigh_ins(config.today.isoformat())
+        if daily_weigh_ins and "dateWeightList" in daily_weigh_ins:
+            all_weigh_ins = [
+                w for w in daily_weigh_ins["dateWeightList"] if isinstance(w, dict)
+            ]
+            print(f"📊 Found {len(all_weigh_ins)} weigh-in(s) for today")
+        else:
+            print("📊 No weigh-in data found in response")
+    except Exception as e:
+        print(f"⚠️ Could not fetch daily weigh-ins: {e}")
+    return all_weigh_ins
+
+
+def _normalize_weigh_in_weight(weigh_in: dict, fallback: str = "Unknown") -> Any:
+    weight = weigh_in.get("weight")
+    if weight is None:
+        weight = weigh_in.get("weightValue", fallback)
+    if isinstance(weight, int | float) and weight > 1000:
+        return round(weight / 1000, 1)
+    return weight
+
+
+def _format_weigh_in_timestamp(weigh_in: dict) -> str:
+    timestamp = (
+        weigh_in.get("timestampGMT")
+        or weigh_in.get("timestamp")
+        or weigh_in.get("date")
+    )
+    if not timestamp:
+        return UNKNOWN_TIME_LABEL
+    try:
+        if isinstance(timestamp, str):
+            datetime_obj = datetime.datetime.fromisoformat(
+                timestamp.replace("Z", "+00:00")
+            )
+        else:
+            datetime_obj = datetime.datetime.fromtimestamp(timestamp / 1000)
+        return datetime_obj.strftime("%H:%M:%S")
+    except Exception:
+        return UNKNOWN_TIME_LABEL
+
+
+def _extract_weigh_in_id(weigh_in: dict) -> Any:
+    for key in ("samplePk", "id", "weightPk", "pk", "weightId", "uuid"):
+        val = weigh_in.get(key)
+        if val:
+            return val
+    return None
+
+
+def _confirm_and_delete_weigh_in(api: Garmin, selected_weigh_in: dict) -> None:
+    weigh_in_id = _extract_weigh_in_id(selected_weigh_in)
+    if not weigh_in_id:
+        print("❌ No weigh-in ID found for selected entry")
+        return
+
+    weight = _normalize_weigh_in_weight(selected_weigh_in)
+    unit = selected_weigh_in.get("unitKey", "kg")
+    date_val = selected_weigh_in.get("calendarDate", config.today.isoformat())
+
+    confirm = input(f"Delete weigh-in {weight} {unit} from {date_val}? (yes/no): ").lower()
+    if confirm == "yes":
+        call_and_display(
+            api.delete_weigh_in,
+            weigh_in_id,
+            config.today.isoformat(),
+            method_name="delete_weigh_in",
+            api_call_desc=f"api.delete_weigh_in({weigh_in_id}, {config.today.isoformat()})",
+        )
+        print("✅ Weigh-in deleted successfully!")
+    else:
+        print(MSG_DELETE_CANCELLED)
+
+
 def delete_weigh_in_data(api: Garmin) -> None:
     """Delete a specific weigh-in."""
     try:
-        all_weigh_ins = []
-
-        # Find weigh-ins
-        print(f"🔍 Checking daily weigh-ins for today ({config.today.isoformat()})...")
-        try:
-            daily_weigh_ins = api.get_daily_weigh_ins(config.today.isoformat())
-
-            if daily_weigh_ins and "dateWeightList" in daily_weigh_ins:
-                weight_list = daily_weigh_ins["dateWeightList"]
-                for weigh_in in weight_list:
-                    if isinstance(weigh_in, dict):
-                        all_weigh_ins.append(weigh_in)
-                print(f"📊 Found {len(all_weigh_ins)} weigh-in(s) for today")
-            else:
-                print("📊 No weigh-in data found in response")
-        except Exception as e:
-            print(f"⚠️ Could not fetch daily weigh-ins: {e}")
-
+        all_weigh_ins = _fetch_today_weigh_ins(api)
         if not all_weigh_ins:
             print("ℹ️ No weigh-ins found for today")
             print("💡 You can add a test weigh-in using menu option [4]")
@@ -2414,106 +2454,27 @@ def delete_weigh_in_data(api: Garmin) -> None:
         print(f"\n⚖️ Found {len(all_weigh_ins)} weigh-in(s) available for deletion:")
         print("-" * 70)
 
-        # Display weigh-ins for user selection
         for i, weigh_in in enumerate(all_weigh_ins):
-            # Extract weight data - Garmin API uses different field names
-            weight = weigh_in.get("weight")
-            if weight is None:
-                weight = weigh_in.get("weightValue", "Unknown")
-
-            # Convert weight from grams to kg if it's a number
-            if isinstance(weight, int | float) and weight > 1000:
-                weight = weight / 1000  # Convert from grams to kg
-                weight = round(weight, 1)  # Round to 1 decimal place
-
+            weight = _normalize_weigh_in_weight(weigh_in)
             unit = weigh_in.get("unitKey", "kg")
-            date = weigh_in.get("calendarDate", config.today.isoformat())
-
-            # Try different timestamp fields
-            timestamp = (
-                weigh_in.get("timestampGMT")
-                or weigh_in.get("timestamp")
-                or weigh_in.get("date")
-            )
-
-            # Format timestamp for display
-            if timestamp:
-                try:
-                    import datetime as dt
-
-                    if isinstance(timestamp, str):
-                        # Handle ISO format strings
-                        datetime_obj = dt.datetime.fromisoformat(
-                            timestamp.replace("Z", "+00:00")
-                        )
-                    else:
-                        # Handle millisecond timestamps
-                        datetime_obj = dt.datetime.fromtimestamp(timestamp / 1000)
-                    time_str = datetime_obj.strftime("%H:%M:%S")
-                except Exception:
-                    time_str = "Unknown time"
-            else:
-                time_str = "Unknown time"
-
-            print(f"  [{i}] {weight} {unit} on {date} at {time_str}")
+            date_val = weigh_in.get("calendarDate", config.today.isoformat())
+            time_str = _format_weigh_in_timestamp(weigh_in)
+            print(f"  [{i}] {weight} {unit} on {date_val} at {time_str}")
 
         print()
         try:
             selection = input(
                 "Enter the index of the weigh-in to delete (or 'q' to cancel): "
             ).strip()
-
             if selection.lower() == "q":
-                print("❌ Delete cancelled")
+                print(MSG_DELETE_CANCELLED)
                 return
 
             weigh_in_index = int(selection)
             if 0 <= weigh_in_index < len(all_weigh_ins):
-                selected_weigh_in = all_weigh_ins[weigh_in_index]
-
-                # Get the weigh-in ID (Garmin uses 'samplePk' as the primary key)
-                weigh_in_id = (
-                    selected_weigh_in.get("samplePk")
-                    or selected_weigh_in.get("id")
-                    or selected_weigh_in.get("weightPk")
-                    or selected_weigh_in.get("pk")
-                    or selected_weigh_in.get("weightId")
-                    or selected_weigh_in.get("uuid")
-                )
-
-                if weigh_in_id:
-                    weight = selected_weigh_in.get("weight", "Unknown")
-
-                    # Convert weight from grams to kg if it's a number
-                    if isinstance(weight, int | float) and weight > 1000:
-                        weight = weight / 1000  # Convert from grams to kg
-                        weight = round(weight, 1)  # Round to 1 decimal place
-
-                    unit = selected_weigh_in.get("unitKey", "kg")
-                    date = selected_weigh_in.get(
-                        "calendarDate", config.today.isoformat()
-                    )
-
-                    # Confirm deletion
-                    confirm = input(
-                        f"Delete weigh-in {weight} {unit} from {date}? (yes/no): "
-                    ).lower()
-                    if confirm == "yes":
-                        call_and_display(
-                            api.delete_weigh_in,
-                            weigh_in_id,
-                            config.today.isoformat(),
-                            method_name="delete_weigh_in",
-                            api_call_desc=f"api.delete_weigh_in({weigh_in_id}, {config.today.isoformat()})",
-                        )
-                        print("✅ Weigh-in deleted successfully!")
-                    else:
-                        print("❌ Delete cancelled")
-                else:
-                    print("❌ No weigh-in ID found for selected entry")
+                _confirm_and_delete_weigh_in(api, all_weigh_ins[weigh_in_index])
             else:
                 print("❌ Invalid selection")
-
         except ValueError:
             print("❌ Invalid input - please enter a number")
 
@@ -2555,7 +2516,7 @@ def get_gear_data(api: Garmin) -> None:
         safe_call_for_group(
             api.get_device_last_used,
             method_name="get_device_last_used",
-            api_call_desc="api.get_device_last_used()",
+            api_call_desc=API_GET_DEVICE_LAST_USED,
         )
     )
 
@@ -2576,7 +2537,7 @@ def get_gear_data(api: Garmin) -> None:
                 )
             )
         else:
-            print("❌ Could not get user profile number")
+            print(MSG_NO_USER_PROFILE_NUMBER)
 
     call_and_display(group_name="User Gear List", api_responses=api_responses)
 
@@ -2592,7 +2553,7 @@ def get_gear_defaults_data(api: Garmin) -> None:
         safe_call_for_group(
             api.get_device_last_used,
             method_name="get_device_last_used",
-            api_call_desc="api.get_device_last_used()",
+            api_call_desc=API_GET_DEVICE_LAST_USED,
         )
     )
 
@@ -2613,27 +2574,54 @@ def get_gear_defaults_data(api: Garmin) -> None:
                 )
             )
         else:
-            print("❌ Could not get user profile number")
+            print(MSG_NO_USER_PROFILE_NUMBER)
 
     call_and_display(group_name="Gear Defaults", api_responses=api_responses)
+
+
+def _append_gear_stats_responses(
+    api: Garmin, user_profile_number: Any, api_responses: list
+) -> None:
+    api_responses.append(
+        safe_call_for_group(
+            api.get_gear,
+            user_profile_number,
+            method_name="get_gear",
+            api_call_desc=f"api.get_gear({user_profile_number})",
+        )
+    )
+    gear_success, gear_data, _ = safe_api_call(
+        api.get_gear, user_profile_number, method_name="get_gear"
+    )
+    if not (gear_success and gear_data):
+        print(MSG_INFO_NO_GEAR)
+        return
+    for gear_item in gear_data[:3]:
+        gear_uuid = gear_item.get("uuid")
+        gear_name = gear_item.get("displayName", "Unknown")
+        if gear_uuid:
+            api_responses.append(
+                safe_call_for_group(
+                    api.get_gear_stats,
+                    gear_uuid,
+                    method_name="get_gear_stats",
+                    api_call_desc=f"api.get_gear_stats('{gear_uuid}') - {gear_name}",
+                )
+            )
 
 
 def get_gear_stats_data(api: Garmin) -> None:
     """Get gear statistics."""
     print("🔄 Fetching comprehensive gear statistics...")
 
-    api_responses = []
-
-    # Get device info first
-    api_responses.append(
+    api_responses = [
         safe_call_for_group(
             api.get_device_last_used,
             method_name="get_device_last_used",
-            api_call_desc="api.get_device_last_used()",
+            api_call_desc=API_GET_DEVICE_LAST_USED,
         )
-    )
+    ]
 
-    # Get user profile number and gear list
     device_success, device_data, _ = safe_api_call(
         api.get_device_last_used, method_name="get_device_last_used"
     )
@@ -2641,39 +2629,9 @@ def get_gear_stats_data(api: Garmin) -> None:
     if device_success and device_data:
         user_profile_number = device_data.get("userProfileNumber")
         if user_profile_number:
-            # Get gear list
-            api_responses.append(
-                safe_call_for_group(
-                    api.get_gear,
-                    user_profile_number,
-                    method_name="get_gear",
-                    api_call_desc=f"api.get_gear({user_profile_number})",
-                )
-            )
-
-            # Get gear data to extract UUIDs for stats
-            gear_success, gear_data, _ = safe_api_call(
-                api.get_gear, user_profile_number, method_name="get_gear"
-            )
-
-            if gear_success and gear_data:
-                # Get stats for each gear item (limit to first 3)
-                for gear_item in gear_data[:3]:
-                    gear_uuid = gear_item.get("uuid")
-                    gear_name = gear_item.get("displayName", "Unknown")
-                    if gear_uuid:
-                        api_responses.append(
-                            safe_call_for_group(
-                                api.get_gear_stats,
-                                gear_uuid,
-                                method_name="get_gear_stats",
-                                api_call_desc=f"api.get_gear_stats('{gear_uuid}') - {gear_name}",
-                            )
-                        )
-            else:
-                print("ℹ️ No gear found")
+            _append_gear_stats_responses(api, user_profile_number, api_responses)
         else:
-            print("❌ Could not get user profile number")
+            print(MSG_NO_USER_PROFILE_NUMBER)
 
     call_and_display(group_name="Gear Statistics", api_responses=api_responses)
 
@@ -2689,7 +2647,7 @@ def get_gear_activities_data(api: Garmin) -> None:
         safe_call_for_group(
             api.get_device_last_used,
             method_name="get_device_last_used",
-            api_call_desc="api.get_device_last_used()",
+            api_call_desc=API_GET_DEVICE_LAST_USED,
         )
     )
 
@@ -2731,11 +2689,11 @@ def get_gear_activities_data(api: Garmin) -> None:
                         )
                     )
                 else:
-                    print("❌ No gear UUID found")
+                    print(MSG_ERR_NO_GEAR_UUID)
             else:
-                print("ℹ️ No gear found")
+                print(MSG_INFO_NO_GEAR)
         else:
-            print("❌ Could not get user profile number")
+            print(MSG_NO_USER_PROFILE_NUMBER)
 
     call_and_display(group_name="Gear Activities", api_responses=api_responses)
 
@@ -2764,13 +2722,20 @@ def set_gear_default_data(api: Garmin) -> None:
                     )
                     print("✅ Gear default set successfully!")
                 else:
-                    print("❌ No gear UUID found")
+                    print(MSG_ERR_NO_GEAR_UUID)
             else:
-                print("ℹ️ No gear found")
+                print(MSG_INFO_NO_GEAR)
         else:
-            print("❌ Could not get user profile number")
+            print(MSG_NO_USER_PROFILE_NUMBER)
     except Exception as e:
         print(f"❌ Error setting gear default: {e}")
+
+
+def _select_active_gear(gear_list: list[dict]) -> dict:
+    for gear in gear_list:
+        if gear.get("gearStatusName") == "active":
+            return gear
+    return gear_list[0]
 
 
 def add_and_remove_gear_to_activity(api: Garmin) -> None:
@@ -2778,53 +2743,49 @@ def add_and_remove_gear_to_activity(api: Garmin) -> None:
     try:
         device_last_used = api.get_device_last_used()
         user_profile_number = device_last_used.get("userProfileNumber")
-        if user_profile_number:
-            gear_list = api.get_gear(user_profile_number)
-            if gear_list:
-                activities = api.get_activities(0, 1)
-                if activities:
-                    activity_id = activities[0].get("activityId")
-                    activity_name = activities[0].get("activityName")
-                    for gear in gear_list:
-                        if gear["gearStatusName"] == "active":
-                            break
-                    gear_uuid = gear.get("uuid")
-                    gear_name = gear.get("displayName", "Unknown")
-                    if gear_uuid:
-                        # Add gear to an activity
-                        # Correct method signature: add_gear_to_activity(gearUUID, activity_id)
-                        call_and_display(
-                            api.add_gear_to_activity,
-                            gear_uuid,
-                            activity_id,
-                            method_name="add_gear_to_activity",
-                            api_call_desc=f"api.add_gear_to_activity('{gear_uuid}', {activity_id}) - Add {gear_name} to {activity_name}",
-                        )
-                        print("✅ Gear added successfully!")
+        if not user_profile_number:
+            print(MSG_NO_USER_PROFILE_NUMBER)
+            return
 
-                        # Wait for user to check gear, then continue
-                        input(
-                            "Go check Garmin to confirm, then press Enter to continue"
-                        )
+        gear_list = api.get_gear(user_profile_number)
+        if not gear_list:
+            print(MSG_INFO_NO_GEAR)
+            return
 
-                        # Remove gear from an activity
-                        # Correct method signature: remove_gear_from_activity(gearUUID, activity_id)
-                        call_and_display(
-                            api.remove_gear_from_activity,
-                            gear_uuid,
-                            activity_id,
-                            method_name="remove_gear_from_activity",
-                            api_call_desc=f"api.remove_gear_from_activity('{gear_uuid}', {activity_id}) - Remove {gear_name} from {activity_name}",
-                        )
-                        print("✅ Gear removed successfully!")
-                    else:
-                        print("❌ No activities found")
-                else:
-                    print("❌ No gear UUID found")
-            else:
-                print("ℹ️ No gear found")
-        else:
-            print("❌ Could not get user profile number")
+        activities = api.get_activities(0, 1)
+        if not activities:
+            print(MSG_ERR_NO_GEAR_UUID)
+            return
+
+        activity_id = activities[0].get("activityId")
+        activity_name = activities[0].get("activityName")
+        gear = _select_active_gear(gear_list)
+        gear_uuid = gear.get("uuid")
+        gear_name = gear.get("displayName", "Unknown")
+
+        if not gear_uuid:
+            print(MSG_ERR_NO_ACTIVITIES)
+            return
+
+        call_and_display(
+            api.add_gear_to_activity,
+            gear_uuid,
+            activity_id,
+            method_name="add_gear_to_activity",
+            api_call_desc=f"api.add_gear_to_activity('{gear_uuid}', {activity_id}) - Add {gear_name} to {activity_name}",
+        )
+        print("✅ Gear added successfully!")
+
+        input("Go check Garmin to confirm, then press Enter to continue")
+
+        call_and_display(
+            api.remove_gear_from_activity,
+            gear_uuid,
+            activity_id,
+            method_name="remove_gear_from_activity",
+            api_call_desc=f"api.remove_gear_from_activity('{gear_uuid}', {activity_id}) - Remove {gear_name} from {activity_name}",
+        )
+        print("✅ Gear removed successfully!")
     except Exception as e:
         print(f"❌ Error adding gear: {e}")
 
@@ -2854,7 +2815,7 @@ def set_activity_name_data(api: Garmin) -> None:
             else:
                 print("❌ No name provided")
         else:
-            print("❌ No activities found")
+            print(MSG_ERR_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error setting activity name: {e}")
 
@@ -2906,11 +2867,11 @@ def set_activity_type_data(api: Garmin) -> None:
                     )
                     print("✅ Activity type updated!")
                 else:
-                    print("❌ Invalid index")
+                    print(MSG_ERR_INVALID_INDEX)
             except ValueError:
-                print("❌ Invalid input")
+                print(MSG_ERR_INVALID_INPUT)
         else:
-            print("❌ No activities found")
+            print(MSG_ERR_NO_ACTIVITIES)
     except Exception as e:
         print(f"❌ Error setting activity type: {e}")
 
@@ -2956,150 +2917,182 @@ def create_manual_activity_data(api: Garmin) -> None:
         print(f"❌ Error creating manual activity: {e}")
 
 
+def _confirm_and_delete_activity(api: Garmin, activity: dict) -> None:
+    activity_id = activity["activityId"]
+    activity_name = activity.get("activityName", "Unnamed")
+    confirm = input(f"Delete '{activity_name}'? (yes/no): ").lower()
+    if confirm == "yes":
+        call_and_display(
+            api.delete_activity,
+            activity_id,
+            method_name="delete_activity",
+            api_call_desc=f"api.delete_activity({activity_id})",
+        )
+        print("✅ Activity deleted!")
+    else:
+        print(MSG_DELETE_CANCELLED)
+
+
 def delete_activity_data(api: Garmin) -> None:
     """Delete activity."""
     try:
         activities = api.get_activities(0, 5)
-        if activities:
-            print("\nRecent activities:")
-            for i, activity in enumerate(activities):
-                activity_name = activity.get("activityName", "Unnamed")
-                activity_id = activity.get("activityId")
-                start_time = activity.get("startTimeLocal", "Unknown time")
-                print(f"{i}: {activity_name} ({activity_id}) - {start_time}")
+        if not activities:
+            print(MSG_ERR_NO_ACTIVITIES)
+            return
 
-            try:
-                activity_index = input(
-                    "Enter activity index to delete: (or 'q' to cancel): "
-                ).strip()
+        print("\nRecent activities:")
+        for i, activity in enumerate(activities):
+            activity_name = activity.get("activityName", "Unnamed")
+            activity_id = activity.get("activityId")
+            start_time = activity.get("startTimeLocal", UNKNOWN_TIME_LABEL)
+            print(f"{i}: {activity_name} ({activity_id}) - {start_time}")
 
-                if activity_index.lower() == "q":
-                    print("❌ Delete cancelled")
-                    return
-                activity_index = int(activity_index)
-                if 0 <= activity_index < len(activities):
-                    activity_id = activities[activity_index]["activityId"]
-                    activity_name = activities[activity_index].get(
-                        "activityName", "Unnamed"
-                    )
+        try:
+            activity_index = input(
+                "Enter activity index to delete: (or 'q' to cancel): "
+            ).strip()
 
-                    confirm = input(f"Delete '{activity_name}'? (yes/no): ").lower()
-                    if confirm == "yes":
-                        call_and_display(
-                            api.delete_activity,
-                            activity_id,
-                            method_name="delete_activity",
-                            api_call_desc=f"api.delete_activity({activity_id})",
-                        )
-                        print("✅ Activity deleted!")
-                    else:
-                        print("❌ Delete cancelled")
-                else:
-                    print("❌ Invalid index")
-            except ValueError:
-                print("❌ Invalid input")
-        else:
-            print("❌ No activities found")
+            if activity_index.lower() == "q":
+                print(MSG_DELETE_CANCELLED)
+                return
+            idx = int(activity_index)
+            if 0 <= idx < len(activities):
+                _confirm_and_delete_activity(api, activities[idx])
+            else:
+                print(MSG_ERR_INVALID_INDEX)
+        except ValueError:
+            print(MSG_ERR_INVALID_INPUT)
     except Exception as e:
         print(f"❌ Error deleting activity: {e}")
+
+
+def _parse_bp_measurement_entry(
+    summary: dict, measurement: dict
+) -> tuple[Any, str, str] | None:
+    entry_id = measurement.get("version")
+    systolic = measurement.get("systolic")
+    diastolic = measurement.get("diastolic")
+    pulse = measurement.get("pulse")
+    timestamp = measurement.get("measurementTimestampLocal")
+    notes = measurement.get("notes", "")
+
+    measurement_date = (
+        timestamp.split("T")[0] if timestamp and "T" in str(timestamp) else summary.get("startDate")
+    )
+    if not (entry_id and systolic and diastolic and measurement_date):
+        return None
+
+    display_parts = [f"{systolic}/{diastolic}"]
+    if pulse:
+        display_parts.append(f"pulse {pulse}")
+    if timestamp:
+        display_parts.append(f"at {timestamp}")
+    if notes:
+        display_parts.append(f"({notes})")
+    return entry_id, " ".join(display_parts), measurement_date
+
+
+def _collect_bp_entries(bp_data: dict | None) -> list[tuple[Any, str, str]]:
+    if not bp_data or not bp_data.get("measurementSummaries"):
+        return []
+    entries: list[tuple[Any, str, str]] = []
+    for summary in bp_data["measurementSummaries"]:
+        for measurement in summary.get("measurements") or []:
+            parsed = _parse_bp_measurement_entry(summary, measurement)
+            if parsed is not None:
+                entries.append(parsed)
+    return entries
+
+
+def _confirm_and_delete_bp_entry(
+    api: Garmin, entry: tuple[Any, str, str]
+) -> None:
+    entry_id, display_text, measurement_date = entry
+    confirm = input(f"Delete entry '{display_text}'? (yes/no): ").lower()
+    if confirm == "yes":
+        call_and_display(
+            api.delete_blood_pressure,
+            entry_id,
+            measurement_date,
+            method_name="delete_blood_pressure",
+            api_call_desc=f"api.delete_blood_pressure('{entry_id}', '{measurement_date}')",
+        )
+        print("✅ Blood pressure entry deleted!")
+    else:
+        print(MSG_DELETE_CANCELLED)
 
 
 def delete_blood_pressure_data(api: Garmin) -> None:
     """Delete blood pressure entry."""
     try:
-        # Get recent blood pressure entries
         bp_data = api.get_blood_pressure(
             config.week_start.isoformat(), config.today.isoformat()
         )
-        entry_list = []
+        entry_list = _collect_bp_entries(bp_data)
 
-        # Parse the actual blood pressure data structure
-        if bp_data and bp_data.get("measurementSummaries"):
-            for summary in bp_data["measurementSummaries"]:
-                if summary.get("measurements"):
-                    for measurement in summary["measurements"]:
-                        # Use 'version' as the identifier (this is what Garmin uses)
-                        entry_id = measurement.get("version")
-                        systolic = measurement.get("systolic")
-                        diastolic = measurement.get("diastolic")
-                        pulse = measurement.get("pulse")
-                        timestamp = measurement.get("measurementTimestampLocal")
-                        notes = measurement.get("notes", "")
-
-                        # Extract date for deletion API (format: YYYY-MM-DD)
-                        measurement_date = None
-                        if timestamp:
-                            try:
-                                measurement_date = timestamp.split("T")[
-                                    0
-                                ]  # Get just the date part
-                            except Exception:
-                                measurement_date = summary.get(
-                                    "startDate"
-                                )  # Fallback to summary date
-                        else:
-                            measurement_date = summary.get(
-                                "startDate"
-                            )  # Fallback to summary date
-
-                        if entry_id and systolic and diastolic and measurement_date:
-                            # Format display text with more details
-                            display_parts = [f"{systolic}/{diastolic}"]
-                            if pulse:
-                                display_parts.append(f"pulse {pulse}")
-                            if timestamp:
-                                display_parts.append(f"at {timestamp}")
-                            if notes:
-                                display_parts.append(f"({notes})")
-
-                            display_text = " ".join(display_parts)
-                            # Store both entry_id and measurement_date for deletion
-                            entry_list.append(
-                                (entry_id, display_text, measurement_date)
-                            )
-
-        if entry_list:
-            print(f"\n📊 Found {len(entry_list)} blood pressure entries:")
-            print("-" * 70)
-            for i, (entry_id, display_text, _measurement_date) in enumerate(entry_list):
-                print(f"  [{i}] {display_text} (ID: {entry_id})")
-
-            try:
-                entry_index = input(
-                    "\nEnter entry index to delete: (or 'q' to cancel): "
-                ).strip()
-
-                if entry_index.lower() == "q":
-                    print("❌ Entry deletion cancelled")
-                    return
-
-                entry_index = int(entry_index)
-                if 0 <= entry_index < len(entry_list):
-                    entry_id, display_text, measurement_date = entry_list[entry_index]
-                    confirm = input(
-                        f"Delete entry '{display_text}'? (yes/no): "
-                    ).lower()
-                    if confirm == "yes":
-                        call_and_display(
-                            api.delete_blood_pressure,
-                            entry_id,
-                            measurement_date,
-                            method_name="delete_blood_pressure",
-                            api_call_desc=f"api.delete_blood_pressure('{entry_id}', '{measurement_date}')",
-                        )
-                        print("✅ Blood pressure entry deleted!")
-                    else:
-                        print("❌ Delete cancelled")
-                else:
-                    print("❌ Invalid index")
-            except ValueError:
-                print("❌ Invalid input")
-        else:
+        if not entry_list:
             print("❌ No blood pressure entries found for past week")
             print("💡 You can add a test measurement using menu option [3]")
+            return
+
+        print(f"\n📊 Found {len(entry_list)} blood pressure entries:")
+        print("-" * 70)
+        for i, (entry_id, display_text, _measurement_date) in enumerate(entry_list):
+            print(f"  [{i}] {display_text} (ID: {entry_id})")
+
+        try:
+            entry_index = input(
+                "\nEnter entry index to delete: (or 'q' to cancel): "
+            ).strip()
+
+            if entry_index.lower() == "q":
+                print("❌ Entry deletion cancelled")
+                return
+
+            idx = int(entry_index)
+            if 0 <= idx < len(entry_list):
+                _confirm_and_delete_bp_entry(api, entry_list[idx])
+            else:
+                print(MSG_ERR_INVALID_INDEX)
+        except ValueError:
+            print(MSG_ERR_INVALID_INPUT)
 
     except Exception as e:
         print(f"❌ Error deleting blood pressure: {e}")
+
+
+def _build_graphql_query(api: Garmin, choice: str) -> str | None:
+    today = config.today.isoformat()
+    week_start = config.week_start.isoformat()
+    start_datetime = f"{today}T00:00:00.00"
+    end_datetime = f"{today}T23:59:59.999"
+
+    predefined_queries = {
+        "1": f'query{{activitiesScalar(displayName:"{api.display_name}", startTimestampLocal:"{start_datetime}", endTimestampLocal:"{end_datetime}", limit:10)}}',
+        "2": f'query{{healthSnapshotScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "3": f'query{{weightScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "4": f'query{{bloodPressureScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "5": f'query{{sleepSummariesScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "6": f'query{{heartRateVariabilityScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "7": f'query{{userDailySummaryV2Scalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "8": f'query{{trainingReadinessRangeScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "9": f'query{{trainingStatusDailyScalar(calendarDate:"{today}")}}',
+        "10": f'query{{activityStatsScalar(aggregation:"daily", startDate:"{week_start}", endDate:"{today}", metrics:["duration", "distance"], groupByParentActivityType:true, standardizedUnits:true)}}',
+        "11": f'query{{vo2MaxScalar(startDate:"{week_start}", endDate:"{today}")}}',
+        "12": f'query{{enduranceScoreScalar(startDate:"{week_start}", endDate:"{today}", aggregation:"weekly")}}',
+        "13": "query{userGoalsScalar}",
+        "14": f'query{{epochChartScalar(date:"{today}", include:["stress"])}}',
+        "15": "query{badgeChallengesScalar}",
+        "16": "query{adhocChallengesScalar}",
+    }
+    if choice in predefined_queries:
+        return predefined_queries[choice]
+    if choice.lower() == "c":
+        print("\nEnter your custom GraphQL query:")
+        print("Example: query{userGoalsScalar}")
+        return input("Query: ").strip()
+    return None
 
 
 def query_garmin_graphql_data(api: Garmin) -> None:
@@ -3125,59 +3118,12 @@ def query_garmin_graphql_data(api: Garmin) -> None:
         print("  [c] Custom query")
 
         choice = input("\nEnter choice (1-16, c): ").strip()
-
-        # Use today's date and date range for queries that need them
-        today = config.today.isoformat()
-        week_start = config.week_start.isoformat()
-        start_datetime = f"{today}T00:00:00.00"
-        end_datetime = f"{today}T23:59:59.999"
-
-        if choice == "1":
-            query = f'query{{activitiesScalar(displayName:"{api.display_name}", startTimestampLocal:"{start_datetime}", endTimestampLocal:"{end_datetime}", limit:10)}}'
-        elif choice == "2":
-            query = f'query{{healthSnapshotScalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "3":
-            query = (
-                f'query{{weightScalar(startDate:"{week_start}", endDate:"{today}")}}'
-            )
-        elif choice == "4":
-            query = f'query{{bloodPressureScalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "5":
-            query = f'query{{sleepSummariesScalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "6":
-            query = f'query{{heartRateVariabilityScalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "7":
-            query = f'query{{userDailySummaryV2Scalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "8":
-            query = f'query{{trainingReadinessRangeScalar(startDate:"{week_start}", endDate:"{today}")}}'
-        elif choice == "9":
-            query = f'query{{trainingStatusDailyScalar(calendarDate:"{today}")}}'
-        elif choice == "10":
-            query = f'query{{activityStatsScalar(aggregation:"daily", startDate:"{week_start}", endDate:"{today}", metrics:["duration", "distance"], groupByParentActivityType:true, standardizedUnits:true)}}'
-        elif choice == "11":
-            query = (
-                f'query{{vo2MaxScalar(startDate:"{week_start}", endDate:"{today}")}}'
-            )
-        elif choice == "12":
-            query = f'query{{enduranceScoreScalar(startDate:"{week_start}", endDate:"{today}", aggregation:"weekly")}}'
-        elif choice == "13":
-            query = "query{userGoalsScalar}"
-        elif choice == "14":
-            query = f'query{{epochChartScalar(date:"{today}", include:["stress"])}}'
-        elif choice == "15":
-            query = "query{badgeChallengesScalar}"
-        elif choice == "16":
-            query = "query{adhocChallengesScalar}"
-        elif choice.lower() == "c":
-            print("\nEnter your custom GraphQL query:")
-            print("Example: query{userGoalsScalar}")
-            query = input("Query: ").strip()
-        else:
+        query = _build_graphql_query(api, choice)
+        if query is None:
             print("❌ Invalid choice")
             return
 
         if query:
-            # GraphQL API expects a dictionary with the query as a string value
             graphql_payload = {"query": query}
             call_and_display(
                 api.query_garmin_graphql,
@@ -3217,7 +3163,7 @@ def get_virtual_challenges_data(api: Garmin) -> None:
         # Handle the common 400 error case quietly - this is expected for many accounts
         error_str = str(e)
         if "400" in error_str and (
-            "Bad Request" in error_str or "API client error" in error_str
+            ERR_BAD_REQUEST in error_str or "API client error" in error_str
         ):
             print("ℹ️ Virtual challenges are not available for your account")
         else:
@@ -3308,46 +3254,50 @@ def set_blood_pressure_data(api: Garmin) -> None:
         print(f"❌ Error setting blood pressure: {e}")
 
 
+def _print_gear_activities_usage(activity_list: list[dict]) -> None:
+    if not activity_list:
+        print("No activities found for the given gear uuid.")
+    else:
+        print(f"Found {len(activity_list)} activities.")
+
+    total_seconds = 0
+    for activity in activity_list:
+        name_suffix = f" | {activity['activityName']}" if activity.get("activityName") else ""
+        print(f"Activity: {activity['startTimeLocal']}{name_suffix}")
+        duration = activity["duration"]
+        print(
+            "  Duration: "
+            + format_timedelta(datetime.timedelta(seconds=duration))
+        )
+        total_seconds += duration
+    print("")
+    print(
+        "Total Duration: "
+        + format_timedelta(datetime.timedelta(seconds=total_seconds))
+    )
+    print("")
+
+
 def track_gear_usage_data(api: Garmin) -> None:
     """Calculate total time of use of a piece of gear by going through all activities where said gear has been used."""
     try:
         device_last_used = api.get_device_last_used()
         user_profile_number = device_last_used.get("userProfileNumber")
-        if user_profile_number:
-            gear_list = api.get_gear(user_profile_number)
-            # call_and_display(api.get_gear, user_profile_number, method_name="get_gear", api_call_desc=f"api.get_gear({user_profile_number})")
-            if gear_list and isinstance(gear_list, list):
-                first_gear = gear_list[0]
-                gear_uuid = first_gear.get("uuid")
-                gear_name = first_gear.get("displayName", "Unknown")
-                print(f"Tracking usage for gear: {gear_name} (UUID: {gear_uuid})")
-                activityList = api.get_gear_activities(gear_uuid)
-                if len(activityList) == 0:
-                    print("No activities found for the given gear uuid.")
-                else:
-                    print("Found " + str(len(activityList)) + " activities.")
+        if not user_profile_number:
+            print(MSG_NO_USER_PROFILE_NUMBER)
+            return
 
-                D = 0
-                for a in activityList:
-                    print(
-                        "Activity: "
-                        + a["startTimeLocal"]
-                        + (" | " + a["activityName"] if a["activityName"] else "")
-                    )
-                    print(
-                        "  Duration: "
-                        + format_timedelta(datetime.timedelta(seconds=a["duration"]))
-                    )
-                    D += a["duration"]
-                print("")
-                print(
-                    "Total Duration: " + format_timedelta(datetime.timedelta(seconds=D))
-                )
-                print("")
-            else:
-                print("No gear found for this user.")
-        else:
-            print("❌ Could not get user profile number")
+        gear_list = api.get_gear(user_profile_number)
+        if not gear_list or not isinstance(gear_list, list):
+            print("No gear found for this user.")
+            return
+
+        first_gear = gear_list[0]
+        gear_uuid = first_gear.get("uuid")
+        gear_name = first_gear.get("displayName", "Unknown")
+        print(f"Tracking usage for gear: {gear_name} (UUID: {gear_uuid})")
+        activity_list = api.get_gear_activities(gear_uuid)
+        _print_gear_activities_usage(activity_list)
     except Exception as e:
         print(f"❌ Error getting gear for track_gear_usage_data: {e}")
 
@@ -3771,7 +3721,7 @@ def execute_api_call(api: Garmin, key: str) -> None:
             "get_device_last_used": lambda: call_and_display(
                 api.get_device_last_used,
                 method_name="get_device_last_used",
-                api_call_desc="api.get_device_last_used()",
+                api_call_desc=API_GET_DEVICE_LAST_USED,
             ),
             "get_primary_training_device": lambda: call_and_display(
                 api.get_primary_training_device,
@@ -3875,17 +3825,13 @@ def disconnect_api(api: Garmin):
     print("✅ Disconnected from Garmin Connect")
 
 
-def init_api(email: str | None = None, password: str | None = None) -> Garmin | None:
-    """Initialize Garmin API with smart error handling and recovery."""
-    # First try to login with stored tokens
+def _try_demo_token_login() -> Garmin | None:
     try:
         print(f"Attempting to login using stored tokens from: {config.tokenstore}")
-
         garmin = Garmin()
         garmin.login(config.tokenstore)
         print("Successfully logged in using stored tokens!")
         return garmin
-
     except (
         FileNotFoundError,
         GarthHTTPError,
@@ -3893,11 +3839,46 @@ def init_api(email: str | None = None, password: str | None = None) -> Garmin | 
         GarminConnectConnectionError,
     ):
         print("No valid tokens found. Requesting fresh login credentials.")
+        return None
 
-    # Loop for credential entry with retry on auth failure
+
+def _handle_demo_mfa(garmin: Garmin, mfa_state: Any) -> bool:
+    print("Multi-factor authentication required")
+    mfa_code = get_mfa()
+    print("🔄 Submitting MFA code...")
+
+    try:
+        garmin.resume_login(mfa_state, mfa_code)
+        print("✅ MFA authentication successful!")
+        return True
+    except GarthHTTPError as garth_error:
+        error_str = str(garth_error)
+        print(f"🔍 Debug: MFA error details: {error_str}")
+
+        if "429" in error_str and "Too Many Requests" in error_str:
+            print("❌ Too many MFA attempts")
+            print("💡 Please wait 30 minutes before trying again")
+            sys.exit(1)
+        if "401" in error_str or "403" in error_str:
+            print("❌ Invalid MFA code")
+            print("💡 Please verify your MFA code and try again")
+            return False
+        print(f"❌ MFA authentication failed: {garth_error}")
+        sys.exit(1)
+    except GarthException as garth_error:
+        print(f"❌ MFA authentication failed: {garth_error}")
+        print("💡 Please verify your MFA code and try again")
+        return False
+
+
+def init_api(email: str | None = None, password: str | None = None) -> Garmin | None:
+    """Initialize Garmin API with smart error handling and recovery."""
+    garmin = _try_demo_token_login()
+    if garmin is not None:
+        return garmin
+
     while True:
         try:
-            # Get credentials if not provided
             if not email or not password:
                 email = input("Email address: ").strip()
                 password = getpass("Password: ")
@@ -3908,49 +3889,16 @@ def init_api(email: str | None = None, password: str | None = None) -> Garmin | 
             )
             result1, result2 = garmin.login()
 
-            if result1 == "needs_mfa":
-                print("Multi-factor authentication required")
+            if result1 == "needs_mfa" and not _handle_demo_mfa(garmin, result2):
+                continue
 
-                mfa_code = get_mfa()
-                print("🔄 Submitting MFA code...")
-
-                try:
-                    garmin.resume_login(result2, mfa_code)
-                    print("✅ MFA authentication successful!")
-
-                except GarthHTTPError as garth_error:
-                    # Handle specific HTTP errors from MFA
-                    error_str = str(garth_error)
-                    print(f"🔍 Debug: MFA error details: {error_str}")
-
-                    if "429" in error_str and "Too Many Requests" in error_str:
-                        print("❌ Too many MFA attempts")
-                        print("💡 Please wait 30 minutes before trying again")
-                        sys.exit(1)
-                    elif "401" in error_str or "403" in error_str:
-                        print("❌ Invalid MFA code")
-                        print("💡 Please verify your MFA code and try again")
-                        continue
-                    else:
-                        # Other HTTP errors - don't retry
-                        print(f"❌ MFA authentication failed: {garth_error}")
-                        sys.exit(1)
-
-                except GarthException as garth_error:
-                    print(f"❌ MFA authentication failed: {garth_error}")
-                    print("💡 Please verify your MFA code and try again")
-                    continue
-
-            # Save tokens for future use
             garmin.garth.dump(config.tokenstore)
             print(f"Login successful! Tokens saved to: {config.tokenstore}")
-
             return garmin
 
         except GarminConnectAuthenticationError:
             print("❌ Authentication failed:")
             print("💡 Please check your username and password and try again")
-            # Clear the provided credentials to force re-entry
             email = None
             password = None
             continue
@@ -3971,9 +3919,70 @@ def init_api(email: str | None = None, password: str | None = None) -> Garmin | 
             return None
 
 
+def _format_hydration_stat(hydration_data: dict | None) -> str | None:
+    if not hydration_data or not hydration_data.get("valueInML"):
+        return None
+    hydration_ml = int(hydration_data.get("valueInML", 0))
+    hydration_cups = round(hydration_ml / 240, 1)
+    hydration_goal = hydration_data.get("goalInML", 0)
+    if hydration_goal > 0:
+        hydration_percent = round((hydration_ml / hydration_goal) * 100)
+        return f"{hydration_ml}ml water ({hydration_percent}% of goal)"
+    return f"{hydration_ml}ml water ({hydration_cups} cups)"
+
+
+def _display_today_status_banner(api_instance: Garmin) -> None:
+    try:
+        summary = api_instance.get_user_summary(config.today.isoformat())
+        hydration_data = None
+        with suppress(Exception):
+            hydration_data = api_instance.get_hydration_data(config.today.isoformat())
+
+        if not summary:
+            return
+        steps = summary.get("totalSteps") or 0
+        calories = summary.get("totalKilocalories") or 0
+        stats_parts = [f"{steps:,} steps", f"{calories} kcal"]
+        hydration_part = _format_hydration_stat(hydration_data)
+        if hydration_part:
+            stats_parts.append(hydration_part)
+
+        print(f"\n📊 Your Stats Today: {' | '.join(stats_parts)}")
+        if steps < 5000:
+            print("🐌 Time to get those legs moving!")
+        elif steps > 15000:
+            print("🏃‍♂️ You're crushing it today!")
+        else:
+            print("👍 Nice progress! Keep it up!")
+    except Exception as e:
+        print(f"Unable to fetch stats for display: {e}")
+
+
+def _handle_category_menu_choice(
+    api_instance: Garmin | None, current_category: str, option: str
+) -> str | None:
+    if option == "q":
+        return None
+    if option not in "0123456789abcdefghijklmnopqrstuvwxyz":
+        print(
+            "❌ Invalid selection. Use numbers/letters for options or 'q' to go back/quit"
+        )
+        return current_category
+
+    try:
+        category_options = menu_categories[current_category]["options"]
+        if option in category_options:
+            execute_api_call(api_instance, category_options[option]["key"])
+        else:
+            valid_keys = ", ".join(category_options.keys())
+            print(f"❌ Invalid option selection. Valid options: {valid_keys}")
+    except Exception as e:
+        print(f"❌ Error processing option {option}: {e}")
+    return current_category
+
+
 def main():
     """Main program loop with funny health status in menu prompt."""
-    # Display export directory information on startup
     print(f"📁 Exported data will be saved to the directory: '{config.export_dir}'")
     print("📄 All API responses are written to: 'response.json'")
 
@@ -3983,59 +3992,12 @@ def main():
     while True:
         try:
             if api_instance:
-                # Add health status in menu prompt
-                try:
-                    summary = api_instance.get_user_summary(config.today.isoformat())
-                    hydration_data = None
-                    with suppress(Exception):
-                        hydration_data = api_instance.get_hydration_data(
-                            config.today.isoformat()
-                        )
+                _display_today_status_banner(api_instance)
 
-                    if summary:
-                        steps = summary.get("totalSteps") or 0
-                        calories = summary.get("totalKilocalories") or 0
-
-                        # Build stats string with hydration if available
-                        stats_parts = [f"{steps:,} steps", f"{calories} kcal"]
-
-                        if hydration_data and hydration_data.get("valueInML"):
-                            hydration_ml = int(hydration_data.get("valueInML", 0))
-                            hydration_cups = round(hydration_ml / 240, 1)
-                            hydration_goal = hydration_data.get("goalInML", 0)
-
-                            if hydration_goal > 0:
-                                hydration_percent = round(
-                                    (hydration_ml / hydration_goal) * 100
-                                )
-                                stats_parts.append(
-                                    f"{hydration_ml}ml water ({hydration_percent}% of goal)"
-                                )
-                            else:
-                                stats_parts.append(
-                                    f"{hydration_ml}ml water ({hydration_cups} cups)"
-                                )
-
-                        stats_string = " | ".join(stats_parts)
-                        print(f"\n📊 Your Stats Today: {stats_string}")
-
-                        if steps < 5000:
-                            print("🐌 Time to get those legs moving!")
-                        elif steps > 15000:
-                            print("🏃‍♂️ You're crushing it today!")
-                        else:
-                            print("👍 Nice progress! Keep it up!")
-                except Exception as e:
-                    print(
-                        f"Unable to fetch stats for display: {e}"
-                    )  # Silently skip if stats can't be fetched
-
-            # Display appropriate menu
             if current_category is None:
                 print_main_menu()
                 option = safe_readkey()
 
-                # Handle main menu options
                 if option == "q":
                     print(
                         "Be active, generate some data to play with next time ;-) Bye!"
@@ -4048,31 +4010,11 @@ def main():
                         f"❌ Invalid selection. Use {', '.join(menu_categories.keys())} for categories or 'q' to quit"
                     )
             else:
-                # In a category - show category menu
                 print_category_menu(current_category)
                 option = safe_readkey()
-
-                # Handle category menu options
-                if option == "q":
-                    current_category = None  # Back to main menu
-                elif option in "0123456789abcdefghijklmnopqrstuvwxyz":
-                    try:
-                        category_data = menu_categories[current_category]
-                        category_options = category_data["options"]
-                        if option in category_options:
-                            api_key = category_options[option]["key"]
-                            execute_api_call(api_instance, api_key)
-                        else:
-                            valid_keys = ", ".join(category_options.keys())
-                            print(
-                                f"❌ Invalid option selection. Valid options: {valid_keys}"
-                            )
-                    except Exception as e:
-                        print(f"❌ Error processing option {option}: {e}")
-                else:
-                    print(
-                        "❌ Invalid selection. Use numbers/letters for options or 'q' to go back/quit"
-                    )
+                current_category = _handle_category_menu_choice(
+                    api_instance, current_category, option
+                )
 
         except KeyboardInterrupt:
             print("\nInterrupted by user. Press q to quit.")

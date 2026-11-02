@@ -3691,11 +3691,8 @@
             <!-- 2FA Setup Flow Container (Hidden when not setting up) -->
             <div id="secSetupContainer" style="display: none; flex-direction: column; gap: 1rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 14px; padding: 1.25rem;">
                 <p style="font-size: 0.85rem; color: #cbd5e1; line-height: 1.4;">
-                    Scansiona questo codice QR con l'app <strong>Google Authenticator</strong>, <strong>Authy</strong> o <strong>1Password</strong>:
+                    Inserisci questa chiave nell'app Authenticator, scegliendo l'algoritmo <strong id="secTotpAlgorithm">SHA1</strong>:
                 </p>
-                <div style="display: flex; justify-content: center; background: #ffffff; border-radius: 12px; padding: 12px; width: fit-content; margin: 0 auto;">
-                    <img id="secQrImage" src="" alt="QR Code 2FA" style="width: 160px; height: 160px; display: block;" />
-                </div>
                 <div style="background: rgba(0, 0, 0, 0.3); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 8px 12px; text-align: center;">
                     <span style="font-size: 0.72rem; color: #94a3b8; display: block;">oppure inserisci la chiave manuale:</span>
                     <strong id="secSecretText" style="font-family: monospace; font-size: 0.95rem; color: #818cf8; letter-spacing: 1px;">—</strong>
@@ -3827,9 +3824,18 @@
             fetchDatabaseData();
         }
 
+        function getCsrfToken() {
+            const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+            return match ? decodeURIComponent(match[1]) : "";
+        }
+
         function getAuthHeaders() {
+            const headers = {};
             const key = localStorage.getItem("X-API-Key");
-            return key ? { "X-API-Key": key } : {};
+            if (key) headers["X-API-Key"] = key;
+            const csrf = getCsrfToken();
+            if (csrf) headers["X-XSRF-TOKEN"] = csrf;
+            return headers;
         }
 
         // Show toast alert
@@ -3936,7 +3942,7 @@
             try {
                 const response = await fetch("http://localhost:8080/api/cache/clear", {
                     method: "POST",
-                    headers: getAuthHeaders()
+                    headers: localStorage.getItem("X-API-Key") ? {"X-API-Key": localStorage.getItem("X-API-Key")} : {}
                 });
                 
                 toggleLoader(false);
@@ -4333,69 +4339,30 @@
         function switchTab(tab) {
             triggerHaptic(25);
 
-            const garminBtn = document.getElementById("tabBtnGarmin");
-            const personalBtn = document.getElementById("tabBtnPersonal");
-            const healthBtn = document.getElementById("tabBtnHealth");
-            const renphoBtn = document.getElementById("tabBtnRenpho");
-            const mealBtn = document.getElementById("tabBtnMeal");
-            const workoutBtn = document.getElementById("tabBtnWorkout");
+            const tabConfig = {
+                garmin: { btn: "tabBtnGarmin", nav: "bNavGarmin", content: "garminTabContent", onActivate: () => fetchDatabaseData() },
+                health: { btn: "tabBtnHealth", nav: "bNavHealth", content: "healthTabContent", onActivate: () => fetchHealthData() },
+                personal: { btn: "tabBtnPersonal", nav: "bNavPersonal", content: "personalTabContent", onActivate: () => { if (!personalLoaded) loadPersonalWellness(7); } },
+                renpho: { btn: "tabBtnRenpho", nav: "bNavRenpho", content: "renphoTabContent", onActivate: () => fetchRenphoData() },
+                meal: { btn: "tabBtnMeal", nav: "bNavMeal", content: "mealTabContent", onActivate: null },
+                workout: { btn: "tabBtnWorkout", nav: "bNavWorkout", content: "workoutTabContent", onActivate: () => fetchWorkoutData() }
+            };
 
-            const bGarminBtn = document.getElementById("bNavGarmin");
-            const bPersonalBtn = document.getElementById("bNavPersonal");
-            const bHealthBtn = document.getElementById("bNavHealth");
-            const bRenphoBtn = document.getElementById("bNavRenpho");
-            const bMealBtn = document.getElementById("bNavMeal");
-            const bWorkoutBtn = document.getElementById("bNavWorkout");
+            Object.values(tabConfig).forEach(cfg => {
+                document.getElementById(cfg.btn)?.classList.remove("active");
+                document.getElementById(cfg.nav)?.classList.remove("active");
+                const contentEl = document.getElementById(cfg.content);
+                if (contentEl) contentEl.style.display = "none";
+            });
 
-            const garminContent = document.getElementById("garminTabContent");
-            const personalContent = document.getElementById("personalTabContent");
-            const healthContent = document.getElementById("healthTabContent");
-            const renphoContent = document.getElementById("renphoTabContent");
-            const mealContent = document.getElementById("mealTabContent");
-            const workoutContent = document.getElementById("workoutTabContent");
-            
-            // Remove active classes
-            [garminBtn, healthBtn, personalBtn, renphoBtn, mealBtn, workoutBtn].forEach(b => { if (b) b.classList.remove("active"); });
-            [bGarminBtn, bHealthBtn, bPersonalBtn, bRenphoBtn, bMealBtn, bWorkoutBtn].forEach(b => { if (b) b.classList.remove("active"); });
-            
-            // Hide all tab contents
-            if (garminContent) garminContent.style.display = "none";
-            if (healthContent) healthContent.style.display = "none";
-            if (personalContent) personalContent.style.display = "none";
-            if (renphoContent) renphoContent.style.display = "none";
-            if (mealContent) mealContent.style.display = "none";
-            if (workoutContent) workoutContent.style.display = "none";
-            
-            if (tab === "garmin") {
-                if (garminBtn) garminBtn.classList.add("active");
-                if (bGarminBtn) bGarminBtn.classList.add("active");
-                if (garminContent) garminContent.style.display = "block";
-                fetchDatabaseData();
-            } else if (tab === "health") {
-                if (healthBtn) healthBtn.classList.add("active");
-                if (bHealthBtn) bHealthBtn.classList.add("active");
-                if (healthContent) healthContent.style.display = "block";
-                fetchHealthData();
-            } else if (tab === "personal") {
-                personalBtn.classList.add("active");
-                bPersonalBtn.classList.add("active");
-                personalContent.style.display = "block";
-                if (!personalLoaded) loadPersonalWellness(7);
-            } else if (tab === "renpho") {
-                if (renphoBtn) renphoBtn.classList.add("active");
-                if (bRenphoBtn) bRenphoBtn.classList.add("active");
-                if (renphoContent) renphoContent.style.display = "block";
-                fetchRenphoData();
-            } else if (tab === "meal") {
-                if (mealBtn) mealBtn.classList.add("active");
-                if (bMealBtn) bMealBtn.classList.add("active");
-                if (mealContent) mealContent.style.display = "block";
-            } else if (tab === "workout") {
-                if (workoutBtn) workoutBtn.classList.add("active");
-                if (bWorkoutBtn) bWorkoutBtn.classList.add("active");
-                if (workoutContent) workoutContent.style.display = "block";
-                fetchWorkoutData();
-            }
+            const activeCfg = tabConfig[tab];
+            if (!activeCfg) return;
+
+            document.getElementById(activeCfg.btn)?.classList.add("active");
+            document.getElementById(activeCfg.nav)?.classList.add("active");
+            const activeContent = document.getElementById(activeCfg.content);
+            if (activeContent) activeContent.style.display = "block";
+            if (activeCfg.onActivate) activeCfg.onActivate();
         }
 
         function selectMealDay(day, btnElement) {
@@ -4473,6 +4440,29 @@
             renderRenphoTableBodyRows(filtered);
         }
 
+        function formatRenphoOptMetric(val, decimals, suffix = "") {
+            if (!val) return "—";
+            return Number(val).toFixed(decimals) + suffix;
+        }
+
+        function buildRenphoRowHtml(r) {
+            const rawDate = r.created_at ? r.created_at.substring(0, 10) : "—";
+            const rawTime = r.created_at ? r.created_at.substring(11, 16) : "—";
+            const w = Number(r.weight);
+            return `
+                <td style="font-weight: 500; color: white;">${rawDate}</td>
+                <td>${rawTime}</td>
+                <td style="font-weight: 600; color: var(--primary);">${w.toFixed(2)}</td>
+                <td>${formatRenphoOptMetric(r.bodyfat, 1, "%")}</td>
+                <td>${formatRenphoOptMetric(r.muscle, 1, "%")}</td>
+                <td>${formatRenphoOptMetric(r.bone, 1, "%")}</td>
+                <td>${formatRenphoOptMetric(r.water, 1, "%")}</td>
+                <td style="font-weight: 500; color: white;">${formatRenphoOptMetric(r.bmi, 1)}</td>
+                <td>${formatRenphoOptMetric(r.bmr, 0, " kcal")}</td>
+                <td>${formatRenphoOptMetric(r.resistance, 0)}</td>
+            `;
+        }
+
         function renderRenphoTableBodyRows(records) {
             const tbody = document.getElementById("renphoTableBody");
             tbody.innerHTML = "";
@@ -4490,30 +4480,8 @@
             }
             
             records.forEach(r => {
-                const rawDate = r.created_at ? r.created_at.substring(0, 10) : "—";
-                const rawTime = r.created_at ? r.created_at.substring(11, 16) : "—";
-                const w = Number(r.weight);
-                const fat = r.bodyfat ? Number(r.bodyfat) : null;
-                const mus = r.muscle ? Number(r.muscle) : null;
-                const bon = r.bone ? Number(r.bone) : null;
-                const wat = r.water ? Number(r.water) : null;
-                const bmi = r.bmi ? Number(r.bmi) : null;
-                const bmr = r.bmr ? Number(r.bmr) : null;
-                const res = r.resistance ? Number(r.resistance) : null;
-                
                 const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td style="font-weight: 500; color: white;">${rawDate}</td>
-                    <td>${rawTime}</td>
-                    <td style="font-weight: 600; color: var(--primary);">${w.toFixed(2)}</td>
-                    <td>${fat !== null ? fat.toFixed(1) + '%' : '—'}</td>
-                    <td>${mus !== null ? mus.toFixed(1) + '%' : '—'}</td>
-                    <td>${bon !== null ? bon.toFixed(1) + '%' : '—'}</td>
-                    <td>${wat !== null ? wat.toFixed(1) + '%' : '—'}</td>
-                    <td style="font-weight: 500; color: white;">${bmi !== null ? bmi.toFixed(1) : '—'}</td>
-                    <td>${bmr !== null ? bmr.toFixed(0) + ' kcal' : '—'}</td>
-                    <td>${res !== null ? res.toFixed(0) : '—'}</td>
-                `;
+                row.innerHTML = buildRenphoRowHtml(r);
                 tbody.appendChild(row);
             });
         }
@@ -5154,43 +5122,78 @@
             }
         }
 
-        function updateMuscleHeatmapAndBreakdown() {
-            let volMap = {};
-            let periodLabel = "Ultimo Allenamento";
-            let subLabel = "Volume Sessione";
-
+        function resolveMusclePeriodState() {
             if (selectedMusclePeriod === 'last') {
-                volMap = (lastLoadedWorkoutData && lastLoadedWorkoutData.volumeByMuscleGroup) || {};
+                const volMap = (lastLoadedWorkoutData && lastLoadedWorkoutData.volumeByMuscleGroup) || {};
                 const actName = (lastLoadedWorkoutData && lastLoadedWorkoutData.activityName) || "";
-                periodLabel = actName ? `Ultimo Allenamento: ${actName}` : "Ultimo Allenamento";
-                subLabel = "Volume Sessione";
-            } else if (selectedMusclePeriod === 'current_week') {
+                return {
+                    volMap,
+                    periodLabel: actName ? `Ultimo Allenamento: ${actName}` : "Ultimo Allenamento",
+                    subLabel: "Volume Sessione"
+                };
+            }
+            if (selectedMusclePeriod === 'current_week') {
                 const allWeeks = Object.keys(cachedWeeklyVolumeData || {}).sort();
                 const latestWeek = allWeeks.length > 0 ? allWeeks[allWeeks.length - 1] : null;
                 if (latestWeek && cachedWeeklyVolumeData[latestWeek]) {
-                    volMap = cachedWeeklyVolumeData[latestWeek];
-                    periodLabel = `Settimana Corrente (${formatWeekDateLabel(latestWeek)})`;
-                    subLabel = "Volume Settimanale";
-                } else {
-                    periodLabel = "Settimana Corrente";
+                    return {
+                        volMap: cachedWeeklyVolumeData[latestWeek],
+                        periodLabel: `Settimana Corrente (${formatWeekDateLabel(latestWeek)})`,
+                        subLabel: "Volume Settimanale"
+                    };
                 }
-            } else if (selectedMusclePeriod.startsWith("week:")) {
+                return { volMap: {}, periodLabel: "Settimana Corrente", subLabel: "Volume Sessione" };
+            }
+            if (selectedMusclePeriod.startsWith("week:")) {
                 const weekKey = selectedMusclePeriod.replace("week:", "");
                 if (cachedWeeklyVolumeData && cachedWeeklyVolumeData[weekKey]) {
-                    volMap = cachedWeeklyVolumeData[weekKey];
-                    periodLabel = `Settimana ${formatWeekDateLabel(weekKey)}`;
-                    subLabel = "Volume Settimanale";
+                    return {
+                        volMap: cachedWeeklyVolumeData[weekKey],
+                        periodLabel: `Settimana ${formatWeekDateLabel(weekKey)}`,
+                        subLabel: "Volume Settimanale"
+                    };
                 }
             }
+            return { volMap: {}, periodLabel: "Ultimo Allenamento", subLabel: "Volume Sessione" };
+        }
 
-            // Update Labels
+        function computeNormalizedMuscleVolumes(volMap, standardGroups) {
+            const normalized = {};
+            const posteriorVol = Number(volMap["Back/Legs (Posterior Chain)"] || 0) * 0.5;
+            standardGroups.forEach(g => {
+                let v = Number(volMap[g] || 0);
+                if (g === "Back" || g === "Legs") v += posteriorVol;
+                normalized[g] = v;
+            });
+            let forearmVol = Number(volMap["Forearms"] || 0);
+            if (forearmVol === 0 && (normalized["Back"] > 0 || normalized["Biceps"] > 0 || normalized["Chest"] > 0)) {
+                forearmVol = Math.max(normalized["Back"], normalized["Biceps"]) * 0.25;
+            }
+            normalized["Forearms"] = forearmVol;
+            return normalized;
+        }
+
+        function classifyMuscleStatuses(muscleVolumeNormalized, maxVol) {
+            const statuses = {};
+            const primaryThreshold = maxVol > 0 ? maxVol * 0.45 : 0;
+            Object.keys(muscleVolumeNormalized).forEach(g => {
+                const v = muscleVolumeNormalized[g];
+                if (v <= 0) statuses[g] = "inactive";
+                else if (v >= primaryThreshold && maxVol > 0) statuses[g] = "primary";
+                else statuses[g] = "secondary";
+            });
+            return statuses;
+        }
+
+        function updateMuscleHeatmapAndBreakdown() {
+            const { volMap, periodLabel, subLabel } = resolveMusclePeriodState();
+
             const headerLabel = document.getElementById("muscleMapPeriodLabel");
             if (headerLabel) headerLabel.innerText = periodLabel;
 
             const boxTitle = document.getElementById("muscleVolumeBoxTitle");
             if (boxTitle) boxTitle.innerText = subLabel;
 
-            // Total volume & max muscle volume
             const totalVol = Object.values(volMap).reduce((a, b) => a + Number(b || 0), 0);
             const maxVol = Math.max(...Object.values(volMap).map(Number), 0);
 
@@ -5199,64 +5202,23 @@
                 totalDisplay.innerHTML = `${totalVol.toLocaleString('it-IT', { maximumFractionDigits: 1 })} <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">kg</span>`;
             }
 
-            // Classify muscle groups
             const standardGroups = ["Chest", "Back", "Shoulders", "Biceps", "Triceps", "Core", "Legs", "Calves"];
-            const muscleStatus = {};
-            const muscleVolumeNormalized = {};
+            const muscleVolumeNormalized = computeNormalizedMuscleVolumes(volMap, standardGroups);
+            const muscleStatus = classifyMuscleStatuses(muscleVolumeNormalized, maxVol);
 
-            standardGroups.forEach(g => {
-                let v = Number(volMap[g] || 0);
-                if (g === "Back" && volMap["Back/Legs (Posterior Chain)"]) {
-                    v += Number(volMap["Back/Legs (Posterior Chain)"]) * 0.5;
-                }
-                if (g === "Legs" && volMap["Back/Legs (Posterior Chain)"]) {
-                    v += Number(volMap["Back/Legs (Posterior Chain)"]) * 0.5;
-                }
-                muscleVolumeNormalized[g] = v;
-            });
-
-            // Forearms: either direct or secondary if Back/Biceps/Chest trained
-            let forearmVol = Number(volMap["Forearms"] || 0);
-            if (forearmVol === 0 && (muscleVolumeNormalized["Back"] > 0 || muscleVolumeNormalized["Biceps"] > 0 || muscleVolumeNormalized["Chest"] > 0)) {
-                forearmVol = Math.max(muscleVolumeNormalized["Back"], muscleVolumeNormalized["Biceps"]) * 0.25;
-            }
-            muscleVolumeNormalized["Forearms"] = forearmVol;
-
-            // Threshold: primary if >= 45% of max muscle volume, else secondary if > 0
-            const primaryThreshold = maxVol > 0 ? maxVol * 0.45 : 0;
-
-            Object.keys(muscleVolumeNormalized).forEach(g => {
-                const v = muscleVolumeNormalized[g];
-                if (v <= 0) {
-                    muscleStatus[g] = "inactive";
-                } else if (v >= primaryThreshold && maxVol > 0) {
-                    muscleStatus[g] = "primary";
-                } else {
-                    muscleStatus[g] = "secondary";
-                }
-            });
-
-            // Update SVG cutouts
             const cutouts = document.querySelectorAll(".garmin-silhouette-svg .muscle-cutout");
             cutouts.forEach(cutout => {
-                const group = cutout.getAttribute("data-muscle");
+                const group = cutout.dataset.muscle;
                 const status = muscleStatus[group] || "inactive";
                 cutout.classList.remove("primary", "secondary", "inactive");
                 cutout.classList.add(status);
             });
 
-            // Update Active Count
-            let activeCount = 0;
-            standardGroups.forEach(g => {
-                if (muscleStatus[g] && muscleStatus[g] !== "inactive") activeCount++;
-            });
+            const activeCount = standardGroups.filter(g => muscleStatus[g] && muscleStatus[g] !== "inactive").length;
             const activeDisplay = document.getElementById("muscleVolumeActiveCount");
             if (activeDisplay) activeDisplay.innerText = activeCount;
 
-            // Render Breakdown List
             renderMuscleBreakdownList(muscleVolumeNormalized, muscleStatus, totalVol, maxVol);
-
-            // Initialize hover & tooltip if not done
             setupMuscleMapInteractivity();
         }
 
@@ -5316,7 +5278,7 @@
 
             // Attach hover listeners to breakdown items
             listEl.querySelectorAll(".muscle-breakdown-item").forEach(item => {
-                const m = item.getAttribute("data-muscle");
+                const m = item.dataset.muscle;
                 item.addEventListener("mouseenter", () => {
                     highlightMuscle(m, true);
                 });
@@ -5359,7 +5321,7 @@
             if (!stage || !tooltip) return;
 
             cutouts.forEach(cutout => {
-                const muscle = cutout.getAttribute("data-muscle");
+                const muscle = cutout.dataset.muscle;
                 const friendly = muscleGroupLabels[muscle] || muscle;
 
                 cutout.addEventListener("mouseenter", () => {
@@ -6006,58 +5968,39 @@
             if (date) fetchHealthData(date);
         }
 
-        function updateReadinessUI(data) {
-            const score = data.readinessScore !== undefined && data.readinessScore !== null ? Number(data.readinessScore) : 70;
-            const level = data.readinessLevel || "MODERATE";
-            const advice = data.readinessAdvice || "Dati fisiologici stabili. Procedi con l'allenamento mantenendo una buona gestione del carico.";
-
-            // Update Score & Label
-            const scoreEl = document.getElementById("readinessScoreNum");
-            if (scoreEl) scoreEl.innerText = score;
-
-            // SVG Circle Dashoffset (circumference = 2 * PI * 50 = 314.159)
-            const circle = document.getElementById("readinessProgressCircle");
-            if (circle) {
-                const total = 314.159;
-                const offset = total - (total * (score / 100));
-                circle.style.strokeDashoffset = offset;
-                
-                if (score >= 80) circle.style.stroke = "#10b981"; // Emerald
-                else if (score >= 55) circle.style.stroke = "#f59e0b"; // Amber
-                else circle.style.stroke = "#ef4444"; // Rose
+        function getReadinessTierConfig(score) {
+            if (score >= 80) {
+                return { stroke: "#10b981", badgeClass: "badge-optimal", badgeHtml: "<span>🟢 Recupero Ottimale</span>" };
             }
-
-            // Badge Pill
-            const badgeEl = document.getElementById("readinessBadgePill");
-            if (badgeEl) {
-                badgeEl.className = "readiness-badge-pill";
-                if (score >= 80) {
-                    badgeEl.classList.add("badge-optimal");
-                    badgeEl.innerHTML = "<span>🟢 Recupero Ottimale</span>";
-                } else if (score >= 55) {
-                    badgeEl.classList.add("badge-moderate");
-                    badgeEl.innerHTML = "<span>🟡 Recupero Standard</span>";
-                } else {
-                    badgeEl.classList.add("badge-fatigued");
-                    badgeEl.innerHTML = "<span>🔴 Affaticamento Rilevato</span>";
-                }
+            if (score >= 55) {
+                return { stroke: "#f59e0b", badgeClass: "badge-moderate", badgeHtml: "<span>🟡 Recupero Standard</span>" };
             }
+            return { stroke: "#ef4444", badgeClass: "badge-fatigued", badgeHtml: "<span>🔴 Affaticamento Rilevato</span>" };
+        }
 
-            // Advice Text
-            const adviceEl = document.getElementById("readinessAdviceText");
-            if (adviceEl) adviceEl.innerText = advice;
+        function resolveSleepQualityLabel(data) {
+            if (data.sleepQualifier) return data.sleepQualifier;
+            if (!data.sleepScore) return "—";
+            return data.sleepScore >= 80 ? "Ottimo" : "Discreto";
+        }
 
-            // Micro Chips
+        function resolveStressSubLabel(avgStress) {
+            if (!avgStress) return "Livello Medio";
+            if (avgStress < 25) return "Riposo / Basso";
+            return avgStress < 50 ? "Basso / Moderato" : "Elevato";
+        }
+
+        function updateReadinessMicroChips(data) {
             const sleepScoreEl = document.getElementById("chipSleepScore");
             const sleepQualityEl = document.getElementById("chipSleepQuality");
             if (sleepScoreEl) sleepScoreEl.innerText = data.sleepScore ? `${data.sleepScore} / 100` : "--";
-            if (sleepQualityEl) sleepQualityEl.innerText = data.sleepQualifier ? data.sleepQualifier : (data.sleepScore ? (data.sleepScore >= 80 ? "Ottimo" : "Discreto") : "—");
+            if (sleepQualityEl) sleepQualityEl.innerText = resolveSleepQualityLabel(data);
 
             const bbEl = document.getElementById("chipBodyBattery");
             const bbSubEl = document.getElementById("chipBodyBatterySub");
             if (bbEl) {
-                const max = data.bodyBatteryMax !== null && data.bodyBatteryMax !== undefined ? data.bodyBatteryMax : "--";
-                const wake = data.bodyBatteryWake !== null && data.bodyBatteryWake !== undefined ? data.bodyBatteryWake : "--";
+                const max = data.bodyBatteryMax ?? "--";
+                const wake = data.bodyBatteryWake ?? "--";
                 bbEl.innerText = `${max} / ${wake}`;
             }
             if (bbSubEl) bbSubEl.innerText = "Max / Risveglio";
@@ -6070,7 +6013,34 @@
             const stressEl = document.getElementById("chipStress");
             const stressSubEl = document.getElementById("chipStressSub");
             if (stressEl) stressEl.innerText = data.avgStressLevel !== null && data.avgStressLevel !== undefined ? `${data.avgStressLevel} / 100` : "--";
-            if (stressSubEl) stressSubEl.innerText = data.avgStressLevel ? (data.avgStressLevel < 25 ? "Riposo / Basso" : data.avgStressLevel < 50 ? "Basso / Moderato" : "Elevato") : "Livello Medio";
+            if (stressSubEl) stressSubEl.innerText = resolveStressSubLabel(data.avgStressLevel);
+        }
+
+        function updateReadinessUI(data) {
+            const score = data.readinessScore !== undefined && data.readinessScore !== null ? Number(data.readinessScore) : 70;
+            const advice = data.readinessAdvice || "Dati fisiologici stabili. Procedi con l'allenamento mantenendo una buona gestione del carico.";
+            const tier = getReadinessTierConfig(score);
+
+            const scoreEl = document.getElementById("readinessScoreNum");
+            if (scoreEl) scoreEl.innerText = score;
+
+            const circle = document.getElementById("readinessProgressCircle");
+            if (circle) {
+                const total = 314.159;
+                circle.style.strokeDashoffset = total - (total * (score / 100));
+                circle.style.stroke = tier.stroke;
+            }
+
+            const badgeEl = document.getElementById("readinessBadgePill");
+            if (badgeEl) {
+                badgeEl.className = `readiness-badge-pill ${tier.badgeClass}`;
+                badgeEl.innerHTML = tier.badgeHtml;
+            }
+
+            const adviceEl = document.getElementById("readinessAdviceText");
+            if (adviceEl) adviceEl.innerText = advice;
+
+            updateReadinessMicroChips(data);
         }
 
         function updateSleepUI(data) {
@@ -6408,6 +6378,14 @@
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = '/logout';
+            const csrf = getCsrfToken();
+            if (csrf) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_csrf';
+                input.value = csrf;
+                form.appendChild(input);
+            }
             document.body.appendChild(form);
             form.submit();
         }
@@ -6522,12 +6500,8 @@
                     current2FaState.pendingSecret = data.secret;
 
                     const setupContainer = document.getElementById("secSetupContainer");
-                    const qrImg = document.getElementById("secQrImage");
                     const secretText = document.getElementById("secSecretText");
-
-                    // Render QR Code using standard QR API
-                    const encodedQrUri = encodeURIComponent(data.qrUri);
-                    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodedQrUri}`;
+                    document.getElementById("secTotpAlgorithm").textContent = data.algorithm;
                     secretText.innerText = data.secret;
 
                     setupContainer.style.display = "flex";

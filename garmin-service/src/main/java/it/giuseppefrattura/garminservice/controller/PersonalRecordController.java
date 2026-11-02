@@ -17,6 +17,9 @@ import java.util.Map;
 @RequestMapping("/api/personal-records")
 public class PersonalRecordController {
 
+    private static final String KEY_STATUS = "status";
+    private static final String STATUS_SUCCESS = "success";
+
     private final PersonalRecordService personalRecordService;
 
     public PersonalRecordController(PersonalRecordService personalRecordService) {
@@ -30,7 +33,7 @@ public class PersonalRecordController {
     public ResponseEntity<Map<String, Object>> getTrophyRoom() {
         List<PersonalRecordService.TrophyCardDTO> cards = personalRecordService.getTrophyRoomCards();
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, STATUS_SUCCESS,
                 "totalExercises", cards.size(),
                 "data", cards
         ));
@@ -46,7 +49,7 @@ public class PersonalRecordController {
         String target = exerciseName != null && !exerciseName.isBlank() ? exerciseName : exercise;
         List<ExercisePersonalRecord> timeline = personalRecordService.getExerciseTimeline(target);
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, STATUS_SUCCESS,
                 "exercise", target != null ? target : "",
                 "data", timeline
         ));
@@ -59,7 +62,7 @@ public class PersonalRecordController {
     public ResponseEntity<Map<String, Object>> recalculateRecords() {
         RecalculationResult result = personalRecordService.recalculateAllRecords();
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, STATUS_SUCCESS,
                 "message", "Personal records recalculated successfully",
                 "details", result
         ));

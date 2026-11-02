@@ -86,4 +86,26 @@ class GarminHealthSyncServiceTest {
 
         verify(healthRepository).save(any(DailyHealthMetric.class));
     }
+
+    @Test
+    void testSyncRecentHealthMetrics_ContinuesAfterSingleDayFailure() {
+        LocalDate today = LocalDate.now();
+        String todayStr = today.toString();
+        String yesterdayStr = today.minusDays(1).toString();
+
+        when(proxyClient.getDailyHealthSummary(todayStr)).thenThrow(new RuntimeException("Upstream timeout"));
+        when(proxyClient.getDailyHealthSummary(yesterdayStr)).thenReturn(Map.of());
+        when(healthRepository.findByMetricDate(today.minusDays(1))).thenReturn(Optional.empty());
+        when(readinessService.calculateReadiness(any())).thenReturn(
+                new ReadinessCalculationService.ReadinessResult(75, "MODERATE", "OK")
+        );
+        when(healthRepository.save(any(DailyHealthMetric.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Map<String, Object> result = syncService.syncRecentHealthMetrics(2);
+
+        assertEquals("success", result.get("status"));
+        assertEquals(1, result.get("syncedDays"));
+        assertEquals(1, result.get("errorDays"));
+        assertEquals(2, result.get("requestedDays"));
+    }
 }

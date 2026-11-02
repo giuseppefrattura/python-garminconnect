@@ -51,49 +51,12 @@ public class MetricsAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        if (path == null || !path.equals("/actuator/prometheus")) {
+        if (!"/actuator/prometheus".equals(path) || isSessionAuthenticated()) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Allow if already authenticated
-        Authentication existingAuth = SecurityContextHolder.getContext().getAuthentication();
-        if (existingAuth != null && existingAuth.isAuthenticated() && !(existingAuth instanceof AnonymousAuthenticationToken)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // Check Bearer token or custom headers
-        String authHeader = request.getHeader("Authorization");
-        String bearer = null;
-        if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            bearer = authHeader.substring(7).trim();
-        }
-
-        String xMetricsToken = request.getHeader("X-Metrics-Token");
-        String xApiKey = request.getHeader("X-API-Key");
-
-        boolean authorized = false;
-
-        if (metricsToken != null && !metricsToken.isBlank()) {
-            if ((bearer != null && MessageDigest.isEqual(bearer.getBytes(StandardCharsets.UTF_8), metricsToken.getBytes(StandardCharsets.UTF_8))) ||
-                (xMetricsToken != null && MessageDigest.isEqual(xMetricsToken.getBytes(StandardCharsets.UTF_8), metricsToken.getBytes(StandardCharsets.UTF_8)))) {
-                authorized = true;
-            }
-        }
-
-        if (!authorized && apiKey != null && !apiKey.isBlank()) {
-            if ((bearer != null && MessageDigest.isEqual(bearer.getBytes(StandardCharsets.UTF_8), apiKey.getBytes(StandardCharsets.UTF_8))) ||
-                (xApiKey != null && MessageDigest.isEqual(xApiKey.getBytes(StandardCharsets.UTF_8), apiKey.getBytes(StandardCharsets.UTF_8)))) {
-                authorized = true;
-            }
-        }
-
-        if (!authorized && allowInsecureDev && (metricsToken == null || metricsToken.isBlank()) && (apiKey == null || apiKey.isBlank())) {
-            authorized = true;
-        }
-
-        if (authorized) {
+        if (isTokenAuthorized(request)) {
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                     "metrics-scraper",
                     null,
@@ -107,5 +70,55 @@ public class MetricsAuthFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Valid Bearer token or metrics key required for /actuator/prometheus\",\"status\":401}");
+    }
+
+    private boolean isSessionAuthenticated() {
+        Authentication existingAuth = SecurityContextHolder.getContext().getAuthentication();
+        return existingAuth != null
+                && existingAuth.isAuthenticated()
+                && !(existingAuth instanceof AnonymousAuthenticationToken);
+    }
+
+    private boolean isTokenAuthorized(HttpServletRequest request) {
+        String bearer = extractBearerToken(request.getHeader("Authorization"));
+        String xMetricsToken = request.getHeader("X-Metrics-Token");
+        String xApiKey = request.getHeader("X-API-Key");
+
+        if (matchesSecret(metricsToken, bearer, xMetricsToken)) {
+            return true;
+        }
+        if (matchesSecret(apiKey, bearer, xApiKey)) {
+            return true;
+        }
+        return allowInsecureDev && isBlank(metricsToken) && isBlank(apiKey);
+    }
+
+    private static String extractBearerToken(String authHeader) {
+        if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return authHeader.substring(7).trim();
+        }
+        return null;
+    }
+
+    private static boolean matchesSecret(String configuredSecret, String bearerCandidate, String headerCandidate) {
+        if (isBlank(configuredSecret)) {
+            return false;
+        }
+        return constantTimeEquals(configuredSecret, bearerCandidate)
+                || constantTimeEquals(configuredSecret, headerCandidate);
+    }
+
+    private static boolean constantTimeEquals(String expected, String candidate) {
+        if (expected == null || candidate == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                candidate.getBytes(StandardCharsets.UTF_8),
+                expected.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
     }
 }

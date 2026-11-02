@@ -24,7 +24,7 @@ class PersonalWellnessServiceTest {
             if (path.contains("spo2acclimation")) throw new ResourceAccessException("unavailable");
             return json.readTree("{\"fitnessAge\":32}");
         });
-        var result = new PersonalWellnessService(client).load(LocalDate.parse("2026-10-29"), 7);
+        var result = new PersonalWellnessService(client, Runnable::run).load(LocalDate.parse("2026-10-29"), 7);
         var today = result.days().get(6);
         assertEquals("2026-10-23", result.start());
         assertEquals(1234.0, today.steps());
@@ -39,7 +39,7 @@ class PersonalWellnessServiceTest {
 
     @Test void splitsThirtyDayStepsRangeIntoTwoRequests() {
         when(client.personalEnabled()).thenReturn(true);
-        new PersonalWellnessService(client).load(LocalDate.parse("2026-10-29"), 30);
+        new PersonalWellnessService(client, Runnable::run).load(LocalDate.parse("2026-10-29"), 30);
         verify(client).personalGet(eq("/usersummary-service/stats/steps/daily/2026-09-30/2026-10-27"), eq(Map.of()));
         verify(client).personalGet(eq("/usersummary-service/stats/steps/daily/2026-10-28/2026-10-29"), eq(Map.of()));
     }

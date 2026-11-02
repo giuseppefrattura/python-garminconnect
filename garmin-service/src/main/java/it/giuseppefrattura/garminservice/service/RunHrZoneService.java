@@ -34,6 +34,12 @@ public class RunHrZoneService {
 
     private static final Logger log = LoggerFactory.getLogger(RunHrZoneService.class);
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String KEY_STATUS = "status";
+    private static final String STATUS_SUCCESS = "success";
+    private static final String KEY_PERIOD = "period";
+    private static final String KEY_ACTIVITIES_COUNT = "activitiesCount";
+    private static final String KEY_ZONES = "zones";
+    private static final String ZONE_PREFIX = "zone_";
 
     private final GarminProxyClient proxy;
     private final RunningHrZoneRepository repository;
@@ -74,44 +80,66 @@ public class RunHrZoneService {
             return Collections.emptyList();
         }
 
-        List<RunEntry> entries = new ArrayList<>();
+        List<RunEntry> entries = new ArrayList<>(activities.size());
         for (ActivityDto act : activities) {
-            Map<Integer, Double> zones = new LinkedHashMap<>();
-            for (int z = 1; z <= 5; z++) zones.put(z, 0.0);
-
-            LocalDate runDate = null;
-            LocalTime runTime = null;
-            if (act.startTimeLocal() != null && !act.startTimeLocal().isBlank()) {
-                try {
-                    LocalDateTime dt = LocalDateTime.parse(act.startTimeLocal(), DT_FMT);
-                    runDate = dt.toLocalDate();
-                    runTime = dt.toLocalTime();
-                } catch (DateTimeParseException ignored) {}
-            }
-
-            String error = null;
-            try {
-                List<HrZoneDto> hrZones = proxy.getHrZones(act.activityId());
-                if (hrZones != null) {
-                    for (HrZoneDto hz : hrZones) {
-                        if (hz.zoneNumber() != null && zones.containsKey(hz.zoneNumber())) {
-                            double secs = hz.secsInZone() != null ? hz.secsInZone() : 0.0;
-                            zones.put(hz.zoneNumber(), secs / 60.0);
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                error = ex.getMessage();
-                log.warn("HR zones fetch error for activity {}: {}", act.activityId(), ex.getMessage());
-            }
-
-            entries.add(new RunEntry(
-                    act.activityId(),
-                    act.activityName() != null ? act.activityName() : "Unknown",
-                    act.startTimeLocal() != null ? act.startTimeLocal() : "",
-                    runDate, runTime, zones, error));
+            entries.add(buildRunEntry(act));
         }
         return entries;
+    }
+
+    private RunEntry buildRunEntry(ActivityDto act) {
+        Map<Integer, Double> zones = createEmptyZonesMap();
+        LocalDateTime parsedStart = parseActivityStartTime(act.startTimeLocal());
+        LocalDate runDate = parsedStart != null ? parsedStart.toLocalDate() : null;
+        LocalTime runTime = parsedStart != null ? parsedStart.toLocalTime() : null;
+        String error = populateActivityZones(act.activityId(), zones);
+
+        return new RunEntry(
+                act.activityId(),
+                act.activityName() != null ? act.activityName() : "Unknown",
+                act.startTimeLocal() != null ? act.startTimeLocal() : "",
+                runDate,
+                runTime,
+                zones,
+                error
+        );
+    }
+
+    private Map<Integer, Double> createEmptyZonesMap() {
+        Map<Integer, Double> zones = new LinkedHashMap<>();
+        for (int z = 1; z <= 5; z++) {
+            zones.put(z, 0.0);
+        }
+        return zones;
+    }
+
+    private LocalDateTime parseActivityStartTime(String startTimeLocal) {
+        if (startTimeLocal == null || startTimeLocal.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(startTimeLocal, DT_FMT);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private String populateActivityZones(long activityId, Map<Integer, Double> zones) {
+        try {
+            List<HrZoneDto> hrZones = proxy.getHrZones(activityId);
+            if (hrZones != null) {
+                for (HrZoneDto hz : hrZones) {
+                    if (hz.zoneNumber() != null && zones.containsKey(hz.zoneNumber())) {
+                        double secs = hz.secsInZone() != null ? hz.secsInZone() : 0.0;
+                        zones.put(hz.zoneNumber(), secs / 60.0);
+                    }
+                }
+            }
+            return null;
+        } catch (Exception ex) {
+            log.warn("HR zones fetch error for activity {}: {}", activityId, ex.getMessage());
+            return ex.getMessage();
+        }
     }
 
     /**
@@ -124,45 +152,65 @@ public class RunHrZoneService {
 
         List<RunEntry> entries = fetchRecentRuns(days);
         if (entries.isEmpty()) {
-            return Map.of("status", "success", "data",
-                    Map.of("period", period, "activitiesCount", 0,
-                            "zones", Map.of(), "activities", Collections.emptyList()));
+            return Map.of(KEY_STATUS, STATUS_SUCCESS, "data",
+                    Map.of(KEY_PERIOD, period, KEY_ACTIVITIES_COUNT, 0,
+                            KEY_ZONES, Map.of(), "activities", Collections.emptyList()));
         }
 
-        Map<Integer, Double> aggregated = new LinkedHashMap<>();
-        for (int z = 1; z <= 5; z++) aggregated.put(z, 0.0);
-
-        List<Map<String, Object>> actList = new ArrayList<>();
+        Map<Integer, Double> aggregated = createEmptyZonesMap();
+        List<Map<String, Object>> actList = new ArrayList<>(entries.size());
         for (RunEntry e : entries) {
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("activityId", e.activityId());
-            out.put("activityName", e.activityName());
-            out.put("startTimeLocal", e.startTimeLocal());
-
-            if (e.error() != null) {
-                out.put("error", e.error());
-            } else {
-                Map<String, Double> zonesOut = new LinkedHashMap<>();
-                e.zonesMins().forEach((z, mins) -> {
-                    if (mins != null && mins > 0) zonesOut.put("zone_" + z, round1(mins));
-                    if (mins != null) aggregated.merge(z, mins, (oldVal, newVal) -> (oldVal != null ? oldVal : 0.0) + (newVal != null ? newVal : 0.0));
-                });
-                out.put("zones", zonesOut);
-            }
-            actList.add(out);
+            actList.add(toActivityOutput(e, aggregated));
         }
 
-        Map<String, Double> zonesMinutes = new LinkedHashMap<>();
-        aggregated.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .filter(e -> (e.getValue() != null && e.getValue() > 0) || e.getKey() == 1)
-                .forEach(e -> zonesMinutes.put("zone_" + e.getKey(), round1(e.getValue() != null ? e.getValue() : 0.0)));
+        Map<String, Double> zonesMinutes = formatAggregatedZones(aggregated);
 
-        return Map.of("status", "success", "data",
-                Map.of("period", period,
-                        "activitiesCount", entries.size(),
-                        "zones", zonesMinutes,
+        return Map.of(KEY_STATUS, STATUS_SUCCESS, "data",
+                Map.of(KEY_PERIOD, period,
+                        KEY_ACTIVITIES_COUNT, entries.size(),
+                        KEY_ZONES, zonesMinutes,
                         "activities", actList));
+    }
+
+    private Map<String, Object> toActivityOutput(RunEntry e, Map<Integer, Double> aggregated) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("activityId", e.activityId());
+        out.put("activityName", e.activityName());
+        out.put("startTimeLocal", e.startTimeLocal());
+
+        if (e.error() != null) {
+            out.put("error", e.error());
+        } else {
+            out.put(KEY_ZONES, extractAndAccumulateZones(e.zonesMins(), aggregated));
+        }
+        return out;
+    }
+
+    private Map<String, Double> extractAndAccumulateZones(Map<Integer, Double> entryZones, Map<Integer, Double> aggregated) {
+        Map<String, Double> zonesOut = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Double> entry : entryZones.entrySet()) {
+            Integer z = entry.getKey();
+            Double mins = entry.getValue();
+            if (mins != null) {
+                if (mins > 0) {
+                    zonesOut.put(ZONE_PREFIX + z, round1(mins));
+                }
+                aggregated.merge(z, mins, Double::sum);
+            }
+        }
+        return zonesOut;
+    }
+
+    private Map<String, Double> formatAggregatedZones(Map<Integer, Double> aggregated) {
+        Map<String, Double> zonesMinutes = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Double> entry : aggregated.entrySet()) {
+            int zone = entry.getKey();
+            double value = entry.getValue() != null ? entry.getValue() : 0.0;
+            if (value > 0 || zone == 1) {
+                zonesMinutes.put(ZONE_PREFIX + zone, round1(value));
+            }
+        }
+        return zonesMinutes;
     }
 
     /**
@@ -183,8 +231,8 @@ public class RunHrZoneService {
 
         List<RunEntry> entries = fetchRecentRuns(days);
         if (entries.isEmpty()) {
-            return Map.of("status", "success", "data",
-                    Map.of("period", period, "activitiesCount", 0,
+            return Map.of(KEY_STATUS, STATUS_SUCCESS, "data",
+                    Map.of(KEY_PERIOD, period, KEY_ACTIVITIES_COUNT, 0,
                             "savedCount", 0, "saved", Collections.emptyList()));
         }
 
@@ -225,9 +273,9 @@ public class RunHrZoneService {
             }
         }
 
-        return Map.of("status", "success", "data",
-                Map.of("period", period,
-                        "activitiesCount", entries.size(),
+        return Map.of(KEY_STATUS, STATUS_SUCCESS, "data",
+                Map.of(KEY_PERIOD, period,
+                        KEY_ACTIVITIES_COUNT, entries.size(),
                         "savedCount", saved.size(),
                         "saved", saved));
     }

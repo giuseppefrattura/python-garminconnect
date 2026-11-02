@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +28,10 @@ import java.util.stream.Collectors;
 public class PersonalRecordService {
 
     private static final Logger log = LoggerFactory.getLogger(PersonalRecordService.class);
+    private static final String DEFAULT_MUSCLE_GROUP = "Altro";
+    private static final String RECORD_MAX_WEIGHT = "MAX_WEIGHT";
+    private static final String RECORD_MAX_1RM = "MAX_1RM";
+    private static final String RECORD_MAX_VOLUME_SET = "MAX_VOLUME_SET";
 
     private final ExercisePersonalRecordRepository prRepository;
     private final StrengthWorkoutRepository workoutRepository;
@@ -42,6 +47,10 @@ public class PersonalRecordService {
      */
     @Transactional
     public RecalculationResult recalculateAllRecords() {
+        return performRecalculation();
+    }
+
+    private RecalculationResult performRecalculation() {
         log.info("Starting complete recalculation of personal records across all workouts");
         prRepository.deleteAll();
 
@@ -52,73 +61,10 @@ public class PersonalRecordService {
         Map<String, Double> runningMaxWeight = new HashMap<>();
         Map<String, Double> runningMax1Rm = new HashMap<>();
         Map<String, Double> runningMaxVolume = new HashMap<>();
-
         List<ExercisePersonalRecord> newRecords = new ArrayList<>();
 
         for (StrengthWorkout workout : workouts) {
-            if (workout.getSets() == null || workout.getSets().isEmpty()) {
-                continue;
-            }
-
-            LocalDateTime achievedAt = workout.getWorkoutDate().atTime(workout.getWorkoutTime());
-
-            for (StrengthWorkoutSet set : workout.getSets()) {
-                String exercise = (set.getExerciseName() != null && !set.getExerciseName().isBlank())
-                        ? set.getExerciseName().trim()
-                        : (set.getOriginalExerciseName() != null ? set.getOriginalExerciseName().trim() : "Unknown");
-
-                if ("Unknown".equalsIgnoreCase(exercise) || exercise.isBlank()) {
-                    continue;
-                }
-
-                double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
-                int reps = set.getReps() != null ? set.getReps() : 0;
-                String muscleGroup = set.getMuscleGroup() != null ? set.getMuscleGroup() : "Altro";
-
-                if (weight <= 0 && reps <= 0) {
-                    continue;
-                }
-
-                String exerciseKey = exercise.toLowerCase();
-
-                // 1. MAX WEIGHT
-                if (weight > 0) {
-                    double currentMaxW = runningMaxWeight.getOrDefault(exerciseKey, 0.0);
-                    if (weight > currentMaxW) {
-                        runningMaxWeight.put(exerciseKey, weight);
-                        newRecords.add(new ExercisePersonalRecord(
-                                exercise, muscleGroup, "MAX_WEIGHT", weight, weight, reps,
-                                workout.getActivityId(), set.getId(), achievedAt
-                        ));
-                    }
-                }
-
-                // 2. MAX ESTIMATED 1RM
-                if (weight > 0 && reps > 0) {
-                    double est1Rm = Math.round(OneRepMaxCalculator.estimate1Rm(weight, reps) * 10.0) / 10.0;
-                    double currentMax1Rm = runningMax1Rm.getOrDefault(exerciseKey, 0.0);
-                    if (est1Rm > currentMax1Rm) {
-                        runningMax1Rm.put(exerciseKey, est1Rm);
-                        newRecords.add(new ExercisePersonalRecord(
-                                exercise, muscleGroup, "MAX_1RM", est1Rm, weight, reps,
-                                workout.getActivityId(), set.getId(), achievedAt
-                        ));
-                    }
-                }
-
-                // 3. MAX VOLUME SET (reps * weight)
-                if (weight > 0 && reps > 0) {
-                    double volume = Math.round((weight * reps) * 10.0) / 10.0;
-                    double currentMaxVol = runningMaxVolume.getOrDefault(exerciseKey, 0.0);
-                    if (volume > currentMaxVol) {
-                        runningMaxVolume.put(exerciseKey, volume);
-                        newRecords.add(new ExercisePersonalRecord(
-                                exercise, muscleGroup, "MAX_VOLUME_SET", volume, weight, reps,
-                                workout.getActivityId(), set.getId(), achievedAt
-                        ));
-                    }
-                }
-            }
+            processWorkoutForRecords(workout, runningMaxWeight, runningMax1Rm, runningMaxVolume, newRecords);
         }
 
         prRepository.saveAll(newRecords);
@@ -126,6 +72,84 @@ public class PersonalRecordService {
                 newRecords.size(), runningMax1Rm.size());
 
         return new RecalculationResult(newRecords.size(), runningMax1Rm.size());
+    }
+
+    private void processWorkoutForRecords(StrengthWorkout workout,
+                                          Map<String, Double> runningMaxWeight,
+                                          Map<String, Double> runningMax1Rm,
+                                          Map<String, Double> runningMaxVolume,
+                                          List<ExercisePersonalRecord> newRecords) {
+        if (workout.getSets() == null || workout.getSets().isEmpty()) {
+            return;
+        }
+        LocalDateTime achievedAt = workout.getWorkoutDate().atTime(workout.getWorkoutTime());
+        for (StrengthWorkoutSet set : workout.getSets()) {
+            processSingleSet(workout, set, achievedAt, runningMaxWeight, runningMax1Rm, runningMaxVolume, newRecords);
+        }
+    }
+
+    private void processSingleSet(StrengthWorkout workout,
+                                  StrengthWorkoutSet set,
+                                  LocalDateTime achievedAt,
+                                  Map<String, Double> runningMaxWeight,
+                                  Map<String, Double> runningMax1Rm,
+                                  Map<String, Double> runningMaxVolume,
+                                  List<ExercisePersonalRecord> newRecords) {
+        String exercise = resolveExerciseName(set);
+        if ("Unknown".equalsIgnoreCase(exercise) || exercise.isBlank()) {
+            return;
+        }
+
+        double weight = set.getWeightKg() != null ? set.getWeightKg().doubleValue() : 0.0;
+        int reps = set.getReps() != null ? set.getReps() : 0;
+        if (weight <= 0) {
+            return;
+        }
+
+        String muscleGroup = set.getMuscleGroup() != null ? set.getMuscleGroup() : DEFAULT_MUSCLE_GROUP;
+        String exerciseKey = exercise.toLowerCase();
+
+        recordIfGreater(runningMaxWeight, exerciseKey, weight, exercise, muscleGroup,
+                RECORD_MAX_WEIGHT, weight, reps, workout.getActivityId(), set.getId(), achievedAt, newRecords);
+
+        if (reps > 0) {
+            double est1Rm = Math.round(OneRepMaxCalculator.estimate1Rm(weight, reps) * 10.0) / 10.0;
+            recordIfGreater(runningMax1Rm, exerciseKey, est1Rm, exercise, muscleGroup,
+                    RECORD_MAX_1RM, weight, reps, workout.getActivityId(), set.getId(), achievedAt, newRecords);
+
+            double volume = Math.round((weight * reps) * 10.0) / 10.0;
+            recordIfGreater(runningMaxVolume, exerciseKey, volume, exercise, muscleGroup,
+                    RECORD_MAX_VOLUME_SET, weight, reps, workout.getActivityId(), set.getId(), achievedAt, newRecords);
+        }
+    }
+
+    private String resolveExerciseName(StrengthWorkoutSet set) {
+        if (set.getExerciseName() != null && !set.getExerciseName().isBlank()) {
+            return set.getExerciseName().trim();
+        }
+        return set.getOriginalExerciseName() != null ? set.getOriginalExerciseName().trim() : "Unknown";
+    }
+
+    private void recordIfGreater(Map<String, Double> runningMax,
+                                 String exerciseKey,
+                                 double candidateValue,
+                                 String exercise,
+                                 String muscleGroup,
+                                 String recordType,
+                                 double weight,
+                                 int reps,
+                                 Long activityId,
+                                 Long setId,
+                                 LocalDateTime achievedAt,
+                                 List<ExercisePersonalRecord> newRecords) {
+        double currentMax = runningMax.getOrDefault(exerciseKey, 0.0);
+        if (candidateValue > currentMax) {
+            runningMax.put(exerciseKey, candidateValue);
+            newRecords.add(new ExercisePersonalRecord(
+                    exercise, muscleGroup, recordType, candidateValue, weight, reps,
+                    activityId, setId, achievedAt
+            ));
+        }
     }
 
     /**
@@ -151,12 +175,11 @@ public class PersonalRecordService {
     public List<TrophyCardDTO> getTrophyRoomCards() {
         List<ExercisePersonalRecord> allRecords = prRepository.findAllOrdered();
         if (allRecords.isEmpty()) {
-            // Auto-trigger recalculation if table is empty
-            recalculateAllRecords();
+            // Auto-trigger recalculation within the current transaction if table is empty
+            performRecalculation();
             allRecords = prRepository.findAllOrdered();
         }
 
-        // Group by exercise name (case insensitive)
         Map<String, List<ExercisePersonalRecord>> byExercise = allRecords.stream()
                 .collect(Collectors.groupingBy(r -> r.getExerciseName().toLowerCase(), LinkedHashMap::new, Collectors.toList()));
 
@@ -164,60 +187,67 @@ public class PersonalRecordService {
         List<TrophyCardDTO> cards = new ArrayList<>();
 
         for (List<ExercisePersonalRecord> records : byExercise.values()) {
-            if (records.isEmpty()) continue;
-
-            String exerciseName = records.get(0).getExerciseName();
-            String muscleGroup = records.stream()
-                    .map(r -> r.getMuscleGroup())
-                    .filter(Objects::nonNull)
-                    .findFirst().orElse("Altro");
-
-            TrophyCardDTO card = new TrophyCardDTO(exerciseName, muscleGroup);
-
-            // Find current best for each type
-            records.stream()
-                    .filter(r -> "MAX_WEIGHT".equals(r.getRecordType()))
-                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
-                    .ifPresent(r -> {
-                        card.setMaxWeightKg(r.getWeightKg());
-                        card.setMaxWeightReps(r.getReps());
-                        card.setMaxWeightDate(r.getAchievedAt().format(dtf));
-                    });
-
-            records.stream()
-                    .filter(r -> "MAX_1RM".equals(r.getRecordType()))
-                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
-                    .ifPresent(r -> {
-                        card.setEstimated1RmKg(r.getRecordValue());
-                        card.setEst1RmWeightKg(r.getWeightKg());
-                        card.setEst1RmReps(r.getReps());
-                        card.setEstimated1RmDate(r.getAchievedAt().format(dtf));
-                    });
-
-            records.stream()
-                    .filter(r -> "MAX_VOLUME_SET".equals(r.getRecordType()))
-                    .max((a, b) -> Double.compare(a.getRecordValue(), b.getRecordValue()))
-                    .ifPresent(r -> {
-                        card.setMaxVolumeKg(r.getRecordValue());
-                        card.setMaxVolumeWeightKg(r.getWeightKg());
-                        card.setMaxVolumeReps(r.getReps());
-                        card.setMaxVolumeDate(r.getAchievedAt().format(dtf));
-                    });
-
-            card.setTotalPrCount(records.size());
-            cards.add(card);
+            if (!records.isEmpty()) {
+                cards.add(buildTrophyCard(records, dtf));
+            }
         }
 
-        // Sort by muscle group, then by 1RM / Weight desc
-        cards.sort((a, b) -> {
-            int comp = a.getMuscleGroup().compareToIgnoreCase(b.getMuscleGroup());
-            if (comp != 0) return comp;
-            double aVal = a.getEstimated1RmKg() != null ? a.getEstimated1RmKg() : (a.getMaxWeightKg() != null ? a.getMaxWeightKg() : 0);
-            double bVal = b.getEstimated1RmKg() != null ? b.getEstimated1RmKg() : (b.getMaxWeightKg() != null ? b.getMaxWeightKg() : 0);
-            return Double.compare(bVal, aVal);
+        cards.sort(PersonalRecordService::compareTrophyCards);
+        return cards;
+    }
+
+    private TrophyCardDTO buildTrophyCard(List<ExercisePersonalRecord> records, DateTimeFormatter dtf) {
+        String exerciseName = records.get(0).getExerciseName();
+        String muscleGroup = records.stream()
+                .map(ExercisePersonalRecord::getMuscleGroup)
+                .filter(Objects::nonNull)
+                .findFirst().orElse(DEFAULT_MUSCLE_GROUP);
+
+        TrophyCardDTO card = new TrophyCardDTO(exerciseName, muscleGroup);
+
+        findBestByType(records, RECORD_MAX_WEIGHT).ifPresent(r -> {
+            card.setMaxWeightKg(r.getWeightKg());
+            card.setMaxWeightReps(r.getReps());
+            card.setMaxWeightDate(r.getAchievedAt().format(dtf));
         });
 
-        return cards;
+        findBestByType(records, RECORD_MAX_1RM).ifPresent(r -> {
+            card.setEstimated1RmKg(r.getRecordValue());
+            card.setEst1RmWeightKg(r.getWeightKg());
+            card.setEst1RmReps(r.getReps());
+            card.setEstimated1RmDate(r.getAchievedAt().format(dtf));
+        });
+
+        findBestByType(records, RECORD_MAX_VOLUME_SET).ifPresent(r -> {
+            card.setMaxVolumeKg(r.getRecordValue());
+            card.setMaxVolumeWeightKg(r.getWeightKg());
+            card.setMaxVolumeReps(r.getReps());
+            card.setMaxVolumeDate(r.getAchievedAt().format(dtf));
+        });
+
+        card.setTotalPrCount(records.size());
+        return card;
+    }
+
+    private java.util.Optional<ExercisePersonalRecord> findBestByType(List<ExercisePersonalRecord> records, String recordType) {
+        return records.stream()
+                .filter(r -> recordType.equals(r.getRecordType()))
+                .max(Comparator.comparingDouble(ExercisePersonalRecord::getRecordValue));
+    }
+
+    private static int compareTrophyCards(TrophyCardDTO a, TrophyCardDTO b) {
+        int comp = a.getMuscleGroup().compareToIgnoreCase(b.getMuscleGroup());
+        if (comp != 0) {
+            return comp;
+        }
+        return Double.compare(primaryScore(b), primaryScore(a));
+    }
+
+    private static double primaryScore(TrophyCardDTO card) {
+        if (card.getEstimated1RmKg() != null) {
+            return card.getEstimated1RmKg();
+        }
+        return card.getMaxWeightKg() != null ? card.getMaxWeightKg() : 0.0;
     }
 
     /**

@@ -88,14 +88,14 @@ class AuthControllerTest {
         );
         when(totpService.generateSecret()).thenReturn("SECRET123");
         when(totpService.generateOtpAuthUri("john", "SECRET123")).thenReturn("otpauth://totp/Garmin:john?secret=SECRET123");
+        when(totpService.getEnrollmentAlgorithm()).thenReturn("SHA1");
 
-        ResponseEntity<?> response = authController.setup2Fa();
+        ResponseEntity<Map<String, Object>> response = authController.setup2Fa();
         assertEquals(200, response.getStatusCode().value());
-        @SuppressWarnings("unchecked")
-        Map<String, String> body = (Map<String, String>) response.getBody();
+        Map<String, Object> body = response.getBody();
         assertNotNull(body);
         assertEquals("SECRET123", body.get("secret"));
-        assertTrue(body.get("qrUri").contains("SECRET123"));
+        assertTrue(String.valueOf(body.get("qrUri")).contains("SECRET123"));
     }
 
     @Test
@@ -106,11 +106,13 @@ class AuthControllerTest {
         User user = new User("john", "hash", "ROLE_USER");
         when(userDetailsService.findUser("john")).thenReturn(Optional.of(user));
         when(totpService.verifyCode("MYSECRET", "123456")).thenReturn(true);
+        when(totpService.getEnrollmentAlgorithm()).thenReturn("SHA256");
 
         ResponseEntity<?> response = authController.enable2Fa(Map.of("secret", "MYSECRET", "code", "123456"));
         assertEquals(200, response.getStatusCode().value());
         assertTrue(user.isTotpEnabled());
         assertEquals("MYSECRET", user.getTotpSecret());
+        assertEquals("SHA256", user.getTotpAlgorithm());
         verify(userDetailsService).saveUser(user);
     }
 
@@ -127,6 +129,21 @@ class AuthControllerTest {
     }
 
     @Test
+    void testEnable2Fa_CannotReplaceExistingSecret() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("john", "pass", List.of(new SimpleGrantedAuthority("ROLE_USER")))
+        );
+        User user = new User("john", "hash", "ROLE_USER");
+        user.setTotpEnabled(true);
+        user.setTotpSecret("ORIGINAL");
+        when(totpService.verifyCode("NEWSECRET", "123456")).thenReturn(true);
+        when(userDetailsService.findUser("john")).thenReturn(Optional.of(user));
+        assertEquals(400, authController.enable2Fa(Map.of("secret", "NEWSECRET", "code", "123456")).getStatusCode().value());
+        assertEquals("ORIGINAL", user.getTotpSecret());
+        verify(userDetailsService, never()).saveUser(any());
+    }
+
+    @Test
     void testDisable2Fa_ValidCode_DisablesTotp() {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("john", "pass", List.of(new SimpleGrantedAuthority("ROLE_USER")))
@@ -135,7 +152,7 @@ class AuthControllerTest {
         user.setTotpEnabled(true);
         user.setTotpSecret("ACTIVESECRET");
         when(userDetailsService.findUser("john")).thenReturn(Optional.of(user));
-        when(totpService.verifyCode("ACTIVESECRET", "654321")).thenReturn(true);
+        when(totpService.verifyCode("ACTIVESECRET", "654321", "SHA1")).thenReturn(true);
 
         ResponseEntity<?> response = authController.disable2Fa(Map.of("code", "654321"));
         assertEquals(200, response.getStatusCode().value());

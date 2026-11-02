@@ -30,77 +30,91 @@ public class ReadinessCalculationService {
             return new ReadinessResult(70, "MODERATE", "Dati fisiologici non disponibili. Procedi con allenamento standard a sensazione.");
         }
 
-        // 1. Sleep Component (Weight: 35%)
-        double sleepScore = 70.0;
-        if (metric.getSleepScore() != null && metric.getSleepScore() > 0) {
-            sleepScore = metric.getSleepScore();
-        } else if (metric.getSleepDurationSeconds() != null && metric.getSleepDurationSeconds() > 0) {
-            double hours = metric.getSleepDurationSeconds() / 3600.0;
-            if (hours >= 7.5 && hours <= 9.0) {
-                sleepScore = 90.0;
-            } else if (hours >= 6.5) {
-                sleepScore = 75.0;
-            } else if (hours >= 5.5) {
-                sleepScore = 60.0;
-            } else {
-                sleepScore = 40.0;
-            }
-        }
+        double sleepScore = computeSleepScore(metric);
+        double bbScore = computeBodyBatteryScore(metric);
+        double hrvScore = computeHrvScore(metric);
+        double stressScore = computeStressScore(metric);
 
-        // 2. Body Battery Component (Weight: 30%)
-        double bbScore = 70.0;
-        if (metric.getBodyBatteryWake() != null && metric.getBodyBatteryWake() > 0) {
-            bbScore = metric.getBodyBatteryWake();
-        } else if (metric.getBodyBatteryMax() != null && metric.getBodyBatteryMax() > 0) {
-            bbScore = metric.getBodyBatteryMax();
-        }
-
-        // 3. HRV Component (Weight: 20%)
-        double hrvScore = 75.0;
-        if (metric.getHrvStatus() != null) {
-            String status = metric.getHrvStatus().toUpperCase();
-            if (status.contains("BALANCED") || status.contains("OPTIMAL")) {
-                hrvScore = 95.0;
-            } else if (status.contains("UNBALANCED")) {
-                hrvScore = 60.0;
-            } else if (status.contains("LOW") || status.contains("POOR")) {
-                hrvScore = 40.0;
-            }
-        } else if (metric.getHrvNightlyAvg() != null && metric.getHrvWeeklyAvg() != null && metric.getHrvWeeklyAvg() > 0) {
-            double ratio = metric.getHrvNightlyAvg() / metric.getHrvWeeklyAvg();
-            if (ratio >= 0.95) {
-                hrvScore = 90.0;
-            } else if (ratio >= 0.85) {
-                hrvScore = 70.0;
-            } else {
-                hrvScore = 45.0;
-            }
-        }
-
-        // 4. Stress Component (Weight: 15%)
-        double stressScore = 70.0;
-        if (metric.getAvgStressLevel() != null && metric.getAvgStressLevel() >= 0) {
-            stressScore = Math.max(0.0, Math.min(100.0, 100.0 - metric.getAvgStressLevel()));
-        }
-
-        // Calculate weighted sum
         double weighted = (0.35 * sleepScore) + (0.30 * bbScore) + (0.20 * hrvScore) + (0.15 * stressScore);
         int finalScore = (int) Math.round(Math.max(1.0, Math.min(100.0, weighted)));
 
-        String level;
-        String advice;
+        return toReadinessResult(finalScore);
+    }
 
-        if (finalScore >= 80) {
-            level = "OPTIMAL";
-            advice = "Recupero eccellente! Sistema nervoso e riserve energetiche al top. Giorno ideale per carichi pesanti, tentativi di PR o sessioni ad alto volume.";
-        } else if (finalScore >= 55) {
-            level = "MODERATE";
-            advice = "Recupero nella norma. Fisiologia stabile e buona disponibilità energetica: procedi con l'allenamento programmato mantenendo un RPE 7-8.";
-        } else {
-            level = "FATIGUED";
-            advice = "Segnali di affaticamento fisiologico (HRV ridotto o sonno non ottimale). Consigliata una sessione di scarico (deload), cardio Z1/Z2 o riposo attivo.";
+    private double computeSleepScore(DailyHealthMetric metric) {
+        if (metric.getSleepScore() != null && metric.getSleepScore() > 0) {
+            return metric.getSleepScore();
         }
+        if (metric.getSleepDurationSeconds() == null || metric.getSleepDurationSeconds() <= 0) {
+            return 70.0;
+        }
+        double hours = metric.getSleepDurationSeconds() / 3600.0;
+        if (hours >= 7.5 && hours <= 9.0) return 90.0;
+        if (hours >= 6.5) return 75.0;
+        if (hours >= 5.5) return 60.0;
+        return 40.0;
+    }
 
-        return new ReadinessResult(finalScore, level, advice);
+    private double computeBodyBatteryScore(DailyHealthMetric metric) {
+        if (metric.getBodyBatteryWake() != null && metric.getBodyBatteryWake() > 0) {
+            return metric.getBodyBatteryWake();
+        }
+        if (metric.getBodyBatteryMax() != null && metric.getBodyBatteryMax() > 0) {
+            return metric.getBodyBatteryMax();
+        }
+        return 70.0;
+    }
+
+    private double computeHrvScore(DailyHealthMetric metric) {
+        if (metric.getHrvStatus() != null) {
+            return scoreFromHrvStatus(metric.getHrvStatus());
+        }
+        if (metric.getHrvNightlyAvg() != null && metric.getHrvWeeklyAvg() != null && metric.getHrvWeeklyAvg() > 0) {
+            double ratio = metric.getHrvNightlyAvg() / metric.getHrvWeeklyAvg();
+            if (ratio >= 0.95) return 90.0;
+            if (ratio >= 0.85) return 70.0;
+            return 45.0;
+        }
+        return 75.0;
+    }
+
+    private double scoreFromHrvStatus(String rawStatus) {
+        String status = rawStatus.toUpperCase();
+        if (status.contains("BALANCED") || status.contains("OPTIMAL")) {
+            return 95.0;
+        }
+        if (status.contains("UNBALANCED")) {
+            return 60.0;
+        }
+        if (status.contains("LOW") || status.contains("POOR")) {
+            return 40.0;
+        }
+        return 75.0;
+    }
+
+    private double computeStressScore(DailyHealthMetric metric) {
+        if (metric.getAvgStressLevel() != null && metric.getAvgStressLevel() >= 0) {
+            return Math.max(0.0, Math.min(100.0, 100.0 - metric.getAvgStressLevel()));
+        }
+        return 70.0;
+    }
+
+    private ReadinessResult toReadinessResult(int finalScore) {
+        if (finalScore >= 80) {
+            return new ReadinessResult(
+                    finalScore,
+                    "OPTIMAL",
+                    "Recupero eccellente! Sistema nervoso e riserve energetiche al top. Giorno ideale per carichi pesanti, tentativi di PR o sessioni ad alto volume.");
+        }
+        if (finalScore >= 55) {
+            return new ReadinessResult(
+                    finalScore,
+                    "MODERATE",
+                    "Recupero nella norma. Fisiologia stabile e buona disponibilità energetica: procedi con l'allenamento programmato mantenendo un RPE 7-8.");
+        }
+        return new ReadinessResult(
+                finalScore,
+                "FATIGUED",
+                "Segnali di affaticamento fisiologico (HRV ridotto o sonno non ottimale). Consigliata una sessione di scarico (deload), cardio Z1/Z2 o riposo attivo.");
     }
 }

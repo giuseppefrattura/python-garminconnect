@@ -2,16 +2,28 @@ package it.giuseppefrattura.garminservice.security;
 
 import it.giuseppefrattura.garminservice.service.CustomMetricsService;
 import it.giuseppefrattura.garminservice.service.CustomUserDetailsService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.XXssProtectionHeaderWriter;
+import org.springframework.web.filter.OncePerRequestFilter;
 
+import java.io.IOException;
 import java.util.Optional;
 
 /**
@@ -20,6 +32,9 @@ import java.util.Optional;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final String LOGIN_URL = "/login";
+    private static final String LOGIN_FAILURE_URL = "/login?error=true";
 
     private static final String CSP_POLICY =
             "default-src 'self'; " +
@@ -37,32 +52,39 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
     private final MetricsAuthFilter metricsAuthFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final TotpAuthenticationProvider authenticationProvider;
     private final CustomMetricsService customMetricsService;
 
     public SecurityConfig(ApiKeyFilter apiKeyFilter,
                           RateLimitingFilter rateLimitingFilter,
                           MetricsAuthFilter metricsAuthFilter,
                           CustomUserDetailsService userDetailsService,
+                          TotpAuthenticationProvider authenticationProvider,
                           Optional<CustomMetricsService> customMetricsServiceOpt) {
         this.apiKeyFilter = apiKeyFilter;
         this.rateLimitingFilter = rateLimitingFilter;
         this.metricsAuthFilter = metricsAuthFilter;
         this.userDetailsService = userDetailsService;
+        this.authenticationProvider = authenticationProvider;
         this.customMetricsService = (customMetricsServiceOpt != null && customMetricsServiceOpt.isPresent())
                 ? customMetricsServiceOpt.get() : null;
     }
 
     @Bean
+    public AuthenticationManager authenticationManager() {
+        return new ProviderManager(authenticationProvider);
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
+
         http
+            .authenticationProvider(authenticationProvider)
             .csrf(csrf -> csrf
-                .ignoringRequestMatchers(
-                        "/api/**",
-                        "/actuator/**",
-                        "/login",
-                        "/logout"
-                )
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .csrfTokenRequestHandler(csrfRequestHandler)
+                .requireCsrfProtectionMatcher(apiKeyFilter::requiresCsrfProtection)
             )
             .headers(headers -> headers
                 .frameOptions(frame -> frame.deny())
@@ -83,10 +105,9 @@ public class SecurityConfig {
                 .sessionFixation(fixation -> fixation.migrateSession())
                 .maximumSessions(3)
             )
-            .userDetailsService(userDetailsService)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/login", "/login.html", "/favicon.png", "/favicon.ico",
+                    LOGIN_URL, "/login.html", "/favicon.png", "/favicon.ico",
                     "/manifest.webmanifest", "/sw.js", "/icons/**",
                     "/css/**", "/js/**", "/actuator/health", "/actuator/health/**", "/actuator/info",
                     "/actuator/prometheus"
@@ -94,9 +115,10 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
-                .loginPage("/login")
+                .authenticationDetailsSource(TotpAuthenticationProvider.Details::new)
+                .loginPage(LOGIN_URL)
                 .defaultSuccessUrl("/", true)
-                .failureUrl("/login?error=true")
+                .failureUrl(LOGIN_FAILURE_URL)
                 .successHandler((request, response, authentication) -> {
                     userDetailsService.handleSuccessfulLogin(authentication.getName());
                     response.sendRedirect("/");
@@ -109,28 +131,42 @@ public class SecurityConfig {
                     if (customMetricsService != null) {
                         customMetricsService.incrementLoginFailure();
                     }
-                    response.sendRedirect("/login?error=true");
+                    response.sendRedirect(LOGIN_FAILURE_URL);
                 })
                 .permitAll()
             )
-            .oauth2Login(oauth -> oauth
-                .loginPage("/login")
-                .defaultSuccessUrl("/", true)
-                .failureUrl("/login?error=true")
-            )
             .logout(logout -> logout
                 .logoutUrl("/logout")
-                .logoutSuccessUrl("/login")
+                .logoutSuccessUrl(LOGIN_URL)
                 .invalidateHttpSession(true)
                 .deleteCookies("JSESSIONID", "XSRF-TOKEN")
                 .permitAll()
             );
 
-        // Add rate limiting filter, API key filter, and metrics auth filter before UsernamePasswordAuthenticationFilter
+        // Add rate limiting filter, API key filter, metrics auth filter, and eager CSRF cookie filter
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(metricsAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Forces eager evaluation of the deferred Spring Security 6 CsrfToken so that
+     * the XSRF-TOKEN cookie is sent on initial GET responses (/login and /).
+     */
+    static final class CsrfCookieFilter extends OncePerRequestFilter {
+        @Override
+        protected void doFilterInternal(
+                @NonNull HttpServletRequest request,
+                @NonNull HttpServletResponse response,
+                @NonNull FilterChain filterChain) throws ServletException, IOException {
+            CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+            if (csrfToken != null) {
+                csrfToken.getToken();
+            }
+            filterChain.doFilter(request, response);
+        }
     }
 }

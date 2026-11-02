@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
-
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -65,71 +64,85 @@ public class RenphoProxyController {
             @NonNull HttpMethod method,
             HttpServletRequest request) {
 
-        String path = request.getRequestURI();
-        String targetUrl = renphoServiceUrl + (path != null ? path : "");
-        String queryString = request.getQueryString();
-        if (queryString != null && !queryString.isBlank()) {
-            targetUrl += "?" + queryString;
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        List<String> headerNames = Collections.list(request.getHeaderNames());
-        for (String headerName : headerNames) {
-            if (ALLOWED_REQUEST_HEADERS.contains(headerName.toLowerCase())) {
-                headers.add(headerName, request.getHeader(headerName));
-            }
-        }
-
+        String targetUrl = buildTargetUrl(request);
+        HttpHeaders headers = copyAllowedRequestHeaders(request);
         HttpEntity<byte[]> httpEntity = new HttpEntity<>(body, headers);
 
         try {
             ResponseEntity<byte[]> upstream = restTemplate.exchange(
                     targetUrl, method, httpEntity, byte[].class);
-            HttpHeaders filtered = new HttpHeaders();
-            upstream.getHeaders().forEach((name, values) -> {
-                if (name != null && ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase()) && values != null) {
-                    for (String val : values) {
-                        if (val != null) {
-                            filtered.add(name, val);
-                        }
-                    }
-                }
-            });
+            HttpHeaders filtered = filterAllowedResponseHeaders(upstream.getHeaders());
             return ResponseEntity.status(upstream.getStatusCode())
                     .headers(filtered)
                     .body(upstream.getBody());
         } catch (HttpStatusCodeException e) {
-            HttpHeaders responseHeaders = e.getResponseHeaders();
-            HttpHeaders filtered = new HttpHeaders();
-            if (responseHeaders != null) {
-                responseHeaders.forEach((name, values) -> {
-                    if (name != null && ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase()) && values != null) {
-                        for (String val : values) {
-                            if (val != null) {
-                                filtered.add(name, val);
-                            }
-                        }
-                    }
-                });
-            }
-            byte[] body0 = e.getResponseBodyAsByteArray();
-            if (body0 != null && body0.length > 0) {
-                return ResponseEntity.status(e.getStatusCode())
-                        .headers(filtered)
-                        .body(body0);
-            }
-            if (filtered.getContentType() == null) {
-                filtered.setContentType(MediaType.APPLICATION_JSON);
-            }
-            return ResponseEntity.status(e.getStatusCode())
-                    .headers(filtered)
-                    .body(writeErrorJson("Upstream Renpho error"));
+            return buildStatusExceptionResponse(e);
         } catch (Exception e) {
             log.warn("Renpho proxy failure: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .body(writeErrorJson("Renpho service is unavailable"));
         }
+    }
+
+    private String buildTargetUrl(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        String targetUrl = renphoServiceUrl + (path != null ? path : "");
+        String queryString = request.getQueryString();
+        if (queryString != null && !queryString.isBlank()) {
+            targetUrl += "?" + queryString;
+        }
+        return targetUrl;
+    }
+
+    private HttpHeaders copyAllowedRequestHeaders(HttpServletRequest request) {
+        HttpHeaders headers = new HttpHeaders();
+        if (request.getHeaderNames() == null) {
+            return headers;
+        }
+        List<String> headerNames = Collections.list(request.getHeaderNames());
+        for (String headerName : headerNames) {
+            if (ALLOWED_REQUEST_HEADERS.contains(headerName.toLowerCase())) {
+                headers.add(headerName, request.getHeader(headerName));
+            }
+        }
+        return headers;
+    }
+
+    private HttpHeaders filterAllowedResponseHeaders(HttpHeaders sourceHeaders) {
+        HttpHeaders filtered = new HttpHeaders();
+        if (sourceHeaders == null) {
+            return filtered;
+        }
+        sourceHeaders.forEach((name, values) -> copyAllowedHeaderValues(filtered, name, values));
+        return filtered;
+    }
+
+    private void copyAllowedHeaderValues(HttpHeaders target, String name, List<String> values) {
+        if (name == null || values == null || !ALLOWED_RESPONSE_HEADERS.contains(name.toLowerCase())) {
+            return;
+        }
+        for (String val : values) {
+            if (val != null) {
+                target.add(name, val);
+            }
+        }
+    }
+
+    private ResponseEntity<byte[]> buildStatusExceptionResponse(HttpStatusCodeException e) {
+        HttpHeaders filtered = filterAllowedResponseHeaders(e.getResponseHeaders());
+        byte[] body0 = e.getResponseBodyAsByteArray();
+        if (body0 != null && body0.length > 0) {
+            return ResponseEntity.status(e.getStatusCode())
+                    .headers(filtered)
+                    .body(body0);
+        }
+        if (filtered.getContentType() == null) {
+            filtered.setContentType(MediaType.APPLICATION_JSON);
+        }
+        return ResponseEntity.status(e.getStatusCode())
+                .headers(filtered)
+                .body(writeErrorJson("Upstream Renpho error"));
     }
 
     private byte[] writeErrorJson(String detail) {

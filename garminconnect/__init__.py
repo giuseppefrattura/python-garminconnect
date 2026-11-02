@@ -25,6 +25,10 @@ MAX_HYDRATION_ML = 10000  # 10 liters
 DATE_FORMAT_REGEX = r"^\d{4}-\d{2}-\d{2}$"
 DATE_FORMAT_STR = "%Y-%m-%d"
 VALID_WEIGHT_UNITS = {"kg", "lbs"}
+PYDANTIC_WORKOUT_ERROR = (
+    "Pydantic is required for typed workouts. "
+    "Install it with: pip install pydantic or pip install garminconnect[workout]"
+)
 
 
 # Add validation utilities
@@ -299,49 +303,46 @@ class Garmin:
         self.full_name = None
         self.unit_system = None
 
+    @staticmethod
+    def _extract_http_status(e: Exception) -> int | None:
+        if isinstance(e, GarthHTTPError):
+            return getattr(getattr(e.error, "response", None), "status_code", None)
+        return getattr(getattr(e, "response", None), "status_code", None)
+
+    @staticmethod
+    def _is_oauth_assertion_error(e: AssertionError) -> bool:
+        error_msg = str(e).lower()
+        return "oauth" in error_msg and ("oauth1" in error_msg or "oauth2" in error_msg)
+
+    @classmethod
+    def _raise_connectapi_http_error(cls, path: str, e: Exception) -> None:
+        status = cls._extract_http_status(e)
+        logger.exception(
+            "API call failed for path '%s': %s (status=%s)", path, e, status
+        )
+        if status == 401:
+            raise GarminConnectAuthenticationError(f"Authentication failed: {e}") from e
+        if status == 429:
+            raise GarminConnectTooManyRequestsError(f"Rate limit exceeded: {e}") from e
+        if status and 400 <= status < 500:
+            raise GarminConnectConnectionError(
+                f"API client error ({status}): {e}"
+            ) from e
+        raise GarminConnectConnectionError(f"HTTP error: {e}") from e
+
     def connectapi(self, path: str, **kwargs: Any) -> Any:
         """Wrapper for garth connectapi with error handling."""
         try:
             return self.garth.connectapi(path, **kwargs)
         except AssertionError as e:
-            # Handle Windows-specific OAuth token refresh issue
-            # This can occur when garth tries to refresh tokens during API calls
-            error_msg = str(e).lower()
-            if "oauth" in error_msg and (
-                "oauth1" in error_msg or "oauth2" in error_msg
-            ):
+            if self._is_oauth_assertion_error(e):
                 logger.exception("OAuth token refresh failed during API call.")
                 raise GarminConnectAuthenticationError(
                     f"Token refresh failed. Please re-authenticate. Original error: {e}"
                 ) from e
-            # Re-raise if it's a different AssertionError
             raise
         except (HTTPError, GarthHTTPError) as e:
-            # For GarthHTTPError, extract status from the wrapped HTTPError
-            if isinstance(e, GarthHTTPError):
-                status = getattr(
-                    getattr(e.error, "response", None), "status_code", None
-                )
-            else:
-                status = getattr(getattr(e, "response", None), "status_code", None)
-
-            logger.exception(
-                "API call failed for path '%s': %s (status=%s)", path, e, status
-            )
-            if status == 401:
-                raise GarminConnectAuthenticationError(
-                    f"Authentication failed: {e}"
-                ) from e
-            if status == 429:
-                raise GarminConnectTooManyRequestsError(
-                    f"Rate limit exceeded: {e}"
-                ) from e
-            if status and 400 <= status < 500:
-                # Client errors (400-499) - API endpoint issues, bad parameters, etc.
-                raise GarminConnectConnectionError(
-                    f"API client error ({status}): {e}"
-                ) from e
-            raise GarminConnectConnectionError(f"HTTP error: {e}") from e
+            self._raise_connectapi_http_error(path, e)
         except Exception as e:
             logger.exception("Connection error during connectapi path=%s", path)
             raise GarminConnectConnectionError(f"Connection error: {e}") from e
@@ -374,6 +375,82 @@ class Garmin:
             logger.exception("Download failed for path '%s'", path)
             raise GarminConnectConnectionError(f"Download error: {e}") from e
 
+    def _try_load_tokenstore(self, tokenstore: str | None) -> bool:
+        if not tokenstore:
+            return False
+        try:
+            if len(tokenstore) > 512:
+                self.garth.loads(tokenstore)
+            else:
+                tokenstore_path = Path(tokenstore).expanduser().resolve()
+                normalized_path = str(tokenstore_path)
+                logger.debug(f"Loading tokens from normalized path: {normalized_path}")
+                self.garth.load(normalized_path)
+            return True
+        except AssertionError as e:
+            if not self._is_oauth_assertion_error(e):
+                raise
+            logger.warning(
+                "Token refresh failed (OAuth token mismatch). "
+                "This may occur on Windows due to path or token file issues. "
+                "Re-authentication required."
+            )
+            if not self.username or not self.password:
+                raise GarminConnectAuthenticationError(
+                    "Stored tokens are invalid and credentials are required for re-authentication. "
+                    f"Original error: {e}"
+                ) from e
+            return False
+
+    def _ensure_profile_and_settings_loaded(self) -> None:
+        profile = getattr(self.garth, "profile", None)
+        if not profile:
+            try:
+                prof = self.garth.connectapi("/userprofile-service/userprofile/profile")
+            except Exception as e:
+                raise GarminConnectAuthenticationError(
+                    "Failed to retrieve profile"
+                ) from e
+            if not prof or not isinstance(prof, dict) or "displayName" not in prof:
+                raise GarminConnectAuthenticationError("Invalid profile data found")
+            self.display_name = prof.get("displayName")
+            self.full_name = prof.get("fullName")
+        elif isinstance(profile, dict):
+            self.display_name = profile.get("displayName")
+            self.full_name = profile.get("fullName")
+
+        settings = self.garth.connectapi(self.garmin_connect_user_settings_url)
+        if not settings:
+            raise GarminConnectAuthenticationError("Failed to retrieve user settings")
+        if not isinstance(settings, dict) or "userData" not in settings:
+            raise GarminConnectAuthenticationError("Invalid user settings found")
+        self.unit_system = settings["userData"].get("measurementSystem")
+
+    @staticmethod
+    def _handle_login_http_error(e: Exception) -> None:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        logger.exception("Login failed: %s (status=%s)", e, status)
+        if status == 401:
+            raise GarminConnectAuthenticationError(f"Authentication failed: {e}") from e
+        if status == 429:
+            raise GarminConnectTooManyRequestsError(f"Rate limit exceeded: {e}") from e
+        error_str = str(e).lower()
+        auth_indicators = ["401", "unauthorized", "authentication failed"]
+        if any(indicator in error_str for indicator in auth_indicators):
+            raise GarminConnectAuthenticationError(f"Authentication failed: {e}") from e
+        raise GarminConnectConnectionError(f"Login failed: {e}") from e
+
+    @staticmethod
+    def _handle_login_generic_error(e: Exception) -> None:
+        if isinstance(e, GarminConnectAuthenticationError):
+            raise e
+        error_str = str(e).lower()
+        auth_indicators = ["401", "unauthorized", "authentication", "login failed"]
+        if any(indicator in error_str for indicator in auth_indicators):
+            raise GarminConnectAuthenticationError(f"Authentication failed: {e}") from e
+        logger.exception("Login failed")
+        raise GarminConnectConnectionError(f"Login failed: {e}") from e
+
     def login(self, /, tokenstore: str | None = None) -> tuple[str | None, str | None]:
         """Log in using Garth.
 
@@ -387,153 +464,34 @@ class Garmin:
         try:
             token1 = None
             token2 = None
+            tokens_loaded = self._try_load_tokenstore(tokenstore)
 
-            # Try to load tokens from tokenstore if provided
-            tokens_loaded = False
-            if tokenstore:
-                try:
-                    if len(tokenstore) > 512:
-                        # Token data is provided directly as string (base64 encoded)
-                        self.garth.loads(tokenstore)
-                    else:
-                        # Tokenstore is a path - normalize it for cross-platform compatibility
-                        # This fixes Windows path issues where ~ expansion or path separators
-                        # might cause garth to not find all token files correctly
-                        tokenstore_path = Path(tokenstore).expanduser().resolve()
-                        # Convert to string with normalized path separators
-                        normalized_path = str(tokenstore_path)
-                        logger.debug(
-                            f"Loading tokens from normalized path: {normalized_path}"
-                        )
-                        self.garth.load(normalized_path)
-                    tokens_loaded = True
-                except AssertionError as e:
-                    # Handle Windows-specific OAuth token refresh issue
-                    # When garth tries to refresh OAuth2 tokens, it may fail with:
-                    # "AssertionError: OAuth1 token is required for OAuth2 refresh"
-                    # This can occur if token files are incomplete or path resolution failed
-                    error_msg = str(e).lower()
-                    if "oauth" in error_msg and (
-                        "oauth1" in error_msg or "oauth2" in error_msg
-                    ):
-                        logger.warning(
-                            "Token refresh failed (OAuth token mismatch). "
-                            "This may occur on Windows due to path or token file issues. "
-                            "Re-authentication required."
-                        )
-                        # Treat as invalid tokens - require re-authentication
-                        if not self.username or not self.password:
-                            raise GarminConnectAuthenticationError(
-                                "Stored tokens are invalid and credentials are required for re-authentication. "
-                                f"Original error: {e}"
-                            ) from e
-                        # Will fall through to credential-based login below
-                        tokens_loaded = False
-                    else:
-                        # Re-raise if it's a different AssertionError
-                        raise
-
-            # If tokens weren't loaded (or failed to load), use credentials
             if not tokens_loaded:
-                # Validate credentials before attempting login
                 if not self.username or not self.password:
                     raise GarminConnectAuthenticationError(
                         "Username and password are required"
                     )
-
                 if self.return_on_mfa:
-                    token1, token2 = self.garth.login(
+                    return self.garth.login(
                         self.username,
                         self.password,
                         return_on_mfa=self.return_on_mfa,
                     )
-                    # In MFA early-return mode, profile/settings are not loaded yet
-                    return token1, token2
                 token1, token2 = self.garth.login(
                     self.username,
                     self.password,
                     prompt_mfa=self.prompt_mfa,
                 )
-                # Continue to load profile/settings below
 
-            # Ensure profile is loaded (tokenstore path may not populate it)
-            if not getattr(self.garth, "profile", None):
-                try:
-                    prof = self.garth.connectapi(
-                        "/userprofile-service/userprofile/profile"
-                    )
-                except Exception as e:
-                    raise GarminConnectAuthenticationError(
-                        "Failed to retrieve profile"
-                    ) from e
-                if not prof or not isinstance(prof, dict) or "displayName" not in prof:
-                    raise GarminConnectAuthenticationError("Invalid profile data found")
-                # Use profile data directly since garth.profile is read-only
-                self.display_name = prof.get("displayName")
-                self.full_name = prof.get("fullName")
-            else:
-                profile = self.garth.profile
-                if isinstance(profile, dict):
-                    self.display_name = profile.get("displayName")
-                    self.full_name = profile.get("fullName")
-
-            settings = self.garth.connectapi(self.garmin_connect_user_settings_url)
-
-            if not settings:
-                raise GarminConnectAuthenticationError(
-                    "Failed to retrieve user settings"
-                )
-
-            if not isinstance(settings, dict) or "userData" not in settings:
-                raise GarminConnectAuthenticationError("Invalid user settings found")
-
-            self.unit_system = settings["userData"].get("measurementSystem")
-
+            self._ensure_profile_and_settings_loaded()
             return token1, token2
 
         except (HTTPError, requests.exceptions.HTTPError, GarthException) as e:
-            status = getattr(getattr(e, "response", None), "status_code", None)
-            logger.exception("Login failed: %s (status=%s)", e, status)
-
-            # Check status code first
-            if status == 401:
-                raise GarminConnectAuthenticationError(
-                    f"Authentication failed: {e}"
-                ) from e
-            if status == 429:
-                raise GarminConnectTooManyRequestsError(
-                    f"Rate limit exceeded: {e}"
-                ) from e
-
-            # If no status code, check error message for authentication indicators
-            error_str = str(e).lower()
-            auth_indicators = ["401", "unauthorized", "authentication failed"]
-            if any(indicator in error_str for indicator in auth_indicators):
-                raise GarminConnectAuthenticationError(
-                    f"Authentication failed: {e}"
-                ) from e
-
-            # Default to connection error
-            raise GarminConnectConnectionError(f"Login failed: {e}") from e
+            self._handle_login_http_error(e)
         except FileNotFoundError:
-            # Let FileNotFoundError pass through - this is expected when no tokens exist
             raise
         except Exception as e:
-            if isinstance(e, GarminConnectAuthenticationError):
-                raise
-            # Check if this is an authentication error based on the error message
-            error_str = str(
-                e
-            ).lower()  # Convert to lowercase for case-insensitive matching
-            auth_indicators = ["401", "unauthorized", "authentication", "login failed"]
-            is_auth_error = any(indicator in error_str for indicator in auth_indicators)
-
-            if is_auth_error:
-                raise GarminConnectAuthenticationError(
-                    f"Authentication failed: {e}"
-                ) from e
-            logger.exception("Login failed")
-            raise GarminConnectConnectionError(f"Login failed: {e}") from e
+            self._handle_login_generic_error(e)
 
     def resume_login(
         self, client_state: dict[str, Any], mfa_code: str
@@ -1078,6 +1036,59 @@ class Garmin:
 
         return self.connectapi(url)
 
+    def _get_latest_lactate_threshold(self) -> dict[str, Any]:
+        speed_and_heart_rate_url = (
+            f"{self.garmin_connect_biometric_url}/latestLactateThreshold"
+        )
+        power_url = f"{self.garmin_connect_biometric_url}/powerToWeight/latest/{date.today()}?sport=Running"
+
+        power = self.connectapi(power_url)
+        if isinstance(power, list) and power:
+            power_dict = power[0]
+        elif isinstance(power, dict):
+            power_dict = power
+        else:
+            power_dict = {}
+
+        speed_and_heart_rate = self.connectapi(speed_and_heart_rate_url)
+        speed_and_heart_rate_dict = {
+            "userProfilePK": None,
+            "version": None,
+            "calendarDate": None,
+            "sequence": None,
+            "speed": None,
+            "heartRate": None,
+            "heartRateCycling": None,
+        }
+
+        for entry in speed_and_heart_rate:
+            speed = entry.get("speed")
+            if speed is not None:
+                speed_and_heart_rate_dict["userProfilePK"] = entry["userProfilePK"]
+                speed_and_heart_rate_dict["version"] = entry["version"]
+                speed_and_heart_rate_dict["calendarDate"] = entry["calendarDate"]
+                speed_and_heart_rate_dict["sequence"] = entry["sequence"]
+                speed_and_heart_rate_dict["speed"] = speed
+
+            hr = entry.get("heartRate") or entry.get("hearRate")
+            if hr is not None:
+                speed_and_heart_rate_dict["heartRate"] = hr
+
+            hrc = entry.get("heartRateCycling")
+            if hrc is not None:
+                speed_and_heart_rate_dict["heartRateCycling"] = hrc
+
+        return {
+            "speed_and_heart_rate": speed_and_heart_rate_dict,
+            "power": power_dict,
+        }
+
+    @staticmethod
+    def _normalize_date_or_str(val: str | date, param_name: str) -> str:
+        if isinstance(val, date):
+            return val.isoformat()
+        return _validate_date_format(val, param_name)
+
     def get_lactate_threshold(
         self,
         *,
@@ -1094,88 +1105,72 @@ class Garmin:
         :param str (Optional) - aggregation: How to aggregate the data. Must be one of `daily`, `weekly`, `monthly`, `yearly`.
         """
         if latest:
-            speed_and_heart_rate_url = (
-                f"{self.garmin_connect_biometric_url}/latestLactateThreshold"
-            )
-            power_url = f"{self.garmin_connect_biometric_url}/powerToWeight/latest/{date.today()}?sport=Running"
-
-            power = self.connectapi(power_url)
-            if isinstance(power, list) and power:
-                power_dict = power[0]
-            elif isinstance(power, dict):
-                power_dict = power
-            else:
-                power_dict = {}
-
-            speed_and_heart_rate = self.connectapi(speed_and_heart_rate_url)
-
-            speed_and_heart_rate_dict = {
-                "userProfilePK": None,
-                "version": None,
-                "calendarDate": None,
-                "sequence": None,
-                "speed": None,
-                "heartRate": None,
-                "heartRateCycling": None,
-            }
-
-            # Garmin /latestLactateThreshold endpoint returns a list of two
-            # (or more, if cyclingHeartRate ever gets values) nearly identical dicts.
-            # We're combining them here
-            for entry in speed_and_heart_rate:
-                speed = entry.get("speed")
-                if speed is not None:
-                    speed_and_heart_rate_dict["userProfilePK"] = entry["userProfilePK"]
-                    speed_and_heart_rate_dict["version"] = entry["version"]
-                    speed_and_heart_rate_dict["calendarDate"] = entry["calendarDate"]
-                    speed_and_heart_rate_dict["sequence"] = entry["sequence"]
-                    speed_and_heart_rate_dict["speed"] = speed
-
-                # Prefer correct key; fall back to Garmin's historical typo ("hearRate")
-                hr = entry.get("heartRate") or entry.get("hearRate")
-                if hr is not None:
-                    speed_and_heart_rate_dict["heartRate"] = hr
-
-                # Doesn't exist for me but adding it just in case.  We'll check for each entry
-                hrc = entry.get("heartRateCycling")
-                if hrc is not None:
-                    speed_and_heart_rate_dict["heartRateCycling"] = hrc
-            return {
-                "speed_and_heart_rate": speed_and_heart_rate_dict,
-                "power": power_dict,
-            }
+            return self._get_latest_lactate_threshold()
 
         if start_date is None:
             raise ValueError("you must either specify 'latest=True' or a start_date")
 
-        if end_date is None:
-            end_date = date.today().isoformat()
-
-        # Normalize and validate
-        if isinstance(start_date, date):
-            start_date = start_date.isoformat()
-        else:
-            start_date = _validate_date_format(start_date, "start_date")
-        if isinstance(end_date, date):
-            end_date = end_date.isoformat()
-        else:
-            end_date = _validate_date_format(end_date, "end_date")
+        start_str = self._normalize_date_or_str(start_date, "start_date")
+        end_str = (
+            date.today().isoformat()
+            if end_date is None
+            else self._normalize_date_or_str(end_date, "end_date")
+        )
 
         _valid_aggregations = {"daily", "weekly", "monthly", "yearly"}
         if aggregation not in _valid_aggregations:
             raise ValueError(f"aggregation must be one of {_valid_aggregations}")
 
-        speed_url = f"{self.garmin_connect_biometric_stats_url}/lactateThresholdSpeed/range/{start_date}/{end_date}?sport=RUNNING&aggregation={aggregation}&aggregationStrategy=LATEST"
-
-        heart_rate_url = f"{self.garmin_connect_biometric_stats_url}/lactateThresholdHeartRate/range/{start_date}/{end_date}?sport=RUNNING&aggregation={aggregation}&aggregationStrategy=LATEST"
-
-        power_url = f"{self.garmin_connect_biometric_stats_url}/functionalThresholdPower/range/{start_date}/{end_date}?sport=RUNNING&aggregation={aggregation}&aggregationStrategy=LATEST"
+        query_suffix = (
+            f"{start_str}/{end_str}?sport=RUNNING"
+            f"&aggregation={aggregation}&aggregationStrategy=LATEST"
+        )
+        speed_url = f"{self.garmin_connect_biometric_stats_url}/lactateThresholdSpeed/range/{query_suffix}"
+        heart_rate_url = f"{self.garmin_connect_biometric_stats_url}/lactateThresholdHeartRate/range/{query_suffix}"
+        power_url = f"{self.garmin_connect_biometric_stats_url}/functionalThresholdPower/range/{query_suffix}"
 
         speed = self.connectapi(speed_url)
         heart_rate = self.connectapi(heart_rate_url)
         power = self.connectapi(power_url)
 
         return {"speed": speed, "heart_rate": heart_rate, "power": power}
+
+    @staticmethod
+    def _parse_hydration_timestamp(timestamp: str) -> datetime:
+        if not isinstance(timestamp, str):
+            raise ValueError("timestamp must be a string")
+        try:
+            try:
+                return datetime.fromisoformat(timestamp)
+            except ValueError:
+                return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S")
+        except ValueError as e:
+            raise ValueError("Invalid timestamp format (expected ISO 8601)") from e
+
+    @classmethod
+    def _resolve_hydration_date_and_ts(
+        cls, timestamp: str | None, cdate: str | None
+    ) -> tuple[str, str]:
+        if timestamp is None and cdate is None:
+            return str(date.today()), _fmt_ts(datetime.now())
+
+        if cdate is not None and timestamp is None:
+            validated_cdate = _validate_date_format(cdate, "cdate")
+            raw_ts = datetime.strptime(validated_cdate, DATE_FORMAT_STR)
+            return validated_cdate, _fmt_ts(raw_ts)
+
+        if cdate is None and timestamp is not None:
+            raw_ts = cls._parse_hydration_timestamp(timestamp)
+            return raw_ts.date().isoformat(), _fmt_ts(raw_ts)
+
+        validated_cdate = _validate_date_format(cdate, "cdate")  # type: ignore[arg-type]
+        raw_ts = cls._parse_hydration_timestamp(timestamp)  # type: ignore[arg-type]
+        ts_date = raw_ts.date().isoformat()
+        if ts_date != validated_cdate:
+            raise ValueError(
+                f"timestamp date ({ts_date}) doesn't match cdate ({validated_cdate})"
+            )
+        return validated_cdate, _fmt_ts(raw_ts)
 
     def add_hydration_data(
         self,
@@ -1188,67 +1183,22 @@ class Garmin:
         :param timestamp optional - timestamp: The timestamp of the hydration update, format 'YYYY-MM-DDThh:mm:ss.ms' Defaults to current timestamp
         :param date optional - cdate: The date of the weigh in, format 'YYYY-MM-DD'. Defaults to current date.
         """
-        # Validate inputs
         if not isinstance(value_in_ml, numbers.Real):
             raise ValueError("value_in_ml must be a number")
 
-        # Allow negative values for subtraction but validate reasonable range
         if abs(value_in_ml) > MAX_HYDRATION_ML:
             raise ValueError(
                 f"value_in_ml seems unreasonably high (>{MAX_HYDRATION_ML}ml)"
             )
 
         url = self.garmin_connect_set_hydration_url
-
-        if timestamp is None and cdate is None:
-            # If both are null, use today and now
-            raw_date = date.today()
-            cdate = str(raw_date)
-
-            raw_ts = datetime.now()
-            timestamp = _fmt_ts(raw_ts)
-
-        elif cdate is not None and timestamp is None:
-            # If cdate is provided, validate and use midnight local time
-            cdate = _validate_date_format(cdate, "cdate")
-            raw_ts = datetime.strptime(cdate, DATE_FORMAT_STR)  # midnight local
-            timestamp = _fmt_ts(raw_ts)
-
-        elif cdate is None and timestamp is not None:
-            # If timestamp is provided, normalize and set cdate to its date part
-            if not isinstance(timestamp, str):
-                raise ValueError("timestamp must be a string")
-            try:
-                try:
-                    raw_ts = datetime.fromisoformat(timestamp)
-                except ValueError:
-                    raw_ts = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S")
-                cdate = raw_ts.date().isoformat()
-                timestamp = _fmt_ts(raw_ts)
-            except ValueError as e:
-                raise ValueError("Invalid timestamp format (expected ISO 8601)") from e
-        else:
-            # Both provided - validate consistency and normalize
-            cdate = _validate_date_format(cdate, "cdate")
-            if not isinstance(timestamp, str):
-                raise ValueError("timestamp must be a string")
-            try:
-                try:
-                    raw_ts = datetime.fromisoformat(timestamp)
-                except ValueError:
-                    raw_ts = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S")
-                ts_date = raw_ts.date().isoformat()
-                if ts_date != cdate:
-                    raise ValueError(
-                        f"timestamp date ({ts_date}) doesn't match cdate ({cdate})"
-                    )
-                timestamp = _fmt_ts(raw_ts)
-            except ValueError:
-                raise
+        resolved_cdate, resolved_timestamp = self._resolve_hydration_date_and_ts(
+            timestamp, cdate
+        )
 
         payload = {
-            "calendarDate": cdate,
-            "timestampLocal": timestamp,
+            "calendarDate": resolved_cdate,
+            "timestampLocal": resolved_timestamp,
             "valueInML": value_in_ml,
         }
 
@@ -2392,10 +2342,7 @@ class Garmin:
                 raise TypeError("workout must be a RunningWorkout instance")
             return self.upload_workout(workout.to_dict())
         except ImportError:
-            raise ImportError(
-                "Pydantic is required for typed workouts. "
-                "Install it with: pip install pydantic or pip install garminconnect[workout]"
-            ) from None
+            raise ImportError(PYDANTIC_WORKOUT_ERROR) from None
 
     def upload_cycling_workout(self, workout: Any) -> dict[str, Any]:
         """Upload a typed cycling workout.
@@ -2430,10 +2377,7 @@ class Garmin:
                 raise TypeError("workout must be a CyclingWorkout instance")
             return self.upload_workout(workout.to_dict())
         except ImportError:
-            raise ImportError(
-                "Pydantic is required for typed workouts. "
-                "Install it with: pip install pydantic or pip install garminconnect[workout]"
-            ) from None
+            raise ImportError(PYDANTIC_WORKOUT_ERROR) from None
 
     def upload_swimming_workout(self, workout: Any) -> dict[str, Any]:
         """Upload a typed swimming workout.
@@ -2452,10 +2396,7 @@ class Garmin:
                 raise TypeError("workout must be a SwimmingWorkout instance")
             return self.upload_workout(workout.to_dict())
         except ImportError:
-            raise ImportError(
-                "Pydantic is required for typed workouts. "
-                "Install it with: pip install pydantic or pip install garminconnect[workout]"
-            ) from None
+            raise ImportError(PYDANTIC_WORKOUT_ERROR) from None
 
     def upload_walking_workout(self, workout: Any) -> dict[str, Any]:
         """Upload a typed walking workout.
@@ -2474,10 +2415,7 @@ class Garmin:
                 raise TypeError("workout must be a WalkingWorkout instance")
             return self.upload_workout(workout.to_dict())
         except ImportError:
-            raise ImportError(
-                "Pydantic is required for typed workouts. "
-                "Install it with: pip install pydantic or pip install garminconnect[workout]"
-            ) from None
+            raise ImportError(PYDANTIC_WORKOUT_ERROR) from None
 
     def upload_hiking_workout(self, workout: Any) -> dict[str, Any]:
         """Upload a typed hiking workout.
@@ -2496,10 +2434,7 @@ class Garmin:
                 raise TypeError("workout must be a HikingWorkout instance")
             return self.upload_workout(workout.to_dict())
         except ImportError:
-            raise ImportError(
-                "Pydantic is required for typed workouts. "
-                "Install it with: pip install pydantic or pip install garminconnect[workout]"
-            ) from None
+            raise ImportError(PYDANTIC_WORKOUT_ERROR) from None
 
     def get_scheduled_workout_by_id(
         self, scheduled_workout_id: int | str

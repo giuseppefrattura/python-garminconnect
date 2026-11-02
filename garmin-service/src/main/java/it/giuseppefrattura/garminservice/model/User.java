@@ -27,6 +27,9 @@ public class User {
     @Column(name = "totp_secret", length = 64)
     private String totpSecret;
 
+    @Column(name = "totp_algorithm", nullable = false, length = 10)
+    private String totpAlgorithm = "SHA1";
+
     @Column(name = "totp_enabled", nullable = false)
     private boolean totpEnabled = false;
 
@@ -95,6 +98,10 @@ public class User {
     public void setTotpSecret(String totpSecret) {
         this.totpSecret = totpSecret;
     }
+
+    public String getTotpAlgorithm() { return totpAlgorithm; }
+
+    public void setTotpAlgorithm(String totpAlgorithm) { this.totpAlgorithm = totpAlgorithm; }
 
     public boolean isTotpEnabled() {
         return totpEnabled;

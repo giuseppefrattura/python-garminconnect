@@ -116,18 +116,18 @@ def test_spo2_data(garmin: garminconnect.Garmin) -> None:
     assert "averageSpO2" in spo2_data
 
 
-@pytest.mark.vcr
-def test_hrv_data(garmin: garminconnect.Garmin) -> None:
-    garmin.login()
-    hrv_data = garmin.get_hrv_data(DATE)
-    # HRV data might not be available for all dates (API returns 204 No Content)
-    if hrv_data is not None:
-        # If data exists, validate the structure
-        assert "hrvSummary" in hrv_data
-        assert "weeklyAvg" in hrv_data["hrvSummary"]
-    else:
-        # If no data, that's also a valid response (204 No Content)
-        assert hrv_data is None
+@pytest.mark.parametrize("response", [{"hrvSummary": {"weeklyAvg": 50}}, None])
+def test_hrv_data(monkeypatch: pytest.MonkeyPatch, response: dict | None) -> None:
+    # The old VCR cassette contains no HRV response. Test both supported results
+    # without recording private health data from a live account.
+    client = garminconnect.Garmin("email@example.org", "password")
+    paths = []
+    def fake_connectapi(path: str) -> dict | None:
+        paths.append(path)
+        return response
+    monkeypatch.setattr(client, "connectapi", fake_connectapi)
+    assert client.get_hrv_data(DATE) == response
+    assert paths == [f"/hrv-service/hrv/{DATE}"]
 
 
 @pytest.mark.vcr

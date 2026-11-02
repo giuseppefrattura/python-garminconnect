@@ -67,6 +67,15 @@ class TestAuthenticate:
         with pytest.raises(RuntimeError, match="Garmin authentication failed"):
             mod._authenticate()
 
+    @patch.object(mod, "Garmin")
+    def test_authentication_logs_do_not_expose_exception_details(self, MockGarmin, caplog):
+        MockGarmin.return_value.login.side_effect = GarminConnectAuthenticationError("private-token-123")
+        with pytest.raises(RuntimeError):
+            mod._authenticate()
+        assert "GarminConnectAuthenticationError" in caplog.text
+        assert "private-token-123" not in caplog.text
+        assert "Traceback" in caplog.text
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # _call_with_reauth
@@ -175,6 +184,13 @@ class TestCallWithReauth:
 # Endpoint integration tests (via TestClient)
 # ──────────────────────────────────────────────────────────────────────────────
 class TestEndpoints:
+    def test_openapi_documents_503_only_for_affected_routes(self):
+        schema = mod.app.openapi()
+        paths = schema["paths"]
+        assert "503" not in paths["/health"]["get"]["responses"]
+        assert "503" in paths["/api/activities"]["get"]["responses"]
+        assert "503" in paths["/api/cache/clear"]["post"]["responses"]
+
 
     @patch.object(mod, "Garmin")
     def test_health_shows_auth_status(self, MockGarmin):

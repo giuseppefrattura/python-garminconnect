@@ -87,128 +87,113 @@ def create_table_if_not_exists(conn):
         conn.rollback()
         sys.exit(1)
 
+def _upsert_run_hr_zones(db_conn, activity_id, activity_name: str, run_tuple: tuple) -> bool:
+    try:
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO running_hr_zones
+                (activity_id, activity_name, run_date, run_time,
+                 zone_1_mins, zone_2_mins, zone_3_mins, zone_4_mins, zone_5_mins)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (activity_id) DO UPDATE SET
+                activity_name = EXCLUDED.activity_name,
+                zone_1_mins = EXCLUDED.zone_1_mins,
+                zone_2_mins = EXCLUDED.zone_2_mins,
+                zone_3_mins = EXCLUDED.zone_3_mins,
+                zone_4_mins = EXCLUDED.zone_4_mins,
+                zone_5_mins = EXCLUDED.zone_5_mins;
+                """,
+                (activity_id, activity_name, *run_tuple),
+            )
+        db_conn.commit()
+        print("  ✅ Saved/Updated in PostgreSQL.")
+        return True
+    except Exception as e:
+        print(f"  ❌ Error inserting into database: {e}")
+        db_conn.rollback()
+        return False
+
+
+def _process_single_run(api: Garmin, db_conn, activity: dict) -> bool:
+    activity_id = activity.get("activityId")
+    activity_name = activity.get("activityName", "Unknown")
+    start_time_local = activity.get("startTimeLocal", "")
+
+    print(f"\n- Processing run: {activity_name} (ID: {activity_id})")
+
+    if not start_time_local:
+        print("  ⚠️ No start time found. Skipping.")
+        return False
+
+    try:
+        dt = datetime.datetime.strptime(start_time_local, "%Y-%m-%d %H:%M:%S")
+        run_date, run_time = dt.date(), dt.time()
+    except ValueError:
+        print(f"  ⚠️ Could not parse start time '{start_time_local}'. Skipping.")
+        return False
+
+    try:
+        hr_zones_data = api.get_activity_hr_in_timezones(activity_id)
+        if not hr_zones_data or not isinstance(hr_zones_data, list):
+            print(f"  ⚠️ Could not fetch HR zones for {activity_name} (No compatible data)")
+            return False
+
+        zones_mins = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
+        for zone_info in hr_zones_data:
+            zone_number = zone_info.get("zoneNumber")
+            if zone_number in zones_mins:
+                zones_mins[zone_number] = zone_info.get("secsInZone", 0) / 60.0
+
+        run_tuple = (
+            run_date,
+            run_time,
+            round(zones_mins[1], 2),
+            round(zones_mins[2], 2),
+            round(zones_mins[3], 2),
+            round(zones_mins[4], 2),
+            round(zones_mins[5], 2),
+        )
+        print(f"  ✅ Data tuple created: {run_tuple}")
+        return _upsert_run_hr_zones(db_conn, activity_id, activity_name, run_tuple)
+    except Exception as e:
+        print(f"  ⚠️ Error fetching HR zones for {activity_name}: {e}")
+        return False
+
+
 def main():
-    # 1. Connessione al DB e setup tabella
     db_conn = connect_db()
     create_table_if_not_exists(db_conn)
     print("✅ Connected to PostgreSQL and verified table exists.")
 
-    # 2. Setup Garmin API
     api = init_api()
     if not api:
         sys.exit(1)
-        
+
     today = datetime.date.today()
     start_date = today - timedelta(days=10)
-    
     start_str = start_date.isoformat()
     end_str = today.isoformat()
-    
+
     print(f"\n🏃 Fetching running activities from {start_str} to {end_str}...")
-    
+
     try:
         activities = api.get_activities_by_date(start_str, end_str, "running")
     except Exception as e:
         print(f"❌ Error fetching activities: {e}")
         sys.exit(1)
-        
+
     if not activities:
         print("No running activities found in the last 10 days.")
         sys.exit(0)
-        
+
     print(f"Found {len(activities)} running activities. Processing HR zones...\n")
-    
-    inserted_count = 0
 
-    for activity in activities:
-        activity_id = activity.get("activityId")
-        activity_name = activity.get("activityName", "Unknown")
-        start_time_local = activity.get("startTimeLocal", "")
-        
-        print(f"\n- Processing run: {activity_name} (ID: {activity_id})")
-        
-        if not start_time_local:
-            print("  ⚠️ No start time found. Skipping.")
-            continue
-            
-        try:
-            # Parse datetime string like "2024-03-01 10:20:30"
-            dt = datetime.datetime.strptime(start_time_local, "%Y-%m-%d %H:%M:%S")
-            run_date = dt.date()
-            run_time = dt.time()
-        except ValueError:
-            print(f"  ⚠️ Could not parse start time '{start_time_local}'. Skipping.")
-            continue
-            
-        try:
-            hr_zones_data = api.get_activity_hr_in_timezones(activity_id)
-            
-            # Initialize zone minutes
-            zones_mins = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
-            
-            if hr_zones_data and isinstance(hr_zones_data, list):
-                for zone_info in hr_zones_data:
-                    zone_number = zone_info.get("zoneNumber")
-                    secs_in_zone = zone_info.get("secsInZone", 0)
-                    
-                    if zone_number in zones_mins:
-                        zones_mins[zone_number] = secs_in_zone / 60.0
-                        
-                # Create the tuple as requested
-                # (date, time, z1, z2, z3, z4, z5)
-                run_tuple = (
-                    run_date,
-                    run_time,
-                    round(zones_mins[1], 2),
-                    round(zones_mins[2], 2),
-                    round(zones_mins[3], 2),
-                    round(zones_mins[4], 2),
-                    round(zones_mins[5], 2)
-                )
-                
-                print(f"  ✅ Data tuple created: {run_tuple}")
-                
-                # Insert into PostgreSQL (using UPSERT to update if activity_id already exists)
-                try:
-                    with db_conn.cursor() as cur:
-                        cur.execute("""
-                            INSERT INTO running_hr_zones 
-                            (activity_id, activity_name, run_date, run_time, 
-                             zone_1_mins, zone_2_mins, zone_3_mins, zone_4_mins, zone_5_mins)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (activity_id) DO UPDATE SET
-                            activity_name = EXCLUDED.activity_name,
-                            zone_1_mins = EXCLUDED.zone_1_mins,
-                            zone_2_mins = EXCLUDED.zone_2_mins,
-                            zone_3_mins = EXCLUDED.zone_3_mins,
-                            zone_4_mins = EXCLUDED.zone_4_mins,
-                            zone_5_mins = EXCLUDED.zone_5_mins;
-                        """, (
-                            activity_id,
-                            activity_name,
-                            run_tuple[0],
-                            run_tuple[1],
-                            run_tuple[2],
-                            run_tuple[3],
-                            run_tuple[4],
-                            run_tuple[5],
-                            run_tuple[6]
-                        ))
-                    db_conn.commit()
-                    print(f"  ✅ Saved/Updated in PostgreSQL.")
-                    inserted_count += 1
-                except Exception as e:
-                    print(f"  ❌ Error inserting into database: {e}")
-                    db_conn.rollback()
+    inserted_count = sum(1 for activity in activities if _process_single_run(api, db_conn, activity))
 
-            else:
-                 print(f"  ⚠️ Could not fetch HR zones for {activity_name} (No compatible data)")
-        except Exception as e:
-             print(f"  ⚠️ Error fetching HR zones for {activity_name}: {e}")
-             
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print(f"✅ Process completed. Saved/updated {inserted_count} runs to PostgreSQL.")
-    print("="*50)
+    print("=" * 50)
 
     db_conn.close()
 

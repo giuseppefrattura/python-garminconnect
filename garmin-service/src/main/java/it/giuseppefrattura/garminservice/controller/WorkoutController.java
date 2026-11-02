@@ -22,6 +22,9 @@ import java.util.List;
 @RequestMapping("/api")
 public class WorkoutController {
 
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_DETAIL = "detail";
+
     private final StrengthWorkoutService service;
     private final int defaultLimit;
 
@@ -87,11 +90,11 @@ public class WorkoutController {
             @RequestParam(value = "applyToAllSimilar", required = false, defaultValue = "false") Boolean applyToAllSimilar) {
         try {
             service.updateSetDetails(setId, customName, muscleGroup, weightKg, reps, applyToAllSimilar);
-            return ResponseEntity.ok(Map.of("status", "success", "detail", "Set details updated successfully"));
+            return ResponseEntity.ok(Map.of(KEY_STATUS, "success", KEY_DETAIL, "Set details updated successfully"));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(400).body(Map.of("status", "error", "detail", e.getMessage()));
+            return ResponseEntity.status(400).body(Map.of(KEY_STATUS, "error", KEY_DETAIL, e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("status", "error", "detail", "Failed to update set details: " + e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(KEY_STATUS, "error", KEY_DETAIL, "Failed to update set details: " + e.getMessage()));
         }
     }
 
@@ -103,7 +106,7 @@ public class WorkoutController {
             @RequestParam(value = "limit", required = false) Integer limit) {
         int count = service.syncStrengthWorkouts(limit != null ? limit : defaultLimit);
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, "success",
                 "message", "Strength workouts synchronization completed",
                 "syncedCount", count
         ));

@@ -274,6 +274,9 @@ class HikingWorkout(BaseWorkout):
 
 
 # Helper functions for creating common workout steps
+NO_TARGET_KEY = "no.target"
+
+
 def create_warmup_step(
     duration_seconds: float,
     step_order: int = 1,
@@ -297,7 +300,7 @@ def create_warmup_step(
         targetType=target_type
         or {
             "workoutTargetTypeId": TargetType.NO_TARGET,
-            "workoutTargetTypeKey": "no.target",
+            "workoutTargetTypeKey": NO_TARGET_KEY,
             "displayOrder": 1,
         },
     )
@@ -326,7 +329,7 @@ def create_interval_step(
         targetType=target_type
         or {
             "workoutTargetTypeId": TargetType.NO_TARGET,
-            "workoutTargetTypeKey": "no.target",
+            "workoutTargetTypeKey": NO_TARGET_KEY,
             "displayOrder": 1,
         },
     )
@@ -355,7 +358,7 @@ def create_recovery_step(
         targetType=target_type
         or {
             "workoutTargetTypeId": TargetType.NO_TARGET,
-            "workoutTargetTypeKey": "no.target",
+            "workoutTargetTypeKey": NO_TARGET_KEY,
             "displayOrder": 1,
         },
     )
@@ -384,7 +387,7 @@ def create_cooldown_step(
         targetType=target_type
         or {
             "workoutTargetTypeId": TargetType.NO_TARGET,
-            "workoutTargetTypeKey": "no.target",
+            "workoutTargetTypeKey": NO_TARGET_KEY,
             "displayOrder": 1,
         },
     )

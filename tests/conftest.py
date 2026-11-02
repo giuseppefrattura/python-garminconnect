@@ -42,6 +42,12 @@ def scrub_dates(response: Any) -> Any:
 
 
 def sanitize_request(request: Any) -> Any:
+    # Match the sanitized displayName returned by recorded profile responses.
+    request.uri = re.sub(
+        r"(/(?:usersummary-service/usersummary/daily|wellness-service/wellness/(?:dailyHeartRate|dailySummaryChart))/)[^/?]+",
+        r"\1SANITIZED",
+        request.uri,
+    )
     if request.body:
         try:
             body = request.body.decode("utf8")

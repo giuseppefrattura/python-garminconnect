@@ -22,6 +22,9 @@ import java.util.Optional;
 @RequestMapping("/api/health")
 public class GarminHealthController {
 
+    private static final String KEY_STATUS = "status";
+    private static final String STATUS_SUCCESS = "success";
+
     private final DailyHealthMetricRepository healthRepository;
     private final GarminHealthSyncService healthSyncService;
     private final ReadinessCalculationService readinessService;
@@ -75,7 +78,7 @@ public class GarminHealthController {
         }
 
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, STATUS_SUCCESS,
                 "data", data
         ));
     }
@@ -87,8 +90,8 @@ public class GarminHealthController {
     public ResponseEntity<Map<String, Object>> getDailyHealth(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Optional<DailyHealthMetric> metric = healthRepository.findByMetricDate(date);
-        return metric.map(m -> ResponseEntity.ok(Map.of("status", "success", "data", (Object) m)))
-                .orElseGet(() -> ResponseEntity.ok(Map.of("status", "not_found", "message", "No health data for " + date)));
+        return metric.map(m -> ResponseEntity.ok(Map.of(KEY_STATUS, STATUS_SUCCESS, "data", (Object) m)))
+                .orElseGet(() -> ResponseEntity.ok(Map.of(KEY_STATUS, "not_found", "message", "No health data for " + date)));
     }
 
     /**
@@ -102,7 +105,7 @@ public class GarminHealthController {
 
         List<DailyHealthMetric> list = healthRepository.findByMetricDateBetweenOrderByMetricDateAsc(start, end);
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+                KEY_STATUS, STATUS_SUCCESS,
                 "totalDays", list.size(),
                 "data", list
         ));

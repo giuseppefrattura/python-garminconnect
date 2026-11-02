@@ -155,7 +155,6 @@ Environment variables are wired through `.env` → `docker-compose.yml`.
 | `RENPHO_SERVICE_URL` | `http://renpho-service:8082` | renpho-service base URL |
 | `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` | `localhost` / `5432` / `garmin` / `postgres` / `postgres` | PostgreSQL |
 | `DASHBOARD_USER` / `DASHBOARD_PASSWORD` | `admin` / `admin` | Form login credentials |
-| `GOOGLE_CLIENT_ID`/`SECRET`, `APPLE_CLIENT_ID`/`SECRET` | placeholders | OAuth2 login |
 | `HR_ZONES_DEFAULT_DAYS` | `10` | Default lookback for HR zone queries |
 | `WORKOUTS_SEARCH_LIMIT` | `30` | Default activity search window for strength |
 

@@ -123,9 +123,10 @@ def init_db():
                     cur.execute("ALTER TABLE renpho_measurements ADD COLUMN bmr INTEGER;")
                 conn.commit()
             logger.info("Database schema validated/created successfully.")
-        except Exception as e:
+        except Exception as exc:
             conn.rollback()
-            logger.error(f"Failed to initialize database schema: {e}")
+            logger.exception("Failed to initialize database schema (%s)", type(exc).__name__,
+                             exc_info=(RuntimeError, RuntimeError("Database initialization error"), exc.__traceback__))
             raise
 
 
@@ -193,7 +194,8 @@ def sync_renpho() -> dict:
             return {"status": "success", "syncedCount": new_records_count, "totalCount": len(measurements)}
 
     except Exception as e:
-        logger.error(f"An error occurred during Renpho synchronization: {e}", exc_info=True)
+        logger.exception("An error occurred during Renpho synchronization (%s)", type(e).__name__,
+                         exc_info=(RuntimeError, RuntimeError("Renpho synchronization error"), e.__traceback__))
         return {"status": "error", "detail": str(e)}
 
 
@@ -211,8 +213,9 @@ async def daily_sync_loop():
                 logger.info("Executing scheduled background Renpho sync...")
                 res = await asyncio.to_thread(sync_renpho)
                 logger.info(f"Scheduled sync outcome: {res}")
-        except Exception as e:
-            logger.error(f"Error executing background sync task: {e}")
+        except Exception as exc:
+            logger.exception("Error executing background sync task (%s)", type(exc).__name__,
+                             exc_info=(RuntimeError, RuntimeError("Background sync error"), exc.__traceback__))
 
         logger.info(f"Scheduled sync sleep sequence starting. Next sync in {SYNC_INTERVAL_SECONDS}s.")
         await asyncio.sleep(SYNC_INTERVAL_SECONDS)
@@ -278,7 +281,8 @@ async def get_measurements():
                 records = cur.fetchall()
                 return records
     except Exception as e:
-        logger.error(f"Failed to fetch measurements: {e}")
+        logger.exception("Failed to fetch measurements (%s)", type(e).__name__,
+                         exc_info=(RuntimeError, RuntimeError("Database query error"), e.__traceback__))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database query error: {str(e)}",

@@ -30,6 +30,8 @@ public class BiometricsAnalyticsService {
     private final PersonalRecordService personalRecordService;
     private final StrengthWorkoutRepository workoutRepository;
 
+    private record BodyCompositionSnapshot(Double weightKg, Double bodyFatPct, Double ffmKg) {}
+
     public BiometricsAnalyticsService(
             @Value("${garmin.renpho.url:http://renpho-service:8082}") String renphoServiceUrl,
             PersonalRecordService personalRecordService,
@@ -77,51 +79,58 @@ public class BiometricsAnalyticsService {
      * Calculate Relative Strength indices (1RM / Body Weight, 1RM / FFM) for key exercises.
      */
     public Map<String, Object> getRelativeStrengthOverview() {
-        List<Map<String, Object>> measurements = getRenphoMeasurements();
-        Double latestWeight = null;
-        Double latestBodyFat = null;
-        Double latestFfm = null;
-
-        if (!measurements.isEmpty()) {
-            // Measurements are typically sorted desc by date
-            Map<String, Object> latest = measurements.get(0);
-            if (latest.get("weight") instanceof Number w) latestWeight = w.doubleValue();
-            if (latest.get("bodyfat") instanceof Number bf) latestBodyFat = bf.doubleValue();
-
-            if (latestWeight != null && latestBodyFat != null) {
-                latestFfm = latestWeight * (1.0 - (latestBodyFat / 100.0));
-            }
-        }
-
+        BodyCompositionSnapshot snapshot = extractLatestBodyComposition(getRenphoMeasurements());
         List<PersonalRecordService.TrophyCardDTO> trophyCards = personalRecordService.getTrophyRoomCards();
         List<Map<String, Object>> relativeCards = new ArrayList<>();
 
         for (PersonalRecordService.TrophyCardDTO card : trophyCards) {
-            Double est1Rm = card.getEstimated1RmKg();
-            if (est1Rm == null || est1Rm <= 0) continue;
-
-            Double ratioBw = (latestWeight != null && latestWeight > 0) ? (est1Rm / latestWeight) : null;
-            Double ratioFfm = (latestFfm != null && latestFfm > 0) ? (est1Rm / latestFfm) : null;
-
-            Map<String, Object> item = new HashMap<>();
-            item.put("exerciseName", card.getExerciseName());
-            item.put("muscleGroup", card.getMuscleGroup());
-            item.put("estimated1RmKg", est1Rm);
-            item.put("maxWeightKg", card.getMaxWeightKg());
-            item.put("maxWeightReps", card.getMaxWeightReps());
-            item.put("relativeToBw", ratioBw != null ? Math.round(ratioBw * 100.0) / 100.0 : null);
-            item.put("relativeToFfm", ratioFfm != null ? Math.round(ratioFfm * 100.0) / 100.0 : null);
-
-            relativeCards.add(item);
+            Map<String, Object> item = toRelativeStrengthItem(card, snapshot);
+            if (item != null) {
+                relativeCards.add(item);
+            }
         }
 
         return Map.of(
                 "status", "success",
-                "currentWeightKg", latestWeight != null ? latestWeight : 0.0,
-                "currentBodyFatPct", latestBodyFat != null ? latestBodyFat : 0.0,
-                "currentFfmKg", latestFfm != null ? Math.round(latestFfm * 10.0) / 10.0 : 0.0,
+                "currentWeightKg", snapshot.weightKg() != null ? snapshot.weightKg() : 0.0,
+                "currentBodyFatPct", snapshot.bodyFatPct() != null ? snapshot.bodyFatPct() : 0.0,
+                "currentFfmKg", snapshot.ffmKg() != null ? Math.round(snapshot.ffmKg() * 10.0) / 10.0 : 0.0,
                 "exercises", relativeCards
         );
+    }
+
+    private BodyCompositionSnapshot extractLatestBodyComposition(List<Map<String, Object>> measurements) {
+        if (measurements.isEmpty()) {
+            return new BodyCompositionSnapshot(null, null, null);
+        }
+        Map<String, Object> latest = measurements.get(0);
+        Double weight = latest.get("weight") instanceof Number w ? w.doubleValue() : null;
+        Double bodyFat = latest.get("bodyfat") instanceof Number bf ? bf.doubleValue() : null;
+        Double ffm = (weight != null && bodyFat != null) ? weight * (1.0 - (bodyFat / 100.0)) : null;
+        return new BodyCompositionSnapshot(weight, bodyFat, ffm);
+    }
+
+    private Map<String, Object> toRelativeStrengthItem(PersonalRecordService.TrophyCardDTO card, BodyCompositionSnapshot snapshot) {
+        Double est1Rm = card.getEstimated1RmKg();
+        if (est1Rm == null || est1Rm <= 0) {
+            return null;
+        }
+        Map<String, Object> item = new HashMap<>();
+        item.put("exerciseName", card.getExerciseName());
+        item.put("muscleGroup", card.getMuscleGroup());
+        item.put("estimated1RmKg", est1Rm);
+        item.put("maxWeightKg", card.getMaxWeightKg());
+        item.put("maxWeightReps", card.getMaxWeightReps());
+        item.put("relativeToBw", computeRatio(est1Rm, snapshot.weightKg()));
+        item.put("relativeToFfm", computeRatio(est1Rm, snapshot.ffmKg()));
+        return item;
+    }
+
+    private static Double computeRatio(double numerator, Double denominator) {
+        if (denominator == null || denominator <= 0) {
+            return null;
+        }
+        return Math.round((numerator / denominator) * 100.0) / 100.0;
     }
 
     /**

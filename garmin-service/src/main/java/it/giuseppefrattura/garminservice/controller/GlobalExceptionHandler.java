@@ -24,6 +24,9 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String KEY_STATUS = "status";
+    private static final String KEY_DETAIL = "detail";
+    private static final String STATUS_ERROR = "error";
 
     @ExceptionHandler(ResourceAccessException.class)
     public ResponseEntity<Map<String, Object>> handleProxyUnreachable(ResourceAccessException ex) {
@@ -31,8 +34,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(Map.of(
-                        "status", "error",
-                        "detail", "Garmin proxy is unreachable. Please try again later."
+                        KEY_STATUS, STATUS_ERROR,
+                        KEY_DETAIL, "Garmin proxy is unreachable. Please try again later."
                 ));
     }
 
@@ -42,8 +45,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_GATEWAY)
                 .body(Map.of(
-                        "status", "error",
-                        "detail", "Upstream Garmin proxy request failed. Please try again later."
+                        KEY_STATUS, STATUS_ERROR,
+                        KEY_DETAIL, "Upstream Garmin proxy request failed. Please try again later."
                 ));
     }
 
@@ -53,8 +56,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of(
-                        "status", "error",
-                        "detail", "An unexpected error occurred. Please contact support."
+                        KEY_STATUS, STATUS_ERROR,
+                        KEY_DETAIL, "An unexpected error occurred. Please contact support."
                 ));
     }
 }

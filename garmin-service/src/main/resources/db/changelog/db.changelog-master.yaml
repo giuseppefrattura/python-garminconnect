@@ -17,4 +17,6 @@ databaseChangeLog:
       file: db/changelog/migrations/008-create-users-table.yaml
   - include:
       file: db/changelog/migrations/009-create-sync-audit-logs-table.yaml
+  - include:
+      file: db/changelog/migrations/010-add-totp-algorithm.yaml
 

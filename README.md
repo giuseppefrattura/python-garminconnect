@@ -77,7 +77,7 @@ flowchart TD
         DB[(🐘 PostgreSQL Database)]
     end
 
-    Browser -->|HTTP / OAuth2 / Web UI| GS
+    Browser -->|HTTP / Web UI| GS
     GS -->|REST Client + Retry| GP
     GS -->|REST Proxy / Dati Peso| RS
     GS -->|Liquibase & JPA| DB
@@ -101,7 +101,7 @@ flowchart TD
   - Serve la Web UI e le API REST.
   - Gestisce le migrazioni del database con **Liquibase**.
   - Si connette a `garmin-proxy` con meccanismo di retry esponenziale (`@Retryable`).
-  - Gestisce la sicurezza con autenticazione via Form (Admin) e **OAuth2 Social Login (Google & Apple)**.
+  - Gestisce l'autenticazione locale via form, con TOTP quando attivato.
 
 ### 3. `renpho-service` (Porta `8082`)
 - **Linguaggio & Framework**: Python 3.12 / FastAPI / Uvicorn.
@@ -131,7 +131,7 @@ python-garminconnect/
 │       ├── java/it/giuseppefrattura/garminservice/
 │       │   ├── controller/        # REST Endpoints
 │       │   ├── service/           # Logica di business (Forza, Corsa, Mappature)
-│       │   ├── security/          # Configurazione Spring Security & OAuth2
+│       │   ├── security/          # Configurazione Spring Security
 │       │   ├── repository/        # Spring Data JPA Repositories
 │       │   └── model/             # Entità JPA
 │       └── resources/
@@ -168,12 +168,6 @@ DB_PASSWORD=tua_password_postgres
 # --- Credenziali Dashboard (Form Login) ---
 DASHBOARD_USER=admin
 DASHBOARD_PASSWORD=tua_password_admin
-
-# --- OAuth2 Login (Opzionale) ---
-GOOGLE_CLIENT_ID=tuo-google-client-id
-GOOGLE_CLIENT_SECRET=tuo-google-client-secret
-APPLE_CLIENT_ID=tuo-apple-client-id
-APPLE_CLIENT_SECRET=tuo-apple-client-secret
 
 # --- Credenziali Renpho Health (Opzionale) ---
 RENPHO_EMAIL=tua_email@renpho.com
@@ -264,7 +258,8 @@ I microservizi espongono endpoint RESTful documentati via OpenAPI/Swagger.
 - **Comunicazione Inter-Service**: La comunicazione tra `garmin-service` e `garmin-proxy` è protetta tramite header `X-API-KEY`.
 - **Autenticazione Dashboard**:
   - **Form Login**: Accesso protetto con credenziali configurabili (`DASHBOARD_USER` / `DASHBOARD_PASSWORD`).
-  - **OAuth2 Social Login**: Integrazione opzionale per login con account Google o Apple.
+  - **TOTP**: se attivato per l'account, il codice dell'app Authenticator è richiesto al login. Il social login è disattivato.
+- **Aggiornamento accesso**: dopo l'aggiornamento, un utente che aveva già attivato la 2FA deve inserire il codice Authenticator per accedere. Le registrazioni esistenti mantengono SHA1; le nuove usano SHA1 salvo configurazione esplicita `security.totp.algorithm=SHA256`, supportata dalle app Authenticator che permettono di scegliere tale algoritmo. Il cambio viene registrato per ogni account e la migrazione Liquibase aggiunge la relativa colonna al database.
 - **Protezione Dati Personali**: Le sessioni e i token Garmin non contengono password in chiaro ma token OAuth crittografati gestiti in volumi protetti.
 
 ---

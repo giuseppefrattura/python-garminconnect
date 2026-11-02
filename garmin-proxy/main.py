@@ -84,6 +84,11 @@ _cache = InMemoryCache(ttl_seconds=3600)
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+DESC_BYPASS_CACHE = "Bypass cache and force refresh"
+DESC_DATE_YYYY_MM_DD = "Date (YYYY-MM-DD)"
+DESC_SERVICE_UNAVAILABLE = "API authentication or Garmin Connect authentication unavailable"
+LOG_CACHE_HIT = "Cache hit for key: %s"
+
 
 def verify_api_key(api_key: str = Security(api_key_header)):
     """Verify X-API-Key header against GARMIN_API_KEY env var.
@@ -142,7 +147,10 @@ def _authenticate(force: bool = False) -> Garmin:
         GarminConnectAuthenticationError,
         GarminConnectConnectionError,
     ) as exc:
-        log.error("Garmin authentication failed: %s", exc)
+        # Tracebacks help diagnosis, but upstream exception messages may contain
+        # request URLs or other account data. Do not log the original message.
+        log.exception("Garmin authentication failed (%s)", type(exc).__name__,
+                      exc_info=(RuntimeError, RuntimeError("Upstream authentication error"), exc.__traceback__))
         raise RuntimeError(
             "Garmin authentication failed. Run demo.py first to store tokens."
         ) from exc
@@ -236,18 +244,19 @@ async def health():
     summary="List recent activities",
     tags=["Activities"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_activities(
     start: int = Query(0, description="Start index"),
     limit: int = Query(30, description="Max activities to return"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return a list of recent activities from Garmin Connect."""
     cache_key = f"activities:{start}:{limit}"
     if not bypass_cache:
         cached_val = _cache.get(cache_key)
         if cached_val is not None:
-            log.info("Cache hit for key: %s", cache_key)
+            log.info(LOG_CACHE_HIT, cache_key)
             return cached_val
 
     val = _call_with_reauth(lambda api: api.get_activities(start, limit))
@@ -260,19 +269,20 @@ async def get_activities(
     summary="Activities by date range",
     tags=["Activities"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_activities_by_date(
     start: str = Query(..., description="Start date (YYYY-MM-DD)"),
     end: str = Query(..., description="End date (YYYY-MM-DD)"),
     activity_type: str = Query("", description="Activity type filter (e.g. 'running')"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return activities within a date range, optionally filtered by type."""
     cache_key = f"activities_by_date:{start}:{end}:{activity_type}"
     if not bypass_cache:
         cached_val = _cache.get(cache_key)
         if cached_val is not None:
-            log.info("Cache hit for key: %s", cache_key)
+            log.info(LOG_CACHE_HIT, cache_key)
             return cached_val
 
     val = _call_with_reauth(
@@ -287,17 +297,18 @@ async def get_activities_by_date(
     summary="Exercise sets for an activity",
     tags=["Activities"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_exercise_sets(
     activity_id: int,
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return exercise set details (sets, reps, weight) for a given activity."""
     cache_key = f"exercise_sets:{activity_id}"
     if not bypass_cache:
         cached_val = _cache.get(cache_key)
         if cached_val is not None:
-            log.info("Cache hit for key: %s", cache_key)
+            log.info(LOG_CACHE_HIT, cache_key)
             return cached_val
 
     val = _call_with_reauth(lambda api: api.get_activity_exercise_sets(activity_id))
@@ -310,17 +321,18 @@ async def get_exercise_sets(
     summary="HR zones for an activity",
     tags=["Activities"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_hr_zones(
     activity_id: int,
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return heart-rate zone time breakdown for a given activity."""
     cache_key = f"hr_zones:{activity_id}"
     if not bypass_cache:
         cached_val = _cache.get(cache_key)
         if cached_val is not None:
-            log.info("Cache hit for key: %s", cache_key)
+            log.info(LOG_CACHE_HIT, cache_key)
             return cached_val
 
     val = _call_with_reauth(lambda api: api.get_activity_hr_in_timezones(activity_id))
@@ -333,17 +345,18 @@ async def get_hr_zones(
     summary="Daily aggregated health and recovery data",
     tags=["Health"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_daily_health_summary(
-    date: str = Query(..., description="Date (YYYY-MM-DD)"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    date: str = Query(..., description=DESC_DATE_YYYY_MM_DD),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return aggregated sleep, body battery, HRV, and stress data for a specific date."""
     cache_key = f"daily_health_summary:{date}"
     if not bypass_cache:
         cached_val = _cache.get(cache_key)
         if cached_val is not None:
-            log.info("Cache hit for key: %s", cache_key)
+            log.info(LOG_CACHE_HIT, cache_key)
             return cached_val
 
     def _fetch_all(api: Garmin):
@@ -381,10 +394,11 @@ async def get_daily_health_summary(
     summary="Sleep data for a date",
     tags=["Health"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_sleep_data(
-    date: str = Query(..., description="Date (YYYY-MM-DD)"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    date: str = Query(..., description=DESC_DATE_YYYY_MM_DD),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return detailed sleep data and sleep stages for a date."""
     cache_key = f"sleep:{date}"
@@ -403,10 +417,11 @@ async def get_sleep_data(
     summary="Body Battery for a date",
     tags=["Health"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_body_battery(
-    date: str = Query(..., description="Date (YYYY-MM-DD)"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    date: str = Query(..., description=DESC_DATE_YYYY_MM_DD),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return Body Battery timeline and events for a date."""
     cache_key = f"body_battery:{date}"
@@ -425,10 +440,11 @@ async def get_body_battery(
     summary="HRV status and nightly data",
     tags=["Health"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_hrv_data(
-    date: str = Query(..., description="Date (YYYY-MM-DD)"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    date: str = Query(..., description=DESC_DATE_YYYY_MM_DD),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return Heart Rate Variability (HRV) metrics and baseline for a date."""
     cache_key = f"hrv:{date}"
@@ -447,10 +463,11 @@ async def get_hrv_data(
     summary="All-day stress data",
     tags=["Health"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": DESC_SERVICE_UNAVAILABLE}},
 )
 async def get_stress_data(
-    date: str = Query(..., description="Date (YYYY-MM-DD)"),
-    bypass_cache: bool = Query(False, description="Bypass cache and force refresh"),
+    date: str = Query(..., description=DESC_DATE_YYYY_MM_DD),
+    bypass_cache: bool = Query(False, description=DESC_BYPASS_CACHE),
 ):
     """Return all-day stress breakdown and metrics for a date."""
     cache_key = f"stress:{date}"
@@ -469,6 +486,7 @@ async def get_stress_data(
     summary="Clear the in-memory cache",
     tags=["System"],
     dependencies=[Security(verify_api_key)],
+    responses={503: {"description": "API authentication is not configured"}},
 )
 async def clear_cache():
     """Clear all cached entries."""

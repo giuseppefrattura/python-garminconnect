@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-add-totp-algorithm
+      author: codex
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: totp_algorithm
+                  type: VARCHAR(10)
+                  defaultValue: SHA1
+                  constraints:
+                    nullable: false

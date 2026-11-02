@@ -99,25 +99,7 @@ public class GarminProxyClient {
     public List<ActivityDto> getActivitiesByDate(String startDate, String endDate, String activityType) {
         log.debug("Fetching activities by date ({} to {}, type={})", startDate, endDate, activityType);
         if (personalEnabled()) {
-            List<ActivityDto> all = new ArrayList<>();
-            int offset = 0;
-            int pageSize = 100;
-            while (true) {
-                final int pageStart = offset;
-                List<ActivityDto> page = personalClient.get().uri(builder -> {
-                    var uri = builder.path("/activitylist-service/activities/search/activities")
-                            .queryParam("start", pageStart).queryParam("limit", pageSize)
-                            .queryParam("startDate", startDate).queryParam("endDate", endDate);
-                    if (activityType != null && !activityType.isBlank()) uri.queryParam("activityType", activityType);
-                    return uri.build();
-                }).headers(h -> h.setBearerAuth(personalToken()))
-                        .retrieve().body(new ParameterizedTypeReference<>() {});
-                if (page == null || page.isEmpty()) break;
-                all.addAll(page);
-                if (page.size() < pageSize) break;
-                offset += page.size();
-            }
-            return all;
+            return fetchPersonalActivitiesByDate(startDate, endDate, activityType);
         }
         List<ActivityDto> result = restClient.get()
                 .uri("/api/activities/by-date?start={start}&end={end}&activity_type={type}",
@@ -125,6 +107,37 @@ public class GarminProxyClient {
                 .retrieve()
                 .body(new ParameterizedTypeReference<>() {});
         return result != null ? result : Collections.emptyList();
+    }
+
+    private List<ActivityDto> fetchPersonalActivitiesByDate(String startDate, String endDate, String activityType) {
+        List<ActivityDto> all = new ArrayList<>();
+        int offset = 0;
+        int pageSize = 100;
+        while (true) {
+            List<ActivityDto> page = fetchPersonalActivitiesPage(offset, pageSize, startDate, endDate, activityType);
+            if (page == null || page.isEmpty()) {
+                break;
+            }
+            all.addAll(page);
+            if (page.size() < pageSize) {
+                break;
+            }
+            offset += page.size();
+        }
+        return all;
+    }
+
+    private List<ActivityDto> fetchPersonalActivitiesPage(int pageStart, int pageSize, String startDate, String endDate, String activityType) {
+        return personalClient.get().uri(builder -> {
+            var uri = builder.path("/activitylist-service/activities/search/activities")
+                    .queryParam("start", pageStart).queryParam("limit", pageSize)
+                    .queryParam("startDate", startDate).queryParam("endDate", endDate);
+            if (activityType != null && !activityType.isBlank()) {
+                uri.queryParam("activityType", activityType);
+            }
+            return uri.build();
+        }).headers(h -> h.setBearerAuth(personalToken()))
+                .retrieve().body(new ParameterizedTypeReference<>() {});
     }
 
     /**

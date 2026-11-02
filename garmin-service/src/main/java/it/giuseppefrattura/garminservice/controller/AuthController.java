@@ -19,6 +19,11 @@ import java.util.Optional;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private static final String KEY_ERROR = "error";
+    private static final String KEY_SUCCESS = "success";
+    private static final String KEY_MESSAGE = "message";
+    private static final String MSG_UNAUTHENTICATED = "Non autenticato";
+
     private final CustomUserDetailsService userDetailsService;
     private final TotpService totpService;
 
@@ -28,7 +33,7 @@ public class AuthController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<?> getAuthStatus() {
+    public ResponseEntity<Map<String, Object>> getAuthStatus() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getName())) {
             return ResponseEntity.ok(Map.of("authenticated", false));
@@ -56,10 +61,10 @@ public class AuthController {
     }
 
     @PostMapping("/2fa/setup")
-    public ResponseEntity<?> setup2Fa() {
+    public ResponseEntity<Map<String, Object>> setup2Fa() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Non autenticato"));
+            return ResponseEntity.status(401).body(Map.of(KEY_ERROR, MSG_UNAUTHENTICATED));
         }
 
         String username = auth.getName();
@@ -68,15 +73,16 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of(
                 "secret", newSecret,
-                "qrUri", qrUri
+                "qrUri", qrUri,
+                "algorithm", totpService.getEnrollmentAlgorithm()
         ));
     }
 
     @PostMapping("/2fa/enable")
-    public ResponseEntity<?> enable2Fa(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, Object>> enable2Fa(@RequestBody Map<String, String> payload) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Non autenticato"));
+            return ResponseEntity.status(401).body(Map.of(KEY_ERROR, MSG_UNAUTHENTICATED));
         }
 
         String username = auth.getName();
@@ -85,8 +91,8 @@ public class AuthController {
 
         if (secret == null || code == null || !totpService.verifyCode(secret, code)) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Codice di verifica non valido. Assicurati che l'orario del telefono sia sincronizzato."
+                    KEY_SUCCESS, false,
+                    KEY_MESSAGE, "Codice di verifica non valido. Assicurati che l'orario del telefono sia sincronizzato."
             ));
         }
 
@@ -96,21 +102,26 @@ public class AuthController {
         }
 
         User user = optUser.get();
+        if (user.isTotpEnabled()) {
+            return ResponseEntity.badRequest().body(Map.of(KEY_SUCCESS, false,
+                    KEY_MESSAGE, "Disattiva prima la 2FA con il codice esistente."));
+        }
         user.setTotpSecret(secret);
+        user.setTotpAlgorithm(totpService.getEnrollmentAlgorithm());
         user.setTotpEnabled(true);
         userDetailsService.saveUser(user);
 
         return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Autenticazione a due fattori (2FA) attivata con successo!"
+                KEY_SUCCESS, true,
+                KEY_MESSAGE, "Autenticazione a due fattori (2FA) attivata con successo!"
         ));
     }
 
     @PostMapping("/2fa/disable")
-    public ResponseEntity<?> disable2Fa(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, Object>> disable2Fa(@RequestBody Map<String, String> payload) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Non autenticato"));
+            return ResponseEntity.status(401).body(Map.of(KEY_ERROR, MSG_UNAUTHENTICATED));
         }
 
         String username = auth.getName();
@@ -121,14 +132,14 @@ public class AuthController {
 
         User user = optUser.get();
         if (!user.isTotpEnabled()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "2FA non attiva"));
+            return ResponseEntity.badRequest().body(Map.of(KEY_MESSAGE, "2FA non attiva"));
         }
 
         String code = payload.get("code");
-        if (code == null || !totpService.verifyCode(user.getTotpSecret(), code)) {
+        if (code == null || !totpService.verifyCode(user.getTotpSecret(), code, user.getTotpAlgorithm())) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Codice OTP non valido. Impossibile disattivare la 2FA."
+                    KEY_SUCCESS, false,
+                    KEY_MESSAGE, "Codice OTP non valido. Impossibile disattivare la 2FA."
             ));
         }
 
@@ -137,8 +148,8 @@ public class AuthController {
         userDetailsService.saveUser(user);
 
         return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Autenticazione a due fattori disattivata."
+                KEY_SUCCESS, true,
+                KEY_MESSAGE, "Autenticazione a due fattori disattivata."
         ));
     }
 }
